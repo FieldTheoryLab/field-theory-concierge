@@ -5,7 +5,7 @@ function ftc_detect_intent($term){
     $q = strtolower($term);
     $map = [
         'portfolio' => ['portfolio','work','projects','case studies','examples','built','websites you','show me your work','see your work'],
-        'contact' => ['contact','call','email','talk','meeting','hire','work with','get started','discovery'],
+        'contact' => ['contact','contact us','call','email','talk','meeting','hire','work with','get started','discovery','schedule','book'],
         'websites' => ['website','web design','web development','wordpress','drupal','ux','user experience'],
         'analytics' => ['analytics','data','dashboard','ga4','google analytics','reporting','looker','measurement'],
         'ai' => ['ai','automation','chatgpt','artificial intelligence','agents','workflow'],
@@ -46,12 +46,12 @@ add_action('wp_ajax_nopriv_ftc_answer', 'ftc_ajax_answer');
 function ftc_ajax_menu(){
     check_ajax_referer('ftc_nonce', 'nonce');
     $items = [
-        'Portfolio' => 'Show me your work',
-        'Services' => 'What services do you offer?',
-        'About' => 'Tell me about your company',
-        'Analytics' => 'Help me understand my website and marketing data',
-        'AI Automation' => 'Can you help us with AI automation?',
-        'Contact' => 'How can I work with Field Theory?',
+        'Show me your work!' => 'Show me your work',
+        'What services do you offer?' => 'What services do you offer?',
+        'Tell me about Field Theory' => 'Tell me about Field Theory',
+        'Help me understand my data' => 'Help me understand my website and marketing data',
+        'Can you help with AI automation?' => 'Can you help us with AI automation?',
+        'How can I work with Field Theory?' => 'How can I work with Field Theory?',
     ];
     ob_start();
     echo '<div class="ftc-explore-list">';
@@ -95,10 +95,12 @@ function ftc_render_portfolio_masonry(){
 
 function ftc_render_services_panel(){
     $services = [
-        ['Web Technology','Websites, UX, WordPress, Drupal, performance, accessibility, and integrations.'],
-        ['Digital Marketing','SEO, campaigns, content, conversion strategy, and visibility planning.'],
-        ['Analytics','GA4, dashboards, reporting, tracking, and data storytelling.'],
-        ['AI Automation','AI assistants, workflows, knowledge tools, and operational automation.'],
+        ['Web Technology','Websites, UX, WordPress, Drupal, performance, accessibility, integrations, and modern digital infrastructure.'],
+        ['Digital Marketing','SEO, content strategy, campaigns, conversion planning, AI visibility, and better customer journeys.'],
+        ['Analytics','GA4, dashboards, reporting, tracking plans, KPIs, and data storytelling for smarter decisions.'],
+        ['AI Automation','AI assistants, workflow automation, internal knowledge tools, lead support, and practical team adoption.'],
+        ['UX & Content','Information architecture, messaging, page strategy, and interfaces that help people understand what to do next.'],
+        ['Growth Systems','Connecting website, data, marketing, and automation into an operating system for growth.'],
     ];
     echo '<div class="ftc-section-label">How We Help</div><div class="ftc-service-grid">';
     foreach ($services as $s) echo '<div class="ftc-service-card"><strong>' . esc_html($s[0]) . '</strong><p>' . esc_html($s[1]) . '</p></div>';

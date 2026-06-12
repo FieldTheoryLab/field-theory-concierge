@@ -3,7 +3,7 @@
  * Plugin Name: Field Theory Concierge
  * Plugin URI: https://fieldtheory.ai
  * Description: A polished conversational concierge experience for Field Theory Lab with portfolio, services, contact, prompt routing, and editable responses.
- * Version: 2.3.0
+ * Version: 2.4.3
  * Author: Jamie Rushad Gros
  * Author URI: https://fieldtheory.ai
  * Text Domain: field-theory-concierge
@@ -11,7 +11,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('FTC_VERSION', '2.3.0');
+define('FTC_VERSION', '2.4.3');
 define('FTC_PATH', plugin_dir_path(__FILE__));
 define('FTC_URL', plugin_dir_url(__FILE__));
 

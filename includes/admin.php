@@ -15,7 +15,7 @@ add_action('admin_head','ftc_admin_style');
 function ftc_admin_page(){
     if (isset($_POST['ftc_save_settings']) && check_admin_referer('ftc_save_settings')){
         $settings = ftc_get_settings();
-        foreach (['dark_logo','light_logo','icon_logo','tagline','descriptor','name_prompt','input_placeholder'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
+        foreach (['dark_logo','light_logo','icon_logo','tagline','descriptor','name_prompt','input_placeholder','demo_video_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
         update_option('ftc_settings',$settings);
         echo '<div class="updated"><p>Settings saved.</p></div>';
     }
@@ -26,7 +26,7 @@ function ftc_admin_page(){
     <form method="post"><div class="ftc-admin-card"><h2>Brand & Intro</h2><?php wp_nonce_field('ftc_save_settings'); ?>
     <div class="ftc-admin-grid">
     <?php foreach ([
-        'dark_logo'=>'Dark Mode Logo URL','light_logo'=>'Light Mode Logo URL','icon_logo'=>'Icon Logo URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder'
+        'dark_logo'=>'Dark Mode Logo URL','light_logo'=>'Light Mode Logo URL','icon_logo'=>'Icon Logo URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder','demo_video_url'=>'Intro / Welcome Video URL'
     ] as $key=>$label): ?>
         <p><label><strong><?php echo esc_html($label); ?></strong></label><br><input type="text" name="<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($s[$key] ?? ''); ?>"></p>
     <?php endforeach; ?>

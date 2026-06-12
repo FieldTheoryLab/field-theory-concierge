@@ -9,7 +9,8 @@ function ftc_default_settings(){
         'tagline' => 'Turn Data Into Growth',
         'descriptor' => 'Web Technology • Analytics • AI Automation • Digital Marketing',
         'name_prompt' => 'What should I call you?',
-        'input_placeholder' => 'Ask about websites, marketing, analytics, AI, or our work...',
+        'input_placeholder' => 'Ask Field Theory anything...',
+        'demo_video_url' => FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
         'contact_email' => 'hello@fieldtheory.ai',
         'contact_phone' => '',
         'contact_url' => 'https://fieldtheory.ai/contact/',
@@ -34,7 +35,7 @@ function ftc_default_responses(){
         ],
         'services' => [
             'title' => 'How We Help',
-            'html' => '<p>Most clients come to us because something feels disconnected: the website is underperforming, the analytics are unclear, marketing feels fragmented, or AI feels promising but hard to implement.</p><div class="ftc-feature-grid"><div><strong>Web Technology</strong><span>Websites, UX, WordPress, Drupal, and digital platforms.</span></div><div><strong>Digital Marketing</strong><span>SEO, content, campaigns, and conversion strategy.</span></div><div><strong>Analytics</strong><span>Dashboards, tracking, reporting, and decision support.</span></div><div><strong>AI Automation</strong><span>Workflows, knowledge tools, lead support, and internal systems.</span></div></div>',
+            'html' => '<p><strong>We help businesses connect their website, marketing, analytics, and digital tools into one clearer growth system.</strong></p><p>Most clients come to us because something feels disconnected: the site is not explaining the business well, marketing is not measurable enough, analytics are messy, or AI feels interesting but hard to turn into something practical.</p><p>Field Theory brings strategy, UX, development, analytics, content, SEO, and automation together so your digital presence becomes easier to understand, easier to improve, and easier to measure.</p><div class="ftc-feature-grid"><div><strong>Clarify</strong><span>Audit the website, analytics, marketing, and customer journey.</span></div><div><strong>Build</strong><span>Create better websites, landing pages, dashboards, and digital tools.</span></div><div><strong>Measure</strong><span>Set up GA4, reporting, KPIs, and decision-ready dashboards.</span></div><div><strong>Grow</strong><span>Improve visibility, conversion, campaigns, and AI-supported workflows.</span></div></div>',
             'layout' => 'services',
             'followups' => ['Show me your work','Tell me about AI automation','Help me understand my data']
         ],
