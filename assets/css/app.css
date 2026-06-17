@@ -1,1189 +1,3055 @@
-:root {
-    --ftc-dark: #101214;
-    --ftc-dark-2: #15181c;
-    --ftc-dark-3: #1c2026;
-    --ftc-light: #f1eee8;
-    --ftc-light-2: #faf8f2;
-    --ftc-ink: #f5f2ea;
-    --ftc-muted: #a6abb2;
-    --ftc-text: #222;
-    --ftc-line: rgba(255,255,255,.12);
-    --ftc-line-strong: rgba(255,255,255,.22);
-    --ftc-line-light: rgba(0,0,0,.12);
-    --ftc-yellow: #f3d352;
-    --ftc-blue: #17477f;
-    --ftc-radius: 24px;
-    --ftc-app-width: 1280px;
-    --ftc-font: "Montserrat",sans-serif;
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+:root{
+  --ftc-black:#101010;
+  --ftc-panel:#202020;
+  --ftc-white:#f5f2ea;
+  --ftc-light:#f4f1ea;
+  --ftc-yellow:#ffd94d;
+  --ftc-blue:#397cf6;
+  --ftc-red:#ff4b32;
+  --ftc-green:#35db4f;
+  --ftc-font:'Montserrat',Arial,sans-serif;
 }
 
-/* Scope reset: keep Hello Elementor from repainting this UI */
+html,body{margin:0!important;padding:0!important;background:#101010!important;overflow-x:hidden!important}
+.ftc-app,.ftc-app *,.ftc-app *::before,.ftc-app *::after{box-sizing:border-box}
+.ftc-app button,.ftc-app input{font-family:var(--ftc-font)!important}
+.ftc-app button{cursor:pointer}
+.ftc-app img,.ftc-app video{max-width:100%;height:auto}
+.ftc-app a,.ftc-app button,.ftc-app input{outline:none!important;box-shadow:none!important;text-decoration:none!important}
+
+.ftc-app{
+  --ftc-gutter:clamp(32px,5vw,96px);
+  --ftc-header-h:94px;
+  --ftc-dock-h:178px;
+  position:relative;
+  width:100%;
+  height:100dvh;
+  min-height:720px;
+  overflow:hidden;
+  isolation:isolate;
+  color:var(--ftc-white);
+  background:#101010;
+  font-family:var(--ftc-font);
+  color-scheme:dark;
+}
+.ftc-app[data-theme="light"]{color:#151515;background:var(--ftc-light);color-scheme:light}
+.ftc-bg{position:absolute;inset:0;z-index:-3;background:#101010 var(--ftc-bg-url) center/cover no-repeat}
+.ftc-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 44%,rgba(0,0,0,.08),rgba(0,0,0,.42) 55%,rgba(0,0,0,.82) 88%)}
+.ftc-app[data-theme="light"] .ftc-bg{background:#f4f1ea;background-image:linear-gradient(rgba(0,0,0,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.035) 1px,transparent 1px);background-size:22px 22px}
+.ftc-app[data-theme="light"] .ftc-bg::after{background:radial-gradient(circle at 50% 34%,rgba(255,255,255,.18),rgba(244,241,234,.76) 64%,rgba(244,241,234,.98))}
+
+.ftc-app::before,.ftc-app::after{content:"";position:absolute;left:0;right:0;z-index:40;pointer-events:none}
+.ftc-app::before{top:0;height:92px;background:linear-gradient(to bottom,rgba(16,16,16,.92),rgba(16,16,16,.42) 60%,rgba(16,16,16,0))}
+.ftc-app::after{bottom:0;height:126px;background:linear-gradient(to top,rgba(16,16,16,.96),rgba(16,16,16,.52) 60%,rgba(16,16,16,0))}
+.ftc-app[data-theme="light"]::before{background:linear-gradient(to bottom,rgba(244,241,234,.94),rgba(244,241,234,.42) 60%,rgba(244,241,234,0))}
+.ftc-app[data-theme="light"]::after{background:linear-gradient(to top,rgba(244,241,234,.94),rgba(244,241,234,.48) 60%,rgba(244,241,234,0))}
+
+/* Header */
+.ftc-header{position:absolute;left:0;right:0;top:0;z-index:80;height:var(--ftc-header-h);display:flex;justify-content:space-between;align-items:flex-start;padding:22px var(--ftc-gutter) 0;pointer-events:none}
+.ftc-logo-btn{pointer-events:auto;border:0!important;background:transparent!important;padding:0!important;display:flex!important;align-items:center!important}
+.ftc-logo{display:block;width:clamp(160px,16vw,230px);height:auto}
+.ftc-logo-icon{display:none;width:58px;height:auto}
+.ftc-app.is-chat .ftc-logo{display:none!important}
+.ftc-app.is-chat .ftc-logo-icon{display:block!important;width:clamp(44px,3.5vw,58px)}
+.ftc-header-actions{pointer-events:auto;display:flex;align-items:center;gap:12px}
+.ftc-hire-btn{height:46px;padding:0 26px;border-radius:999px;border:1.5px solid var(--ftc-green)!important;background:rgba(0,0,0,.18)!important;color:var(--ftc-green)!important;font-weight:800;font-size:12px;white-space:nowrap}
+.ftc-hire-btn:hover{background:var(--ftc-green)!important;color:#101010!important}
+.ftc-action{width:44px!important;height:44px!important;min-width:44px!important;border:0!important;border-radius:999px!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#fff!important;color:var(--ftc-blue)!important;font-size:20px!important;font-weight:800!important;padding:0!important}
+.ftc-action:hover{background:var(--ftc-yellow)!important;color:#101010!important}
+.ftc-menu-action{background:var(--ftc-blue)!important;color:#fff!important;font-size:28px!important}
+.ftc-menu-action:hover{background:var(--ftc-yellow)!important;color:#101010!important}
+
+/* Main stages */
+.ftc-main{height:100%;overflow:hidden;position:relative;z-index:4}
+.ftc-stage{height:100%;width:100%}
+.ftc-stage-intro,.ftc-stage-chat{height:100%;width:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-left:var(--ftc-gutter);padding-right:var(--ftc-gutter)}
+.ftc-stage-intro{display:flex;align-items:center;justify-content:center;padding-top:calc(var(--ftc-header-h) + 16px);padding-bottom:calc(var(--ftc-dock-h) + 24px)}
+.ftc-stage-chat{padding-top:calc(var(--ftc-header-h) + 20px);padding-bottom:calc(var(--ftc-dock-h) + 24px)}
+.ftc-stage-chat:not(.is-visible){display:none}
+.ftc-stage-intro:not(.is-visible){display:none}
+.ftc-chat-stream{height:100%;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--ftc-dock-h) + 20px);scroll-padding-top:calc(var(--ftc-header-h) + 12px)}
+
+/* Intro */
+.ftc-intro-content{width:min(900px,92vw);margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center}
+.ftc-intro-content h1{margin:0 0 20px;color:inherit;font-size:clamp(34px,2.5vw,48px);line-height:1.12;letter-spacing:-.035em;font-weight:500}
+.ftc-intro-content p{margin:0;color:rgba(245,242,234,.9);font-size:clamp(22px,1.65vw,32px);line-height:1.55;font-weight:400}
+.ftc-app[data-theme="light"] .ftc-intro-content p{color:rgba(20,20,20,.78)}
+.ftc-intro-question{margin-top:clamp(54px,8vh,105px);color:var(--ftc-red);font-size:clamp(26px,1.8vw,36px);line-height:1.18;font-weight:400}
+.ftc-cursor{display:inline-block;width:.07em;min-width:2px;height:.9em;margin-left:.08em;background:var(--ftc-yellow);vertical-align:-.08em;animation:ftcBlink .8s steps(1,end) infinite}
+@keyframes ftcBlink{50%{opacity:0}}
+
+/* Dock - no overlap */
+.ftc-prompt-dock{position:absolute;left:var(--ftc-gutter);right:var(--ftc-gutter);bottom:clamp(14px,2vh,26px);z-index:100;width:auto;display:grid;grid-template-columns:54px minmax(0,1fr);grid-template-areas:"prompts prompts" "help search" ". byline";gap:12px 14px;align-items:center;min-height:var(--ftc-dock-h);pointer-events:auto}
+.ftc-help-dot{grid-area:help;position:static!important;inset:auto!important;width:44px!important;height:44px!important;min-width:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:999px!important;background:#fff!important;color:var(--ftc-blue)!important;font-size:24px!important;font-weight:800!important;padding:0!important}
+.ftc-help-dot:hover{background:var(--ftc-yellow)!important;color:#101010!important}
+.ftc-dock-prompts{grid-area:prompts;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 12px;overflow:visible}
+.ftc-app.is-chat .ftc-dock-prompts button:nth-child(n+6){display:none!important}
+.ftc-dock-prompts button,.ftc-followup{display:inline-flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;min-height:40px!important;padding:10px 22px!important;border-radius:999px!important;white-space:normal!important;max-width:100%!important;font-size:14px!important;line-height:1.08!important;font-weight:800!important;letter-spacing:-.01em!important;border:1.25px solid rgba(255,217,77,.55)!important;background:rgba(0,0,0,.26)!important;color:var(--ftc-yellow)!important}
+.ftc-dock-prompts button:hover,.ftc-followup:hover{background:var(--ftc-yellow)!important;color:#101010!important;border-color:var(--ftc-yellow)!important}
+.ftc-app[data-theme="light"] .ftc-dock-prompts button,.ftc-app[data-theme="light"] .ftc-followup{background:rgba(255,255,255,.5)!important;color:var(--ftc-blue)!important;border-color:rgba(57,124,246,.75)!important}
+.ftc-app[data-theme="light"] .ftc-dock-prompts button:hover,.ftc-app[data-theme="light"] .ftc-followup:hover{background:var(--ftc-blue)!important;color:#fff!important}
+.ftc-bottom-search{grid-area:search;width:100%;margin:0}
+.ftc-input-shell{width:100%;min-height:62px;border-radius:999px;background:rgba(245,242,234,.92);display:flex;align-items:center;overflow:hidden;box-shadow:0 16px 42px rgba(0,0,0,.22)}
+.ftc-app[data-theme="light"] .ftc-input-shell{background:#fff;box-shadow:0 10px 24px rgba(0,0,0,.10)}
+.ftc-input-shell input{flex:1;width:100%;min-width:0;border:0!important;background:transparent!important;color:#101010!important;font-size:22px;padding:0 48px 0 28px}
+.ftc-input-shell input::placeholder{color:rgba(16,16,16,.58)}
+.ftc-clear{width:40px;min-width:40px;border:0!important;background:transparent!important;color:#101010!important;font-size:24px}
+.ftc-send{width:110px;min-width:110px;align-self:stretch;border:0!important;background:var(--ftc-blue)!important;color:#fff!important;font-size:15px;font-weight:900;letter-spacing:.08em}
+.ftc-send:hover{background:var(--ftc-yellow)!important;color:#101010!important}
+.ftc-site-byline{grid-area:byline;width:100%;text-align:center;color:rgba(255,255,255,.76);font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ftc-site-byline button{border:0!important;background:transparent!important;color:inherit!important;text-decoration:underline!important;padding:0!important;font:inherit!important}
+
+/* Messages */
+.ftc-message,.ftc-card,.ftc-response-shell,.ftc-response-content,.ftc-editable-content{width:100%;max-width:none;min-width:0}
+.ftc-message{animation:ftcFadeUp .32s ease both}
+@keyframes ftcFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.ftc-bubble{display:none}
+.ftc-card{background:transparent;border:0;padding:0}
+.ftc-response-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 28px;align-items:start;width:100%;margin:0 0 34px}
+.ftc-kicker{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:rgba(245,242,234,.62);font-weight:800;margin-bottom:12px}
+.ftc-app[data-theme="light"] .ftc-kicker{color:rgba(20,20,20,.52)}
+.ftc-answer-heading{font-size:clamp(34px,2.7vw,56px);line-height:1.02;letter-spacing:-.045em;max-width:1180px;margin:0 0 16px;color:inherit;font-weight:800}
+.ftc-answer-description,.ftc-answer-body,.ftc-response-content p,.ftc-faq-answer{color:rgba(245,242,234,.84);font-size:clamp(17px,1.05vw,21px);line-height:1.62}
+.ftc-app[data-theme="light"] .ftc-answer-description,.ftc-app[data-theme="light"] .ftc-answer-body,.ftc-app[data-theme="light"] .ftc-response-content p,.ftc-app[data-theme="light"] .ftc-faq-answer{color:rgba(20,20,20,.76)}
+.ftc-question-chip{grid-column:2;grid-row:1 / span 2;justify-self:end;align-self:start;max-width:min(360px,30vw);min-height:40px;padding:9px 18px;border-radius:999px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;border:1.25px solid rgba(57,124,246,.58)!important;background:rgba(10,18,32,.42)!important;color:#8fb5ff!important}
+
+/* Panels */
+.ftc-section-label{font-size:clamp(18px,1.15vw,24px);color:var(--ftc-yellow);font-weight:600;margin:44px 0 22px}
+.ftc-home-overview{display:grid;grid-template-columns:minmax(520px,1.25fr) minmax(360px,.75fr);gap:clamp(44px,6vw,110px);align-items:center;width:100%;margin:14px 0 44px}
+.ftc-home-media{width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#2a2a2a}
+.ftc-home-media video,.ftc-home-media img{display:block;width:100%;height:100%;object-fit:cover}
+.ftc-home-copy{max-width:560px}
+.ftc-home-copy h3{margin:0 0 20px;color:var(--ftc-yellow);font-size:clamp(26px,1.8vw,36px);line-height:1.15;font-weight:600}
+.ftc-home-copy p{font-size:clamp(17px,1vw,20px);line-height:1.65;color:rgba(245,242,234,.84)}
+.ftc-red-link{border:0!important;background:transparent!important;color:var(--ftc-red)!important;padding:0!important;font-size:clamp(20px,1.35vw,26px);font-weight:500}
+.ftc-service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:34px;width:100%}
+.ftc-service-carousel-wrap{position:relative;width:100%}
+.ftc-service-carousel-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 72px)/4);gap:24px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px}
+.ftc-carousel-arrow{position:absolute;top:42%;z-index:8;width:42px;height:42px;border:0;border-radius:999px;background:#fff;color:var(--ftc-blue);font-size:30px;display:flex;align-items:center;justify-content:center}
+.ftc-carousel-prev{left:-10px}.ftc-carousel-next{right:-10px}
+.ftc-service-card,.ftc-work-card{break-inside:avoid;margin:0 0 28px}
+.ftc-service-card button,.ftc-work-card button{width:100%;border:0!important;background:transparent!important;color:inherit!important;padding:0!important;text-align:left}
+.ftc-service-art,.ftc-work-card img{width:100%;aspect-ratio:16/9;background:#2a2a2a;border-radius:14px;overflow:hidden;display:block;object-fit:cover}
+.ftc-service-art img{width:100%;height:100%;object-fit:cover;display:block}
+.ftc-service-card span,.ftc-work-info span{display:block;margin:18px 0 8px;color:var(--ftc-yellow);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.ftc-service-card strong,.ftc-work-info h3{display:block;margin:0 0 10px;font-size:clamp(19px,1.25vw,25px);line-height:1.2;color:inherit}
+.ftc-service-card p,.ftc-work-info p{color:rgba(245,242,234,.76);font-size:clamp(15px,.95vw,18px);line-height:1.55;margin:0 0 12px}
+.ftc-masonry{columns:3 300px;column-gap:32px;width:100%}
+.ftc-project-gallery{columns:3 280px;column-gap:22px}
+.ftc-project-gallery img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;background:#2a2a2a;margin:0 0 22px;break-inside:avoid}
+.ftc-service-detail-hero,.ftc-project-detail,.ftc-about-layout{display:grid;grid-template-columns:minmax(420px,.9fr) minmax(560px,1.1fr);gap:clamp(42px,5vw,100px);width:100%;align-items:start}
+.ftc-child-grid,.ftc-proof-grid,.ftc-testimonial-grid,.ftc-contact-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;width:100%}
+.ftc-contact-layout{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ftc-child-grid article,.ftc-proof-grid article,.ftc-testimonial-grid figure,.ftc-contact-card,.ftc-faq-topic{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:24px}
+.ftc-app[data-theme="light"] .ftc-child-grid article,.ftc-app[data-theme="light"] .ftc-proof-grid article,.ftc-app[data-theme="light"] .ftc-testimonial-grid figure,.ftc-app[data-theme="light"] .ftc-contact-card,.ftc-app[data-theme="light"] .ftc-faq-topic{background:rgba(255,255,255,.72);border-color:rgba(0,0,0,.12)}
+.ftc-back-button,.ftc-green-btn{border:1.25px solid var(--ftc-green)!important;background:transparent!important;color:var(--ftc-green)!important;border-radius:999px;padding:12px 22px!important;font-weight:800}
+.ftc-back-button:hover,.ftc-green-btn:hover{background:var(--ftc-green)!important;color:#101010!important}
+
+/* Menu */
+.ftc-modal{position:absolute;inset:0;z-index:900;display:none}
+.ftc-modal.is-open{display:block}
+.ftc-modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.55);border:0}
+.ftc-modal-panel{position:absolute;right:24px;top:24px;width:min(640px,calc(100vw - 48px));max-height:calc(100dvh - 72px);overflow:auto;background:#171717;color:var(--ftc-white);border:1px solid rgba(255,255,255,.16);border-radius:28px;padding:38px}
+.ftc-modal-close{position:absolute;right:20px;top:18px;width:42px;height:42px;border-radius:999px;border:0;background:#fff;color:var(--ftc-blue);font-size:26px}
+.ftc-modal-panel h2{font-size:clamp(30px,2.4vw,42px);line-height:1.04;letter-spacing:-.04em;margin:0 46px 24px 0}
+.ftc-explore-list{display:grid;gap:12px}
+.ftc-menu-prompt{border:1px solid rgba(255,255,255,.12)!important;background:rgba(255,255,255,.05)!important;color:inherit!important;border-radius:18px;padding:18px 22px!important;text-align:left}
+.ftc-menu-prompt:hover{background:rgba(255,217,77,.12)!important;border-color:var(--ftc-yellow)!important}
+.ftc-menu-prompt span{display:block;font-size:clamp(18px,1.25vw,24px);line-height:1.08;font-weight:800}
+.ftc-menu-prompt small{display:block;margin-top:7px;font-size:clamp(13px,.9vw,16px);line-height:1.35;color:rgba(245,242,234,.72)}
+
+/* Light mode specific */
+.ftc-app[data-theme="light"] .ftc-hire-btn{background:rgba(255,255,255,.6)!important;color:#16812a!important;border-color:#16812a!important}
+.ftc-app[data-theme="light"] .ftc-hire-btn:hover{background:#16812a!important;color:#fff!important}
+.ftc-app[data-theme="light"] .ftc-modal-panel{background:#f7f4ed;color:#151515;border-color:rgba(0,0,0,.12)}
+.ftc-app[data-theme="light"] .ftc-menu-prompt{background:rgba(255,255,255,.68)!important;border-color:rgba(0,0,0,.1)!important}
+.ftc-app[data-theme="light"] .ftc-menu-prompt small{color:rgba(20,20,20,.64)}
+.ftc-app[data-theme="light"] .ftc-service-card p,.ftc-app[data-theme="light"] .ftc-work-info p{color:rgba(20,20,20,.68)}
+.ftc-app[data-theme="light"] .ftc-site-byline{color:rgba(20,20,20,.68)}
+
+@media(max-width:1200px){
+  .ftc-home-overview,.ftc-service-detail-hero,.ftc-project-detail,.ftc-about-layout{grid-template-columns:1fr}
+  .ftc-service-grid,.ftc-child-grid,.ftc-proof-grid,.ftc-testimonial-grid,.ftc-contact-layout{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ftc-service-carousel-track{grid-auto-columns:calc((100% - 24px)/2)}
+  .ftc-masonry,.ftc-project-gallery{columns:2 260px}
+  .ftc-response-header{grid-template-columns:1fr}
+  .ftc-question-chip{grid-column:1;grid-row:auto;justify-self:start;max-width:100%;margin-bottom:12px}
+}
+
+@media(max-width:760px){
+  .ftc-app{--ftc-gutter:18px;--ftc-header-h:74px;--ftc-dock-h:178px;height:100dvh;min-height:100dvh}
+  .ftc-header{height:var(--ftc-header-h);padding:14px 18px 0}
+  .ftc-hire-btn{display:none!important}
+  .ftc-header-actions{gap:10px}
+  .ftc-action{width:40px!important;height:40px!important;min-width:40px!important}
+  .ftc-app:not(.is-chat) .ftc-logo{width:88px!important}
+  .ftc-app.is-chat .ftc-logo-icon{width:40px!important}
+  .ftc-stage-intro{padding:calc(var(--ftc-header-h) + 20px) 20px calc(var(--ftc-dock-h) + 22px);align-items:center}
+  .ftc-stage-chat{padding:calc(var(--ftc-header-h) + 14px) 20px calc(var(--ftc-dock-h) + 22px)}
+  .ftc-chat-stream{padding-bottom:calc(var(--ftc-dock-h) + 14px)}
+  .ftc-intro-content h1{font-size:32px;line-height:1.08;margin-bottom:20px}
+  .ftc-intro-content p{font-size:20px;line-height:1.48}
+  .ftc-intro-question{font-size:25px;margin-top:38px}
+  .ftc-prompt-dock{left:14px;right:14px;bottom:max(10px,env(safe-area-inset-bottom));grid-template-columns:40px minmax(0,1fr);grid-template-areas:"prompts prompts" "help search" ". byline";gap:8px;min-height:var(--ftc-dock-h)}
+  .ftc-help-dot{width:36px!important;height:36px!important;min-width:36px!important;font-size:21px!important}
+  .ftc-dock-prompts{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;overflow:hidden}
+  .ftc-dock-prompts button:nth-child(n+5){display:none!important}
+  .ftc-dock-prompts button,.ftc-followup{width:100%;min-height:34px!important;padding:8px 9px!important;font-size:10.75px!important;line-height:1.1;white-space:normal;text-align:center;justify-content:center}
+  .ftc-input-shell{min-height:56px}
+  .ftc-input-shell input{font-size:17px;padding:0 38px 0 20px}
+  .ftc-clear{width:32px;min-width:32px}
+  .ftc-send{width:88px;min-width:88px;font-size:13px}
+  .ftc-site-byline{font-size:9px}
+  .ftc-answer-heading{font-size:clamp(30px,8vw,39px);line-height:1.04}
+  .ftc-answer-description,.ftc-answer-body,.ftc-response-content p{font-size:16.5px;line-height:1.55}
+  .ftc-service-grid,.ftc-child-grid,.ftc-proof-grid,.ftc-testimonial-grid,.ftc-contact-layout{grid-template-columns:1fr}
+  .ftc-service-carousel-track{grid-auto-columns:86%;gap:14px}
+  .ftc-masonry,.ftc-project-gallery{columns:1}
+  .ftc-carousel-arrow{display:none}
+  .ftc-modal-panel{width:calc(100vw - 28px);max-width:calc(100vw - 28px);max-height:calc(100dvh - 48px);right:14px;top:14px;padding:26px 20px;border-radius:22px}
+  .ftc-modal-panel h2{font-size:30px;margin:0 34px 20px 0}
+  .ftc-menu-prompt{padding:14px 16px!important}
+  .ftc-menu-prompt span{font-size:19px}
+  .ftc-menu-prompt small{font-size:14px}
+}
+
+@media(max-width:390px){
+  .ftc-prompt-dock{left:10px;right:10px;grid-template-columns:38px minmax(0,1fr)}
+  .ftc-help-dot{width:34px!important;height:34px!important;min-width:34px!important}
+  .ftc-send{width:82px;min-width:82px}
+}
+
+
+/* ==========================================================================
+   2.6.33 BUGHERD ROUND - TARGETED FIXES
+   This pass intentionally avoids broad re-architecture and fixes the CSV issues:
+   visual removals, light mode, portfolio layout, service spacing/content, and
+   safer responsive behavior.
+   ========================================================================== */
+
+/* #4 remove the "Hi, thanks..." intro headline while preserving typewriter body. */
+.ftc-intro-content h1:empty{
+  display:none!important;
+}
+
+/* #7 logo size too large on desktop */
+.ftc-app:not(.is-chat) .ftc-logo{
+  width:clamp(132px,11vw,178px)!important;
+  max-width:178px!important;
+}
+
+/* #9 #16 #39 remove weird little tag/kicker items */
+.ftc-kicker,
+.ftc-service-card > button > span,
+.ftc-work-info > span,
+.ftc-section-label{
+  display:none!important;
+}
+
+/* #9 make major content headlines yellow in dark mode, blue in light mode */
+.ftc-response-content h3,
+.ftc-service-detail h3,
+.ftc-project-detail h3,
+.ftc-home-copy h3,
+.ftc-about-copy h3,
+.ftc-contact-copy h3{
+  color:var(--ftc-yellow)!important;
+}
+.ftc-app[data-theme="light"] .ftc-response-content h3,
+.ftc-app[data-theme="light"] .ftc-service-detail h3,
+.ftc-app[data-theme="light"] .ftc-project-detail h3,
+.ftc-app[data-theme="light"] .ftc-home-copy h3,
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-contact-copy h3{
+  color:var(--ftc-blue)!important;
+}
+
+/* #10 #19 #42 light mode: no yellow body text; use blue accents and readable dark copy */
+.ftc-app[data-theme="light"]{
+  background:var(--ftc-light)!important;
+  color:#151515!important;
+}
+.ftc-app[data-theme="light"] .ftc-answer-heading,
+.ftc-app[data-theme="light"] .ftc-response-content,
+.ftc-app[data-theme="light"] .ftc-answer-body,
+.ftc-app[data-theme="light"] .ftc-contact-form,
+.ftc-app[data-theme="light"] .ftc-contact-copy,
+.ftc-app[data-theme="light"] .ftc-service-detail,
+.ftc-app[data-theme="light"] .ftc-project-detail{
+  color:#151515!important;
+}
+.ftc-app[data-theme="light"] .ftc-answer-description,
+.ftc-app[data-theme="light"] .ftc-answer-body,
+.ftc-app[data-theme="light"] .ftc-response-content p,
+.ftc-app[data-theme="light"] .ftc-faq-answer,
+.ftc-app[data-theme="light"] .ftc-service-card p,
+.ftc-app[data-theme="light"] .ftc-work-info p,
+.ftc-app[data-theme="light"] .ftc-contact-copy li{
+  color:rgba(21,21,21,.76)!important;
+}
+.ftc-app[data-theme="light"] .ftc-tech-badges span,
+.ftc-app[data-theme="light"] .ftc-child-grid h4,
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em{
+  color:var(--ftc-blue)!important;
+}
+
+/* #12 stronger body/intro weighting */
+.ftc-intro-content p,
+.ftc-answer-description{
+  font-weight:500!important;
+}
+
+/* #13 #23 #26 buttons: transparent at rest, 100% color fill on hover */
+.ftc-dock-prompts button,
+.ftc-followup{
+  background:transparent!important;
+}
+.ftc-dock-prompts button:hover,
+.ftc-dock-prompts button:focus{
+  background:var(--ftc-yellow)!important;
+  color:#101010!important;
+  border-color:var(--ftc-yellow)!important;
+}
+.ftc-app[data-theme="light"] .ftc-dock-prompts button:hover,
+.ftc-app[data-theme="light"] .ftc-dock-prompts button:focus,
+.ftc-app[data-theme="light"] .ftc-followup:hover,
+.ftc-app[data-theme="light"] .ftc-followup:focus{
+  background:var(--ftc-blue)!important;
+  color:#fff!important;
+  border-color:var(--ftc-blue)!important;
+}
+.ftc-green-btn:hover,
+.ftc-back-button:hover,
+.ftc-contact-form button:hover{
+  background:var(--ftc-green)!important;
+  color:#fff!important;
+  border-color:var(--ftc-green)!important;
+}
+
+/* #15 #33 content should be readable, not edge-to-edge */
+.ftc-response-shell,
+.ftc-home-overview,
+.ftc-service-grid,
+.ftc-service-carousel-wrap,
+.ftc-portfolio-panel,
+.ftc-service-detail,
+.ftc-project-detail,
+.ftc-about-layout,
+.ftc-contact-layout,
+.ftc-faq-layout,
+.ftc-testimonial-grid{
+  width:min(1560px,100%)!important;
+  max-width:1560px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.ftc-answer-description,
+.ftc-answer-body{
+  max-width:980px!important;
+}
+
+/* #6 #20 #27 reduce crop/cutoff risk and use height more wisely */
+.ftc-stage-chat{
+  padding-bottom:calc(var(--ftc-dock-h) + 8px)!important;
+}
+.ftc-chat-stream{
+  padding-right:18px!important;
+  padding-bottom:calc(var(--ftc-dock-h) + 8px)!important;
+}
+.ftc-stage-intro{
+  padding-bottom:calc(var(--ftc-dock-h) + 6px)!important;
+}
+
+/* #14 #17 #18 service cards fill responsive desktop space without cropping */
+.ftc-service-carousel-track{
+  grid-auto-columns:calc((100% - 48px)/3)!important;
+  gap:24px!important;
+}
+.ftc-service-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:34px!important;
+}
+.ftc-service-card{
+  margin:0!important;
+}
+.ftc-service-card button{
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.ftc-service-art{
+  flex:0 0 auto!important;
+}
+.ftc-service-card strong{
+  margin-top:18px!important;
+  font-size:clamp(22px,1.35vw,29px)!important;
+  line-height:1.15!important;
+}
+.ftc-service-card p{
+  font-size:clamp(16px,1vw,19px)!important;
+  line-height:1.58!important;
+  margin-bottom:16px!important;
+}
+.ftc-tech-badges{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+  margin:6px 0 18px!important;
+}
+.ftc-tech-badges span{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:26px!important;
+  padding:5px 10px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  color:var(--ftc-yellow)!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  letter-spacing:.02em!important;
+}
+.ftc-service-card em{
+  margin-top:auto!important;
+  color:var(--ftc-yellow)!important;
+  font-style:normal!important;
+  font-weight:800!important;
+}
+
+/* #17 service detail fit above fold better */
+.ftc-service-detail-hero{
+  grid-template-columns:minmax(460px,.95fr) minmax(460px,1.05fr)!important;
+  gap:clamp(34px,4vw,72px)!important;
+  align-items:center!important;
+  margin-bottom:32px!important;
+}
+.ftc-service-detail-copy h3{
+  font-size:clamp(34px,3vw,56px)!important;
+  line-height:1.02!important;
+  margin:0 0 18px!important;
+}
+.ftc-service-detail-image img{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-service-managed{
+  margin:20px 0!important;
+  font-weight:600!important;
+}
+.ftc-child-grid{
+  gap:24px!important;
+}
+.ftc-child-grid article{
+  padding:26px!important;
+}
+.ftc-child-grid h4{
+  color:var(--ftc-yellow)!important;
+  font-size:21px!important;
+  line-height:1.2!important;
+  margin:0 0 12px!important;
+}
+.ftc-child-grid ul{
+  margin:14px 0 0!important;
+  padding-left:1.15em!important;
+}
+.ftc-child-grid li{
+  margin:0 0 10px!important;
+  line-height:1.55!important;
+}
+
+/* #21 #28 #29 #37 portfolio: 1 featured, 3/2/1 grid, larger images */
+.ftc-portfolio-panel{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:34px!important;
+  padding-right:12px!important;
+}
+.ftc-work-card{
+  margin:0!important;
+  break-inside:avoid!important;
+}
+.ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-work-card button{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:0!important;
+  height:100%!important;
+}
+.ftc-work-featured button{
+  grid-template-columns:minmax(560px,1.15fr) minmax(360px,.85fr)!important;
+  gap:clamp(34px,5vw,84px)!important;
+  align-items:center!important;
+}
+.ftc-work-card img{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-work-info{
+  padding:18px 0 4px!important;
+}
+.ftc-work-featured .ftc-work-info{
+  padding:0!important;
+}
+.ftc-work-info h3{
+  font-size:clamp(22px,1.45vw,32px)!important;
+  line-height:1.12!important;
+}
+.ftc-work-featured .ftc-work-info h3{
+  font-size:clamp(36px,3vw,62px)!important;
+  letter-spacing:-.045em!important;
+}
+.ftc-work-info strong{
+  color:var(--ftc-yellow)!important;
+  font-size:15px!important;
+}
+.ftc-project-detail{
+  grid-template-columns:minmax(420px,.82fr) minmax(560px,1.18fr)!important;
+  gap:clamp(36px,5vw,90px)!important;
+  align-items:start!important;
+}
+.ftc-project-feature img{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-project-gallery{
+  width:min(1560px,100%)!important;
+  columns:3 320px!important;
+  column-gap:26px!important;
+  margin:34px auto 0!important;
+}
+.ftc-project-gallery img{
+  width:100%!important;
+  height:auto!important;
+  aspect-ratio:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+  margin:0 0 26px!important;
+  break-inside:avoid!important;
+}
+
+/* #30 bottom fixed prompt buttons should not duplicate section followups on inner pages */
+.ftc-app.is-chat .ftc-dock-prompts{
+  display:none!important;
+}
+.ftc-app.is-chat{
+  --ftc-dock-h:108px!important;
+}
+.ftc-app.is-chat .ftc-prompt-dock{
+  grid-template-areas:"help search" ". byline"!important;
+  min-height:108px!important;
+}
+.ftc-followups{
+  margin:30px 0 4px!important;
+}
+.ftc-followup-row{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:12px!important;
+}
+
+/* #31 #32 #40 spacing rhythm */
+.ftc-home-copy,
+.ftc-about-copy,
+.ftc-contact-copy,
+.ftc-project-copy,
+.ftc-service-detail-copy{
+  display:block!important;
+}
+.ftc-home-copy p,
+.ftc-about-copy p,
+.ftc-contact-copy p,
+.ftc-project-copy p,
+.ftc-service-detail-copy p{
+  margin:0 0 18px!important;
+}
+.ftc-contact-copy ul{
+  margin:18px 0 0!important;
+  padding-left:1.15em!important;
+}
+.ftc-contact-copy li{
+  margin-bottom:12px!important;
+  line-height:1.55!important;
+}
+.ftc-response-content{
+  padding-bottom:38px!important;
+}
+
+/* #34 #35 about/team missing image/content */
+.ftc-about-layout{
+  grid-template-columns:minmax(420px,.9fr) minmax(520px,1.1fr)!important;
+  gap:clamp(36px,5vw,86px)!important;
+}
+.ftc-team-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:18px!important;
+}
+.ftc-team-card{
+  border:1px solid rgba(255,255,255,.14)!important;
+  border-radius:18px!important;
+  padding:18px!important;
+  background:rgba(255,255,255,.045)!important;
+}
+.ftc-team-avatar{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+  background:#2a2a2a!important;
+  margin-bottom:16px!important;
+}
+.ftc-team-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.ftc-team-card strong{
+  display:block!important;
+  font-size:20px!important;
+  margin-bottom:8px!important;
+}
+
+/* #36 no horizontal scroll */
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream,
+.ftc-prompt-dock,
+.ftc-response-shell{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+/* Scrollbar styling restored */
+.ftc-chat-stream::-webkit-scrollbar,
+.ftc-stage-intro::-webkit-scrollbar,
+.ftc-stage-chat::-webkit-scrollbar{
+  width:10px;
+}
+.ftc-chat-stream::-webkit-scrollbar-track,
+.ftc-stage-intro::-webkit-scrollbar-track,
+.ftc-stage-chat::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.06);
+  border-radius:999px;
+}
+.ftc-chat-stream::-webkit-scrollbar-thumb,
+.ftc-stage-intro::-webkit-scrollbar-thumb,
+.ftc-stage-chat::-webkit-scrollbar-thumb{
+  background:rgba(255,217,77,.45);
+  border-radius:999px;
+}
+.ftc-app[data-theme="light"] .ftc-chat-stream::-webkit-scrollbar-thumb,
+.ftc-app[data-theme="light"] .ftc-stage-intro::-webkit-scrollbar-thumb,
+.ftc-app[data-theme="light"] .ftc-stage-chat::-webkit-scrollbar-thumb{
+  background:rgba(57,124,246,.45);
+}
+
+/* Responsive */
+@media(max-width:1200px){
+  .ftc-service-carousel-track{
+    grid-auto-columns:calc((100% - 24px)/2)!important;
+  }
+  .ftc-portfolio-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-work-featured button,
+  .ftc-project-detail,
+  .ftc-service-detail-hero,
+  .ftc-about-layout{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-team-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:760px){
+  .ftc-app{
+    --ftc-dock-h:178px!important;
+    --ftc-gutter:18px!important;
+  }
+  .ftc-app.is-chat{
+    --ftc-dock-h:92px!important;
+  }
+  .ftc-app:not(.is-chat) .ftc-logo{
+    width:86px!important;
+  }
+  .ftc-stage-intro{
+    padding-top:calc(var(--ftc-header-h) + 18px)!important;
+    padding-bottom:calc(var(--ftc-dock-h) + 16px)!important;
+  }
+  .ftc-stage-chat{
+    padding-top:calc(var(--ftc-header-h) + 12px)!important;
+    padding-bottom:calc(var(--ftc-dock-h) + 14px)!important;
+  }
+  .ftc-chat-stream{
+    padding-right:0!important;
+    padding-bottom:calc(var(--ftc-dock-h) + 12px)!important;
+  }
+  .ftc-intro-content{
+    text-align:center!important;
+  }
+  .ftc-intro-content p{
+    font-size:21px!important;
+    line-height:1.5!important;
+  }
+  .ftc-dock-prompts{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-dock-prompts button{
+    min-height:34px!important;
+    padding:8px 10px!important;
+    font-size:11px!important;
+  }
+  .ftc-app.is-chat .ftc-prompt-dock{
+    grid-template-columns:40px minmax(0,1fr)!important;
+    grid-template-areas:"help search" ". byline"!important;
+    min-height:92px!important;
+  }
+  .ftc-service-grid,
+  .ftc-child-grid,
+  .ftc-team-grid,
+  .ftc-contact-layout,
+  .ftc-portfolio-panel{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-service-carousel-track{
+    grid-auto-columns:86%!important;
+  }
+  .ftc-work-featured button{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+  }
+  .ftc-followup-row{
+    gap:8px!important;
+  }
+  .ftc-followup{
+    width:auto!important;
+    min-height:34px!important;
+    padding:8px 12px!important;
+    font-size:12px!important;
+  }
+}
+
+
+
+/* ==========================================================================
+   2.6.34 REAL POLISH PASS
+   Focused fixes from remaining BugHerd tickets. This patch preserves 2.6.33
+   and adds only targeted overrides.
+   ========================================================================== */
+
+/* Logo safety: never hide both logos, keep starting logo visible and interior icon visible. */
+.ftc-app:not(.is-chat) .ftc-logo-full,
+.ftc-app:not(.is-chat) .ftc-logo{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.ftc-app:not(.is-chat) .ftc-logo-icon{
+  display:none!important;
+}
+.ftc-app.is-chat .ftc-logo-full,
+.ftc-app.is-chat .ftc-logo{
+  display:none!important;
+}
+.ftc-app.is-chat .ftc-logo-icon{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+
+/* #6 and #46: scroll/padding balance. */
+.ftc-stage-chat{
+  padding-bottom:calc(var(--ftc-dock-h) + 4px)!important;
+}
+.ftc-chat-stream{
+  padding-right:16px!important;
+  padding-bottom:calc(var(--ftc-dock-h) + 4px)!important;
+}
+.ftc-followups{
+  margin-top:42px!important;
+  padding-top:8px!important;
+}
+
+/* #13: remove lingering gray button backgrounds at rest. */
+.ftc-dock-prompts button,
+.ftc-followup{
+  background:transparent!important;
+}
+.ftc-dock-prompts button:hover,
+.ftc-dock-prompts button:focus{
+  background:var(--ftc-yellow)!important;
+  color:#101010!important;
+  border-color:var(--ftc-yellow)!important;
+}
+.ftc-app[data-theme="light"] .ftc-dock-prompts button,
+.ftc-app[data-theme="light"] .ftc-followup{
+  background:transparent!important;
+  color:var(--ftc-blue)!important;
+  border-color:rgba(57,124,246,.78)!important;
+}
+.ftc-app[data-theme="light"] .ftc-dock-prompts button:hover,
+.ftc-app[data-theme="light"] .ftc-dock-prompts button:focus,
+.ftc-app[data-theme="light"] .ftc-followup:hover,
+.ftc-app[data-theme="light"] .ftc-followup:focus{
+  background:var(--ftc-blue)!important;
+  color:#fff!important;
+  border-color:var(--ftc-blue)!important;
+}
+
+/* #16 #43: remove remaining small tag/kicker fragments. */
+.ftc-kicker,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-section-label{
+  display:none!important;
+}
+
+/* #28: latest work layout = 1 featured + 3 / 2 / 1 responsive grid. */
+.ftc-portfolio-panel{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:34px!important;
+  width:min(1560px,100%)!important;
+  max-width:1560px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  padding-right:14px!important;
+  align-items:start!important;
+}
+.ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-work-featured button{
+  display:grid!important;
+  grid-template-columns:minmax(520px,1.15fr) minmax(360px,.85fr)!important;
+  gap:clamp(34px,5vw,84px)!important;
+  align-items:center!important;
+}
+.ftc-work-card{
+  margin:0!important;
+}
+.ftc-work-card button{
+  height:100%!important;
+}
+.ftc-work-info{
+  padding:18px 0 0!important;
+}
+.ftc-work-featured .ftc-work-info{
+  padding:0!important;
+}
+
+/* #29 #37: portfolio images fit, don't weirdly crop, larger masonry. */
+.ftc-work-card img,
+.ftc-project-feature img,
+.ftc-project-gallery img{
+  width:100%!important;
+  height:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-work-card img,
+.ftc-project-feature img{
+  aspect-ratio:16/9!important;
+}
+.ftc-project-detail{
+  grid-template-columns:minmax(420px,.82fr) minmax(560px,1.18fr)!important;
+  gap:clamp(36px,5vw,90px)!important;
+  align-items:start!important;
+}
+.ftc-project-gallery{
+  width:min(1560px,100%)!important;
+  columns:3 320px!important;
+  column-gap:26px!important;
+  margin:34px auto 0!important;
+}
+.ftc-project-gallery img{
+  display:block!important;
+  aspect-ratio:auto!important;
+  margin:0 0 26px!important;
+  break-inside:avoid!important;
+}
+
+/* #31 #32: service detail / bullet spacing. */
+.ftc-service-detail-copy p,
+.ftc-project-copy p,
+.ftc-contact-copy p{
+  margin-bottom:20px!important;
+}
+.ftc-child-grid article{
+  padding:28px!important;
+}
+.ftc-child-grid ul,
+.ftc-contact-copy ul{
+  margin-top:16px!important;
+  padding-left:1.2em!important;
+}
+.ftc-child-grid li,
+.ftc-contact-copy li,
+.ftc-project-copy li,
+.ftc-service-detail-copy li{
+  margin-bottom:13px!important;
+  line-height:1.6!important;
+}
+
+/* #36: kill horizontal scroll without hiding vertical content. */
+html,
+body,
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream,
+.ftc-response-shell,
+.ftc-response-content,
+.ftc-prompt-dock{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+/* #38 #42: blue accents in light mode, not yellow. */
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em,
+.ftc-app[data-theme="light"] .ftc-tech-badges span,
+.ftc-app[data-theme="light"] .ftc-child-grid h4,
+.ftc-app[data-theme="light"] .ftc-home-copy h3,
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-contact-copy h3,
+.ftc-app[data-theme="light"] .ftc-service-detail h3,
+.ftc-app[data-theme="light"] .ftc-project-detail h3{
+  color:var(--ftc-blue)!important;
+}
+
+/* #44: search input spacing near scrollbar/right edge. */
+.ftc-bottom-search{
+  max-width:none!important;
+  padding-right:0!important;
+}
+.ftc-input-shell{
+  max-width:100%!important;
+}
+.ftc-input-shell input{
+  padding-right:52px!important;
+}
+
+/* Scrollbar styling restored. */
+.ftc-chat-stream::-webkit-scrollbar,
+.ftc-stage-chat::-webkit-scrollbar,
+.ftc-stage-intro::-webkit-scrollbar{
+  width:10px;
+}
+.ftc-chat-stream::-webkit-scrollbar-track,
+.ftc-stage-chat::-webkit-scrollbar-track,
+.ftc-stage-intro::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.06);
+  border-radius:999px;
+}
+.ftc-chat-stream::-webkit-scrollbar-thumb,
+.ftc-stage-chat::-webkit-scrollbar-thumb,
+.ftc-stage-intro::-webkit-scrollbar-thumb{
+  background:rgba(255,217,77,.42);
+  border-radius:999px;
+}
+.ftc-app[data-theme="light"] .ftc-chat-stream::-webkit-scrollbar-thumb,
+.ftc-app[data-theme="light"] .ftc-stage-chat::-webkit-scrollbar-thumb,
+.ftc-app[data-theme="light"] .ftc-stage-intro::-webkit-scrollbar-thumb{
+  background:rgba(57,124,246,.42);
+}
+
+/* Responsive: 3 -> 2 -> 1, no edge touch. */
+@media(max-width:1200px){
+  .ftc-portfolio-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-work-featured button,
+  .ftc-project-detail{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-project-gallery{
+    columns:2 280px!important;
+  }
+}
+@media(max-width:760px){
+  .ftc-portfolio-panel{
+    grid-template-columns:1fr!important;
+    gap:24px!important;
+    padding-right:0!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+  }
+  .ftc-chat-stream{
+    padding-right:0!important;
+  }
+  .ftc-input-shell input{
+    padding-right:40px!important;
+  }
+  .ftc-followups{
+    margin-top:30px!important;
+  }
+}
+
+
+/* ==========================================================================
+   2.6.35 VALIDATED REMAINING TICKETS PASS
+   Focus: #31 #32 #36 #37 #38 #43 #44 #45 #46 #47 #48
+   ========================================================================== */
+
+/* #43 remove unwanted mini tags/kickers everywhere */
+.ftc-kicker,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-project-industry,
+.ftc-section-label{
+  display:none!important;
+}
+
+/* #38 light mode blue accents only */
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em,
+.ftc-app[data-theme="light"] .ftc-tech-badges span,
+.ftc-app[data-theme="light"] .ftc-child-grid h4,
+.ftc-app[data-theme="light"] .ftc-home-copy h3,
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-contact-copy h3,
+.ftc-app[data-theme="light"] .ftc-service-detail h3,
+.ftc-app[data-theme="light"] .ftc-project-detail h3,
+.ftc-app[data-theme="light"] .ftc-answer-heading{
+  color:var(--ftc-blue)!important;
+}
+
+/* #44 search/input right spacing and scrollbar clearance */
+.ftc-stage-chat,
+.ftc-chat-stream{
+  scrollbar-gutter:stable!important;
+}
+.ftc-chat-stream{
+  padding-right:22px!important;
+}
+.ftc-bottom-search{
+  padding-right:0!important;
+  margin-right:0!important;
+}
+.ftc-input-shell input{
+  padding-right:58px!important;
+}
+
+/* #46 spacing before followup buttons */
+.ftc-followups{
+  margin-top:52px!important;
+  padding-top:12px!important;
+}
+.ftc-followup-row{
+  gap:14px!important;
+}
+
+/* #31 #32 service detail and bullet/list spacing */
+.ftc-service-detail-copy p,
+.ftc-project-copy p,
+.ftc-contact-copy p,
+.ftc-project-text p{
+  margin:0 0 22px!important;
+  line-height:1.66!important;
+}
+.ftc-child-grid article{
+  padding:30px!important;
+}
+.ftc-child-grid h4{
+  margin:0 0 14px!important;
+}
+.ftc-child-grid ul,
+.ftc-project-text ul,
+.ftc-service-detail-copy ul{
+  margin:18px 0 0!important;
+  padding-left:1.25em!important;
+}
+.ftc-child-grid li,
+.ftc-project-text li,
+.ftc-service-detail-copy li{
+  margin:0 0 14px!important;
+  line-height:1.62!important;
+}
+
+/* #36 #47 #48 horizontal scroll and content cutoff fix */
+html,
+body,
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream,
+.ftc-response-shell,
+.ftc-response-content,
+.ftc-prompt-dock,
+.ftc-portfolio-panel,
+.ftc-project-detail,
+.ftc-project-gallery{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+.ftc-stage-chat{
+  padding-bottom:calc(var(--ftc-dock-h) + 18px)!important;
+}
+.ftc-app.is-chat{
+  --ftc-dock-h:118px!important;
+}
+.ftc-app.is-chat .ftc-prompt-dock{
+  min-height:118px!important;
+}
+.ftc-response-content{
+  padding-bottom:64px!important;
+}
+
+/* #28 #29 #37 portfolio list and project detail */
+.ftc-portfolio-panel{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:38px!important;
+  width:min(1500px,100%)!important;
+  max-width:1500px!important;
+  margin:0 auto!important;
+  padding:0 18px 48px 0!important;
+  align-items:start!important;
+}
+.ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-work-card{
+  margin:0!important;
+}
+.ftc-work-card button{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:0!important;
+  height:100%!important;
+  padding:0!important;
+}
+.ftc-work-featured button{
+  grid-template-columns:minmax(520px,1.15fr) minmax(360px,.85fr)!important;
+  gap:clamp(36px,5vw,88px)!important;
+  align-items:center!important;
+}
+.ftc-work-card img{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  height:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-work-info{
+  padding:20px 0 4px!important;
+}
+.ftc-work-featured .ftc-work-info{
+  padding:0!important;
+}
+.ftc-work-info h3{
+  margin:0 0 12px!important;
+  font-size:clamp(22px,1.45vw,32px)!important;
+  line-height:1.15!important;
+}
+.ftc-work-featured .ftc-work-info h3{
+  font-size:clamp(38px,3vw,62px)!important;
+  line-height:1.02!important;
+}
+.ftc-work-info p{
+  margin:0 0 18px!important;
+  line-height:1.58!important;
+}
+.ftc-work-info strong{
+  color:var(--ftc-yellow)!important;
+  font-weight:900!important;
+}
+
+/* Project detail: one large feature, masonry below, no crop */
+.ftc-project-page{
+  width:min(1500px,100%)!important;
+  max-width:1500px!important;
+  margin:0 auto!important;
+  padding-right:18px!important;
+}
+.ftc-project-detail{
+  display:grid!important;
+  grid-template-columns:minmax(420px,.8fr) minmax(560px,1.2fr)!important;
+  gap:clamp(38px,5vw,92px)!important;
+  align-items:start!important;
+  margin-top:28px!important;
+}
+.ftc-project-feature img{
+  width:100%!important;
+  height:auto!important;
+  aspect-ratio:16/9!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+}
+.ftc-project-gallery{
+  width:min(1500px,100%)!important;
+  columns:3 320px!important;
+  column-gap:28px!important;
+  margin:42px auto 0!important;
+  padding:0 18px 60px 0!important;
+}
+.ftc-project-gallery figure{
+  margin:0 0 28px!important;
+  padding:0!important;
+  break-inside:avoid!important;
+}
+.ftc-project-gallery img{
+  width:100%!important;
+  height:auto!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+  border-radius:16px!important;
+  display:block!important;
+}
+
+/* #48 CTA spacing */
+.ftc-green-btn,
+.ftc-back-button,
+.ftc-contact-form button{
+  margin-top:20px!important;
+}
+
+/* Responsive portfolio */
+@media(max-width:1200px){
+  .ftc-portfolio-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-work-featured button,
+  .ftc-project-detail{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-project-gallery{
+    columns:2 280px!important;
+  }
+}
+@media(max-width:760px){
+  .ftc-chat-stream{
+    padding-right:0!important;
+  }
+  .ftc-portfolio-panel{
+    grid-template-columns:1fr!important;
+    padding-right:0!important;
+    gap:28px!important;
+  }
+  .ftc-project-page,
+  .ftc-project-gallery{
+    padding-right:0!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+  }
+  .ftc-input-shell input{
+    padding-right:42px!important;
+  }
+  .ftc-followups{
+    margin-top:34px!important;
+  }
+}
+
+
+/* ==========================================================================
+   2.6.36 VERIFY PASS
+   Direct fixes for remaining visible BugHerd failures.
+   ========================================================================== */
+
+/* #1 admin layout issue is handled in PHP; keep admin field labels clean */
+.ftc-admin-wrap select[name^="layout"],
+.ftc-admin-wrap label:has(+ select[name^="layout"]){
+  display:none!important;
+}
+
+/* #13 #16 #43 remove/neutralize leftover decorative tags and gray chips */
+.ftc-kicker,
+.ftc-project-industry,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-section-label,
+.ftc-chip,
+.ftc-pill,
+.ftc-tag{
+  display:none!important;
+}
+.ftc-dock-prompts button,
+.ftc-followup{
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+/* #31 #32 consistent content spacing */
+.ftc-response-content h3 + p,
+.ftc-response-content h3 + div,
+.ftc-service-detail-copy h3 + div,
+.ftc-project-copy h3 + div{
+  margin-top:22px!important;
+}
+.ftc-response-content p,
+.ftc-response-content li{
+  line-height:1.68!important;
+}
+.ftc-response-content li{
+  margin-bottom:14px!important;
+}
+
+/* #36 #47 #48 real horizontal scroll prevention: no component may exceed viewport */
 .ftc-app,
 .ftc-app *,
 .ftc-app *::before,
-.ftc-app *::after {
-    box-sizing: border-box;
-}
-
-    .ftc-app a,
-    .ftc-app a:visited,
-    .ftc-app a:hover,
-    .ftc-app a:focus,
-    .ftc-app a:active,
-    .ftc-app button,
-    .ftc-app button:hover,
-    .ftc-app button:focus,
-    .ftc-app button:active,
-    .ftc-app input,
-    .ftc-app input:hover,
-    .ftc-app input:focus,
-    .ftc-app textarea,
-    .ftc-app select {
-        text-decoration: none !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-    .ftc-app button,
-    .ftc-app input,
-    .ftc-app textarea,
-    .ftc-app select {
-        appearance: none !important;
-        -webkit-appearance: none !important;
-        font-family: var(--ftc-font) !important;
-    }
-
-    .ftc-app button {
-        cursor: pointer;
-    }
-
-    .ftc-app a {
-        color: inherit !important;
-    }
-
-.ftc-app {
-    position: relative;
-    width: 100%;
-    height: 100svh;
-    min-height: 620px;
-    overflow: hidden;
-    font-family: var(--ftc-font);
-    background: var(--ftc-dark);
-    color: var(--ftc-ink);
-    isolation: isolate;
-}
-
-    .ftc-app[data-theme=light] {
-        background: var(--ftc-light);
-        color: var(--ftc-text);
-    }
-
-.ftc-bg {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background-image: linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);
-    background-size: 18px 18px;
-    background-position: center;
-    opacity: .22;
-    pointer-events: none;
-}
-
-.ftc-app[data-theme=light] .ftc-bg {
-    background-image: linear-gradient(rgba(0,0,0,.04) 1px,transparent 1px), linear-gradient(90deg,rgba(0,0,0,.04) 1px,transparent 1px);
-    opacity: .32;
-}
-
-/* Header / Logo */
-.ftc-header {
-    position: absolute;
-    top: 22px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(var(--ftc-app-width),calc(100% - 48px));
-    z-index: 50;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    pointer-events: none;
-}
-
-.ftc-logo-btn {
-    border: 0 !important;
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    pointer-events: auto;
-    border-radius: 0 !important;
-    transition: transform .6s cubic-bezier(.22,1,.36,1),opacity .25s ease;
-}
-
-    .ftc-logo-btn:hover,
-    .ftc-logo-btn:focus,
-    .ftc-logo-btn:active {
-        background: transparent !important;
-        border-color: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-        transform: translateY(-1px);
-    }
-
-.ftc-logo {
-    display: block;
-    width: clamp(340px,30vw,500px);
-    max-height: 180px;
-    height: auto;
-    transition: all .65s cubic-bezier(.22,1,.36,1);
-}
-
-.ftc-logo-light,
-.ftc-logo-icon {
-    display: none !important;
-}
-
-.ftc-app[data-theme=light] .ftc-logo-dark {
-    display: none !important;
-}
-
-.ftc-app[data-theme=light] .ftc-logo-light {
-    display: block !important;
-}
-
-/*
-  Chat logo:
-  The dark-mode logo URL should be updated in plugin settings to:
-  https://fieldtheory.ai/wp-content/uploads/2026/06/FT_Outline_whiteLinesIcon.svg
-*/
-.ftc-app.is-chat .ftc-logo {
-    width: 96px;
-    max-height: none;
-}
-
-.ftc-app.is-chat .ftc-header {
-    top: 22px;
-}
-
-.ftc-header-actions {
-    position: relative;
-    right: auto;
-    top: auto;
-    display: flex;
-    gap: 12px;
-    pointer-events: auto;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: all .45s ease;
-}
-
-.ftc-app.is-chat .ftc-header-actions {
-    opacity: 1;
-    transform: none;
-}
-
-/* Make small menu/theme buttons visible and brand-colored */
-.ftc-action {
-    width: 48px;
-    height: 48px;
-    border: 1px solid rgba(243,211,82,.65) !important;
-    border-radius: 999px !important;
-    background: var(--ftc-yellow) !important;
-    color: #173f79 !important;
-    font-size: 24px;
-    line-height: 1;
-    display: grid;
-    place-items: center;
-    padding: 0 !important;
-    transition: background .2s ease,border-color .2s ease,transform .2s ease;
-}
-
-    .ftc-action:hover,
-    .ftc-action:focus {
-        background: #f7dd71 !important;
-        border-color: rgba(243,211,82,.9) !important;
-        color: #173f79 !important;
-        transform: translateY(-1px);
-    }
-
-.ftc-app[data-theme=light] .ftc-action {
-    border-color: rgba(23,71,127,.18) !important;
-    background: var(--ftc-yellow) !important;
-    color: #173f79 !important;
-}
-
-/* Stages */
-.ftc-main {
-    height: 100%;
-    display: grid;
-    grid-template-rows: 1fr;
-    position: relative;
-}
-
-.ftc-stage {
-    grid-area: 1/1;
-    min-height: 0;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(14px);
-    transition: opacity .55s ease,transform .55s cubic-bezier(.22,1,.36,1);
-}
-
-    .ftc-stage.is-visible {
-        opacity: 1;
-        pointer-events: auto;
-        transform: none;
-    }
-
-/* Intro */
-.ftc-stage-intro {
-    width: min(1080px,calc(100% - 64px));
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    text-align: left;
-    padding: 150px 0 110px;
-    gap: 22px;
-}
-
-.ftc-intro-copy {
-    width: 100%;
-    margin: 0;
-}
-
-    .ftc-intro-copy h1,
-    .ftc-intro-copy p {
-        margin: 0;
-    }
-
-.ftc-typewriter {
-    width: 100%;
-    max-width: 900px;
-    margin: 22px 0 0;
-    color: var(--ftc-ink);
-    font-size: clamp(22px,2.4vw,38px);
-    line-height: 1.32;
-    letter-spacing: -.036em;
-    font-weight: 300;
-    text-align: left;
-}
-
-    .ftc-typewriter p,
-    .ftc-typewriter div,
-    .ftc-typewriter span {
-        font-size: inherit;
-        line-height: inherit;
-    }
-
-.ftc-cursor,
-.ftc-typewriter-cursor {
-    display: inline-block;
-    width: .45em;
-    height: .9em;
-    margin-left: .08em;
-    vertical-align: -.08em;
-    background: var(--ftc-yellow);
-    color: transparent !important;
-    animation: ftcBlink 1s steps(1,end) infinite;
-}
-
-.ftc-typewriter::after {
-    content: "";
-    display: inline-block;
-    width: 3px;
-    height: .9em;
-    margin-left: 8px;
-    background: var(--ftc-yellow);
-    vertical-align: middle;
-    animation: ftcCursor .9s infinite;
-}
-
-.ftc-typewriter.is-complete::after {
-    animation: ftcCursor .9s infinite;
-}
-
-.ftc-entry-form {
-    width: min(760px,100%);
-    margin-top: 12px;
-}
-
-    .ftc-entry-form label {
-        display: none !important;
-    }
-
-.ftc-input-shell {
-    width: 100%;
-    height: 66px;
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    border-top: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
-    border-bottom: 2px solid rgba(243,211,82,.48) !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    transition: border-color .2s ease,background .2s ease;
-}
-
-    .ftc-input-shell:focus-within {
-        border-bottom-color: var(--ftc-yellow) !important;
-        background: transparent !important;
-    }
-
-.ftc-app[data-theme=light] .ftc-input-shell {
-    background: transparent !important;
-    border-bottom-color: rgba(23,71,127,.36) !important;
-}
-
-.ftc-input-shell input {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    color: inherit !important;
-    padding: 0 18px 0 0 !important;
-    font-size: clamp(18px,1.65vw,24px) !important;
-    line-height: 1 !important;
-}
-
-    .ftc-input-shell input::placeholder {
-        color: rgba(166,171,178,.72) !important;
-    }
-
-.ftc-input-shell button {
-    border: 0 !important;
-    outline: 0 !important;
-    box-shadow: none !important;
-    cursor: pointer !important;
-}
-
-.ftc-entry-shell button {
-    width: 124px;
-    height: 48px !important;
-    margin-left: 14px;
-    border-radius: 999px !important;
-    background: var(--ftc-yellow) !important;
-    color: #173f79 !important;
-    font-size: 13px !important;
-    font-weight: 850 !important;
-    letter-spacing: .095em !important;
-    line-height: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-}
-
-/* Chat screen */
-.ftc-stage-chat {
-    height: 100%;
-    padding: 120px clamp(18px,4vw,54px) 190px;
-    display: flex;
-    justify-content: center;
-}
-
-.ftc-chat-stream {
-    width: 100%;
-    max-width: var(--ftc-app-width);
-    height: 100%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 16px 0 190px;
-    scroll-behavior: smooth;
-}
-
-    .ftc-chat-stream::-webkit-scrollbar {
-        width: 9px;
-    }
-
-    .ftc-chat-stream::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,.16);
-        border-radius: 999px;
-    }
-
-.ftc-app[data-theme=light] .ftc-chat-stream::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,.18);
-}
-
-.ftc-message {
-    width: 100%;
-    max-width: var(--ftc-app-width);
-    margin: 0 auto 28px;
-    animation: ftcFadeUp .45s cubic-bezier(.22,1,.36,1) both;
-}
-
-.ftc-user {
-    display: flex;
-    justify-content: flex-end;
-}
-
-    .ftc-user .ftc-bubble {
-        max-width: min(760px,86%);
-        border: 1px solid var(--ftc-line);
-        border-radius: 22px 22px 6px 22px;
-        background: rgba(255,255,255,.045);
-        padding: 18px 20px;
-        font-size: 18px;
-        line-height: 1.35;
-    }
-
-.ftc-app[data-theme=light] .ftc-user .ftc-bubble {
-    border-color: var(--ftc-line-light);
-    background: rgba(255,255,255,.65);
-}
-
-.ftc-assistant {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0;
-}
-
-.ftc-avatar {
-    display: none !important;
-}
-
-.ftc-card {
-    width: 100%;
-    margin-top: 0;
-    border: 1px solid var(--ftc-line);
-    border-radius: 28px;
-    background: rgba(255,255,255,.035);
-    padding: 30px;
-    box-shadow: none !important;
-}
-
-.ftc-app[data-theme=light] .ftc-card,
-.ftc-app[data-theme=light] .ftc-avatar {
-    border-color: var(--ftc-line-light);
-    background: rgba(255,255,255,.6);
-}
-
-.ftc-answer-heading {
-    font-size: clamp(26px,2.7vw,42px);
-    line-height: 1.08;
-    letter-spacing: -.038em;
-    margin: 0 0 16px;
-    font-weight: 520;
-}
-
-.ftc-answer-body {
-    font-size: 16px;
-    line-height: 1.72;
-    color: var(--ftc-muted);
-    max-width: 920px;
-}
-
-.ftc-app[data-theme=light] .ftc-answer-body {
-    color: #555;
-}
-
-.ftc-answer-body p {
-    margin: 0 0 16px;
-}
-
-.ftc-answer-body ul {
-    margin: 0 0 16px 20px;
-    padding: 0;
-}
-
-.ftc-answer-body li {
-    margin: 0 0 7px;
-}
-
-.ftc-intro-grid,
-.ftc-feature-grid,
-.ftc-service-grid {
-    display: grid;
-    grid-template-columns: repeat(4,minmax(0,1fr));
-    gap: 12px;
-    margin: 22px 0;
-}
-
-    .ftc-feature-grid div,
-    .ftc-service-card,
-    .ftc-intro-tile {
-        border: 1px solid var(--ftc-line);
-        border-radius: 18px;
-        padding: 16px;
-        background: rgba(255,255,255,.025);
-    }
-
-.ftc-app[data-theme=light] .ftc-feature-grid div,
-.ftc-app[data-theme=light] .ftc-service-card,
-.ftc-app[data-theme=light] .ftc-intro-tile {
-    border-color: var(--ftc-line-light);
-    background: rgba(255,255,255,.5);
-}
-
-.ftc-feature-grid strong,
-.ftc-service-card strong,
-.ftc-intro-tile strong {
-    display: block;
-    color: var(--ftc-ink);
-    font-size: 15px;
-    margin-bottom: 6px;
-}
-
-.ftc-app[data-theme=light] .ftc-feature-grid strong,
-.ftc-app[data-theme=light] .ftc-service-card strong,
-.ftc-app[data-theme=light] .ftc-intro-tile strong {
-    color: #222;
-}
-
-.ftc-feature-grid span,
-.ftc-service-card p,
-.ftc-intro-tile span {
-    font-size: 13px;
-    line-height: 1.45;
-    color: var(--ftc-muted);
-    margin: 0;
-}
-
-.ftc-hero-video {
-    margin: 24px 0 4px;
-    border: 1px solid var(--ftc-line);
-    border-radius: 24px;
-    overflow: hidden;
-    background: #08090a;
-    max-width: 920px;
-}
-
-    .ftc-hero-video video {
-        width: 100%;
-        display: block;
-        height: auto;
-    }
-
-.ftc-section-label {
-    margin: 28px 0 16px;
-    color: var(--ftc-muted);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: .11em;
-    font-weight: 800;
-}
-
-.ftc-masonry {
-    column-count: 3;
-    column-gap: 16px;
-}
-
-.ftc-work-card {
-    position: relative;
-    break-inside: avoid;
-    margin: 0 0 16px;
-    border: 1px solid var(--ftc-line);
-    border-radius: 22px;
-    overflow: hidden;
-    background: rgba(255,255,255,.035);
-    min-height: 260px;
-}
-
-.ftc-app[data-theme=light] .ftc-work-card {
-    border-color: var(--ftc-line-light);
-    background: rgba(255,255,255,.62);
-}
-
-.ftc-work-card img {
-    width: 100%;
-    height: auto;
-    display: block;
-}
-
-.ftc-work-info {
-    padding: 16px;
-}
-
-    .ftc-work-info span {
-        font-size: 11px;
-        color: var(--ftc-muted);
-        text-transform: uppercase;
-        letter-spacing: .09em;
-        font-weight: 800;
-    }
-
-    .ftc-work-info h3 {
-        margin: 6px 0 8px;
-        font-size: 21px;
-        line-height: 1.15;
-    }
-
-    .ftc-work-info p {
-        margin: 0;
-        color: var(--ftc-muted);
-        font-size: 13px;
-        line-height: 1.45;
-    }
-
-    .ftc-work-info a {
-        display: inline-block;
-        margin-top: 12px;
-        color: var(--ftc-yellow) !important;
-        font-size: 13px;
-        font-weight: 800;
-        text-decoration: none !important;
-    }
-
-.ftc-work-card-1 img,
-.ftc-work-card-4 img {
-    max-height: 460px;
-    object-fit: cover;
-}
-
-.ftc-contact-grid {
-    display: grid;
-    grid-template-columns: repeat(2,minmax(0,1fr));
-    gap: 12px;
-}
-
-.ftc-contact-card {
-    display: block;
-    border: 1px solid var(--ftc-line);
-    border-radius: 18px;
-    padding: 18px;
-    text-decoration: none !important;
-    color: inherit !important;
-    background: rgba(255,255,255,.025);
-}
-
-    .ftc-contact-card strong {
-        display: block;
-        margin-bottom: 6px;
-    }
-
-    .ftc-contact-card span {
-        color: var(--ftc-muted);
-        font-size: 14px;
-    }
-
-.ftc-followup-row,
-.ftc-main-menu {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-    .ftc-followup,
-    .ftc-main-menu button {
-        border: 1px solid var(--ftc-line) !important;
-        border-radius: 999px !important;
-        background: rgba(255,255,255,.035) !important;
-        color: var(--ftc-yellow) !important;
-        font-size: 13px !important;
-        padding: 9px 13px !important;
-        cursor: pointer;
-        transition: all .2s ease;
-    }
-
-        .ftc-followup:hover,
-        .ftc-main-menu button:hover {
-            border-color: rgba(243,211,82,.65) !important;
-            color: var(--ftc-ink) !important;
-            background: rgba(255,255,255,.075) !important;
-            transform: translateY(-1px);
-        }
-
-/* Prompt dock aligns to response width */
-.ftc-prompt-dock {
-    position: absolute;
-    left: 50%;
-    bottom: 42px;
-    z-index: 40;
-    width: min(var(--ftc-app-width),calc(100% - 48px));
-    transform: translateX(-50%);
-    opacity: 0;
-    pointer-events: none;
-    transition: all .45s ease;
-}
-
-.ftc-app.is-chat .ftc-prompt-dock {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.ftc-main-menu {
-    justify-content: center;
-    margin-bottom: 12px;
-}
-
-.ftc-chat-form .ftc-input-shell {
-    height: 62px !important;
-    border: 1px solid var(--ftc-line) !important;
-    border-radius: 999px !important;
-    background: rgba(255,255,255,.04) !important;
-    backdrop-filter: blur(12px);
-    padding-left: 18px !important;
-}
-
-.ftc-app[data-theme=light] .ftc-chat-form .ftc-input-shell {
-    border-color: var(--ftc-line-light) !important;
-    background: rgba(255,255,255,.58) !important;
-}
-
-.ftc-chat-form .ftc-input-shell input {
-    font-size: 16px !important;
-    padding: 0 12px 0 0 !important;
-}
-
-.ftc-clear {
-    width: 42px !important;
-    height: 42px !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    color: var(--ftc-muted) !important;
-    font-size: 24px !important;
-    line-height: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-}
-
-    .ftc-clear:hover,
-    .ftc-clear:focus {
-        background: transparent !important;
-        color: var(--ftc-ink) !important;
-    }
-
-.ftc-send {
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    margin-right: 7px !important;
-    border-radius: 999px !important;
-    background: var(--ftc-yellow) !important;
-    color: #173f79 !important;
-    font-size: 22px !important;
-    line-height: 1 !important;
-    font-weight: 900 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    text-align: center !important;
-}
-
-    .ftc-send:hover,
-    .ftc-send:focus {
-        background: var(--ftc-yellow) !important;
-        color: #173f79 !important;
-    }
-
-.ftc-thinking {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    color: var(--ftc-muted);
-    font-size: 14px;
-}
-
-    .ftc-thinking i {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--ftc-muted);
-        display: block;
-        animation: ftcDots 1s infinite ease-in-out;
-    }
-
-        .ftc-thinking i:nth-child(2) {
-            animation-delay: .14s
-        }
-
-        .ftc-thinking i:nth-child(3) {
-            animation-delay: .28s
-        }
-
-/* Modal */
-.ftc-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 999999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .25s ease;
-}
-
-    .ftc-modal.is-open {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-.ftc-modal-bg {
-    position: absolute;
-    inset: 0;
-    border: 0 !important;
-    background: rgba(0,0,0,.54) !important;
-    color: transparent !important;
-    backdrop-filter: blur(8px);
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
-
-    .ftc-modal-bg:hover,
-    .ftc-modal-bg:focus,
-    .ftc-modal-bg:active {
-        background: rgba(0,0,0,.54) !important;
-        color: transparent !important;
-    }
-
-.ftc-modal-panel {
-    position: absolute;
-    right: 24px;
-    top: 24px;
-    width: min(460px,calc(100% - 48px));
-    max-height: calc(100svh - 48px);
-    overflow: auto;
-    border: 1px solid var(--ftc-line);
-    border-radius: 28px;
-    background: #15181c !important;
-    color: var(--ftc-ink) !important;
-    padding: 24px;
-}
-
-.ftc-modal-close {
-    position: absolute;
-    top: 14px;
-    right: 16px;
-    width: 34px !important;
-    height: 34px !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--ftc-muted) !important;
-    font-size: 26px !important;
-    line-height: 1 !important;
-    cursor: pointer;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-}
-
-    .ftc-modal-close:hover,
-    .ftc-modal-close:focus {
-        background: rgba(255,255,255,.07) !important;
-        color: var(--ftc-ink) !important;
-    }
-
-.ftc-modal-panel h2 {
-    margin: 0 0 18px;
-    font-size: 22px;
-}
-
-.ftc-explore-list {
-    display: grid;
-    gap: 10px;
-}
-
-.ftc-menu-prompt {
-    border: 1px solid var(--ftc-line) !important;
-    border-radius: 16px !important;
-    background: rgba(255,255,255,.035) !important;
-    color: var(--ftc-ink) !important;
-    padding: 14px !important;
-    text-align: left !important;
-    cursor: pointer;
-}
-
-    .ftc-menu-prompt:hover,
-    .ftc-menu-prompt:focus {
-        background: rgba(255,255,255,.075) !important;
-        border-color: rgba(243,211,82,.6) !important;
-        color: var(--ftc-ink) !important;
-    }
-
-    .ftc-menu-prompt span {
-        display: block;
-        font-weight: 800;
-    }
-
-    .ftc-menu-prompt small {
-        display: block;
-        margin-top: 4px;
-        color: var(--ftc-muted);
-    }
-
-.ftc-wp-menu {
-    margin-top: 22px;
-}
-
-    .ftc-wp-menu ul {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .ftc-wp-menu a {
-        display: block;
-        color: var(--ftc-muted) !important;
-        text-decoration: none !important;
-        padding: 9px 0;
-        border-bottom: 1px solid var(--ftc-line);
-    }
-
-        .ftc-wp-menu a:hover,
-        .ftc-wp-menu a:focus {
-            color: var(--ftc-ink) !important;
-        }
-
-.ftc-menu-subtitle {
-    margin-bottom: 8px;
-    color: var(--ftc-muted);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-}
-
-.ftc-loader {
-    width: 24px;
-    height: 24px;
-    border-radius: 999px;
-    border: 2px solid rgba(255,255,255,.15);
-    border-top-color: var(--ftc-yellow);
-    animation: ftcSpin .8s linear infinite;
-}
-
-.ftc-no-results {
-    border: 1px solid var(--ftc-line);
-    border-radius: 18px;
-    padding: 18px;
-    color: var(--ftc-muted);
-    font-size: 14px;
-}
-
-/* Animations */
-@keyframes ftcFadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(14px)
-    }
-
-    to {
-        opacity: 1;
-        transform: none
-    }
-}
-
-@keyframes ftcSpin {
-    to {
-        transform: rotate(360deg)
-    }
-}
-
-@keyframes ftcDots {
-    0%,80%,100% {
-        opacity: .35;
-        transform: translateY(0)
-    }
-
-    40% {
-        opacity: 1;
-        transform: translateY(-3px)
-    }
-}
-
-@keyframes ftcBlink {
-    0%,50% {
-        opacity: 1
-    }
-
-    51%,100% {
-        opacity: 0
-    }
-}
-
-@keyframes ftcCursor {
-    0%,50% {
-        opacity: 1
-    }
-
-    51%,100% {
-        opacity: 0
-    }
-}
-
-/* Tablet */
-@media(max-width:980px) {
-    :root {
-        --ftc-app-width: calc(100vw - 36px);
-    }
-
-    .ftc-header {
-        width: calc(100% - 36px);
-    }
-
-    .ftc-feature-grid,
-    .ftc-service-grid,
-    .ftc-intro-grid {
-        grid-template-columns: repeat(2,minmax(0,1fr));
-    }
-
-    .ftc-masonry {
-        column-count: 2;
-    }
-
-    .ftc-stage-chat {
-        padding: 128px 18px 180px;
-    }
-
-    .ftc-card {
-        padding: 22px;
-    }
-
-    .ftc-logo {
-        width: clamp(190px,34vw,280px);
-    }
-
-    .ftc-app.is-chat .ftc-logo {
-        width: 112px;
-    }
-
-    .ftc-main-menu {
-        display: none;
-    }
-
-    .ftc-stage-intro {
-        width: calc(100% - 40px);
-        padding: 132px 0 96px;
-    }
-
-    .ftc-typewriter {
-        max-width: 760px;
-        font-size: clamp(29px,5.8vw,46px);
-    }
-}
-
-/* Mobile */
-@media(max-width:640px) {
-    .ftc-app {
-        min-height: 560px;
-    }
-
-    .ftc-header {
-        top: 16px;
-        width: calc(100% - 28px);
-    }
-
-    .ftc-logo {
-        width: clamp(170px,54vw,240px);
-    }
-
-    .ftc-app.is-chat .ftc-logo {
-        width: 76px;
-    }
-
-    .ftc-header-actions {
-        gap: 8px;
-    }
-
-    .ftc-action {
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-    }
-
-    .ftc-stage-intro {
-        width: calc(100% - 32px);
-        justify-content: center;
-        align-items: flex-start;
-        padding: 118px 0 96px;
-    }
-
-    .ftc-typewriter {
-        margin-top: 18px;
-        font-size: clamp(27px,7.4vw,40px);
-        line-height: 1.15;
-    }
-
-    .ftc-entry-form {
-        width: 100%;
-        margin-top: 12px;
-    }
-
-    .ftc-input-shell {
-        height: 60px;
-    }
-
-        .ftc-input-shell input {
-            font-size: 19px !important;
-        }
-
-    .ftc-entry-shell button {
-        width: 104px;
-        height: 42px !important;
-        font-size: 12px !important;
-        margin-left: 10px;
-    }
-
-    .ftc-stage-chat {
-        padding: 100px 12px 150px;
-    }
-
-    .ftc-chat-stream {
-        padding-bottom: 150px;
-    }
-
-    .ftc-message {
-        margin-bottom: 18px;
-    }
-
-    .ftc-user .ftc-bubble {
-        font-size: 16px;
-        max-width: 92%;
-        padding: 13px 16px;
-    }
-
-    .ftc-card {
-        border-radius: 22px;
-        padding: 18px;
-    }
-
-    .ftc-answer-heading {
-        font-size: 25px;
-    }
-
-    .ftc-answer-body {
-        font-size: 15px;
-    }
-
-    .ftc-feature-grid,
-    .ftc-service-grid,
-    .ftc-intro-grid,
-    .ftc-contact-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .ftc-masonry {
-        column-count: 1;
-    }
-
-    .ftc-prompt-dock {
-        width: calc(100% - 24px);
-        bottom: 20px;
-    }
-
-    .ftc-chat-form .ftc-input-shell {
-        height: 58px !important;
-    }
-
-        .ftc-chat-form .ftc-input-shell input {
-            font-size: 15px !important;
-        }
-
-    .ftc-modal-panel {
-        right: 12px;
-        top: 12px;
-        width: calc(100% - 24px);
-        max-height: calc(100svh - 24px);
-    }
+.ftc-app *::after{
+  max-width:100%!important;
+}
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream{
+  overflow-x:hidden!important;
+}
+.ftc-response-shell,
+.ftc-response-content,
+.ftc-project-page,
+.ftc-portfolio-panel,
+.ftc-project-detail,
+.ftc-project-gallery,
+.ftc-service-detail,
+.ftc-home-overview{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+/* #38 light mode accent correction */
+.ftc-app[data-theme="light"] [style*="color"],
+.ftc-app[data-theme="light"] .ftc-response-content strong,
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em{
+  color:var(--ftc-blue)!important;
+}
+
+/* #44 search area with clear separation from scrollbar and CHAT button */
+.ftc-prompt-dock{
+  padding-right:18px!important;
+}
+.ftc-bottom-search{
+  padding-right:12px!important;
+}
+.ftc-input-shell{
+  margin-right:0!important;
+}
+.ftc-input-shell input{
+  padding-right:72px!important;
+}
+.ftc-send{
+  margin-left:8px!important;
+}
+
+/* #46 buttons not too close to next headline/content */
+.ftc-followups{
+  margin:56px 0 36px!important;
+  padding-bottom:22px!important;
+}
+
+/* #28 #29 #37 portfolio: force the intended layout over older rules */
+.ftc-portfolio-panel{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:40px!important;
+  width:100%!important;
+  max-width:1500px!important;
+  margin:0 auto 60px!important;
+  padding:0 24px 60px 0!important;
+}
+.ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-work-featured button{
+  display:grid!important;
+  grid-template-columns:minmax(500px,1.1fr) minmax(360px,.9fr)!important;
+  gap:64px!important;
+  align-items:center!important;
+}
+.ftc-work-card img,
+.ftc-project-feature img,
+.ftc-project-gallery img{
+  object-fit:contain!important;
+  background:#2b2b2b!important;
+}
+.ftc-project-page{
+  width:100%!important;
+  max-width:1500px!important;
+  margin:0 auto!important;
+  padding:0 24px 70px 0!important;
+}
+.ftc-project-detail{
+  display:grid!important;
+  grid-template-columns:minmax(420px,.82fr) minmax(560px,1.18fr)!important;
+  gap:72px!important;
+  align-items:start!important;
+  margin:32px 0 44px!important;
+}
+.ftc-project-gallery{
+  columns:3 330px!important;
+  column-gap:30px!important;
+  margin-top:40px!important;
+  padding-bottom:70px!important;
+}
+.ftc-project-gallery figure{
+  margin:0 0 30px!important;
+  break-inside:avoid!important;
+}
+.ftc-project-gallery img{
+  width:100%!important;
+  height:auto!important;
+  max-height:none!important;
+  aspect-ratio:auto!important;
+}
+
+@media(max-width:1200px){
+  .ftc-portfolio-panel{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-work-featured button,
+  .ftc-project-detail{
+    grid-template-columns:1fr!important;
+    gap:32px!important;
+  }
+  .ftc-project-gallery{
+    columns:2 280px!important;
+  }
+}
+@media(max-width:760px){
+  .ftc-prompt-dock{
+    padding-right:0!important;
+  }
+  .ftc-bottom-search{
+    padding-right:0!important;
+  }
+  .ftc-input-shell input{
+    padding-right:44px!important;
+  }
+  .ftc-portfolio-panel{
+    grid-template-columns:1fr!important;
+    padding-right:0!important;
+    gap:30px!important;
+  }
+  .ftc-project-page{
+    padding-right:0!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+    padding-bottom:50px!important;
+  }
+  .ftc-followups{
+    margin-top:38px!important;
+  }
+}
+
+
+/* ==========================================================================
+   2.6.37 FINAL PUNCH LIST PASS
+   BugHerd remaining: #8 #13 #24 #32 #36 #38 #43 #47 #48 #49
+   ========================================================================== */
+
+/* #13 #43 Remove gray/background button artifacts and unwanted chips */
+.ftc-question-chip,
+.ftc-kicker,
+.ftc-chip,
+.ftc-pill,
+.ftc-tag,
+.ftc-section-label,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-project-industry{
+  display:none!important;
+}
+.ftc-dock-prompts button,
+.ftc-followup,
+.ftc-menu-prompt{
+  box-shadow:none!important;
+}
+.ftc-dock-prompts button,
+.ftc-followup{
+  background:transparent!important;
+}
+.ftc-menu-prompt{
+  background:transparent!important;
+}
+.ftc-menu-prompt:hover,
+.ftc-menu-prompt:focus{
+  background:rgba(255,217,77,.14)!important;
+}
+.ftc-app[data-theme="light"] .ftc-menu-prompt:hover,
+.ftc-app[data-theme="light"] .ftc-menu-prompt:focus{
+  background:rgba(57,124,246,.10)!important;
+}
+
+/* #38 remove yellow in light mode, use blue */
+.ftc-app[data-theme="light"] .ftc-answer-heading,
+.ftc-app[data-theme="light"] .ftc-response-content h3,
+.ftc-app[data-theme="light"] .ftc-home-copy h3,
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-contact-copy h3,
+.ftc-app[data-theme="light"] .ftc-service-detail h3,
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em,
+.ftc-app[data-theme="light"] .ftc-tech-badges span,
+.ftc-app[data-theme="light"] .ftc-child-grid h4,
+.ftc-app[data-theme="light"] .ftc-red-link{
+  color:var(--ftc-blue)!important;
+}
+
+/* #32 item spacing across service/detail/contact/FAQ content */
+.ftc-response-content p,
+.ftc-response-content li,
+.ftc-faq-answer,
+.ftc-child-grid li,
+.ftc-contact-copy li,
+.ftc-project-text li,
+.ftc-service-detail-copy li{
+  line-height:1.72!important;
+}
+.ftc-response-content li,
+.ftc-child-grid li,
+.ftc-contact-copy li,
+.ftc-project-text li,
+.ftc-service-detail-copy li{
+  margin-bottom:15px!important;
+}
+.ftc-child-grid article + article,
+.ftc-proof-grid article + article,
+.ftc-team-card + .ftc-team-card{
+  margin-top:0!important;
+}
+.ftc-child-grid,
+.ftc-proof-grid,
+.ftc-team-grid{
+  gap:28px!important;
+}
+
+/* #36 #47 #48 no horizontal scroll and no cut-off. */
+html,body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+.ftc-response-shell,
+.ftc-response-content,
+.ftc-home-overview,
+.ftc-about-layout,
+.ftc-contact-layout,
+.ftc-service-detail,
+.ftc-service-detail-hero,
+.ftc-project-page,
+.ftc-project-detail,
+.ftc-project-gallery,
+.ftc-portfolio-panel{
+  max-width:min(1500px,100%)!important;
+  overflow-x:hidden!important;
+}
+.ftc-stage-chat{
+  padding-bottom:calc(var(--ftc-dock-h) + 34px)!important;
+}
+.ftc-chat-stream{
+  padding-bottom:calc(var(--ftc-dock-h) + 34px)!important;
+}
+.ftc-response-content{
+  padding-bottom:88px!important;
+}
+.ftc-green-btn,
+.ftc-back-button,
+.ftc-contact-form button,
+.ftc-red-link{
+  margin-top:26px!important;
+  margin-bottom:28px!important;
+}
+
+/* #8 About page redesign */
+.ftc-about-redesign{
+  grid-template-columns:minmax(440px,.9fr) minmax(620px,1.1fr)!important;
+  gap:clamp(46px,6vw,108px)!important;
+  align-items:start!important;
+}
+.ftc-about-copy h3{
+  font-size:clamp(38px,3.2vw,64px)!important;
+  line-height:1.02!important;
+  letter-spacing:-.045em!important;
+  margin:0 0 24px!important;
+}
+.ftc-about-copy p{
+  font-size:clamp(18px,1.12vw,22px)!important;
+  line-height:1.66!important;
+}
+.ftc-about-copy ul{
+  margin:26px 0!important;
+  padding-left:1.2em!important;
+}
+.ftc-team-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:22px!important;
+}
+.ftc-team-card{
+  display:flex!important;
+  flex-direction:column!important;
+  background:rgba(255,255,255,.045)!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  border-radius:18px!important;
+  padding:22px!important;
+}
+.ftc-team-card span{
+  color:var(--ftc-yellow)!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  letter-spacing:.05em!important;
+  text-transform:uppercase!important;
+  margin:7px 0 12px!important;
+}
+.ftc-app[data-theme="light"] .ftc-team-card span{
+  color:var(--ftc-blue)!important;
+}
+.ftc-team-avatar{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  border-radius:14px!important;
+  background:#2a2a2a!important;
+  overflow:hidden!important;
+  margin-bottom:18px!important;
+}
+.ftc-team-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+
+/* #48 Featured work on home: show 3 at desktop, scroll to 9; 2 tablet, 1 mobile */
+.ftc-response-layout-home .ftc-portfolio-latest{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:calc((100% - 56px)/3)!important;
+  grid-template-columns:none!important;
+  gap:28px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scroll-snap-type:x mandatory!important;
+  padding:0 0 26px!important;
+  margin-bottom:60px!important;
+  scrollbar-width:thin!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-card{
+  scroll-snap-align:start!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-featured{
+  grid-column:auto!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-featured button,
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-card button{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:0!important;
+}
+
+/* Full portfolio page: one large feature + cards below */
+.ftc-portfolio-full{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:40px!important;
+}
+.ftc-portfolio-full .ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-portfolio-full .ftc-work-featured button{
+  display:grid!important;
+  grid-template-columns:minmax(540px,1.12fr) minmax(380px,.88fr)!important;
+  gap:clamp(42px,5vw,90px)!important;
+  align-items:center!important;
+}
+
+/* #37 Project detail: 1 big feature, masonry below, no crop */
+.ftc-project-detail{
+  display:grid!important;
+  grid-template-columns:minmax(440px,.82fr) minmax(580px,1.18fr)!important;
+  gap:clamp(44px,5vw,96px)!important;
+  align-items:start!important;
+}
+.ftc-project-feature img,
+.ftc-work-card img{
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+}
+.ftc-project-gallery{
+  columns:3 340px!important;
+  column-gap:30px!important;
+  margin-top:46px!important;
+  padding-bottom:88px!important;
+}
+.ftc-project-gallery figure{
+  break-inside:avoid!important;
+  margin:0 0 30px!important;
+}
+.ftc-project-gallery img{
+  aspect-ratio:auto!important;
+  width:100%!important;
+  height:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+}
+
+/* #49 cluster cleanup: normalize cards and spacing */
+.ftc-work-card,
+.ftc-service-card{
+  min-width:0!important;
+}
+.ftc-work-card button,
+.ftc-service-card button{
+  min-width:0!important;
+}
+.ftc-work-info h3,
+.ftc-service-card strong{
+  margin-top:18px!important;
+}
+.ftc-work-info p,
+.ftc-service-card p{
+  margin-bottom:18px!important;
+}
+
+/* Responsive rules */
+@media(max-width:1200px){
+  .ftc-about-redesign,
+  .ftc-project-detail,
+  .ftc-portfolio-full .ftc-work-featured button{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-team-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:calc((100% - 28px)/2)!important;
+  }
+  .ftc-portfolio-full{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-project-gallery{
+    columns:2 300px!important;
+  }
+}
+@media(max-width:760px){
+  .ftc-team-grid,
+  .ftc-portfolio-full{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:88%!important;
+    gap:18px!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+  }
+  .ftc-stage-chat,
+  .ftc-chat-stream{
+    padding-bottom:calc(var(--ftc-dock-h) + 44px)!important;
+  }
+  .ftc-response-content{
+    padding-bottom:72px!important;
+  }
+  .ftc-about-copy h3{
+    font-size:34px!important;
+  }
+}
+
+
+
+/* ==========================================================================
+   2.6.38 REFUSED-TO-CLOSE BUGS - DIRECT VISUAL FIXES
+   These rules target the exact remaining BugHerd items and the reported
+   carousel-arrow cutoff.
+   ========================================================================== */
+
+/* #13 #43 remove gray/button artifacts and unwanted little elements */
+.ftc-question-chip,
+.ftc-kicker,
+.ftc-chip,
+.ftc-pill,
+.ftc-tag,
+.ftc-section-label,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-project-industry{
+  display:none!important;
+}
+.ftc-dock-prompts button,
+.ftc-followup,
+.ftc-menu-prompt{
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+/* #38 yellow text in light mode: remove by forcing all common accents blue */
+.ftc-app[data-theme="light"] .ftc-answer-heading,
+.ftc-app[data-theme="light"] .ftc-response-content h1,
+.ftc-app[data-theme="light"] .ftc-response-content h2,
+.ftc-app[data-theme="light"] .ftc-response-content h3,
+.ftc-app[data-theme="light"] .ftc-response-content h4,
+.ftc-app[data-theme="light"] .ftc-home-copy h3,
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-contact-copy h3,
+.ftc-app[data-theme="light"] .ftc-service-detail h3,
+.ftc-app[data-theme="light"] .ftc-work-info strong,
+.ftc-app[data-theme="light"] .ftc-service-card em,
+.ftc-app[data-theme="light"] .ftc-tech-badges span,
+.ftc-app[data-theme="light"] .ftc-child-grid h4,
+.ftc-app[data-theme="light"] .ftc-team-card span,
+.ftc-app[data-theme="light"] .ftc-red-link{
+  color:var(--ftc-blue)!important;
+}
+
+/* #8 About page and menu content */
+.ftc-about-redesign{
+  display:grid!important;
+  grid-template-columns:minmax(430px,.9fr) minmax(620px,1.1fr)!important;
+  gap:clamp(46px,6vw,104px)!important;
+  align-items:start!important;
+  width:min(1500px,100%)!important;
+  margin:0 auto!important;
+}
+.ftc-about-copy h3{
+  font-size:clamp(40px,3.4vw,68px)!important;
+  line-height:1.01!important;
+  letter-spacing:-.05em!important;
+  margin:0 0 24px!important;
+}
+.ftc-about-copy p{
+  font-size:clamp(18px,1.1vw,22px)!important;
+  line-height:1.68!important;
+  margin:0 0 22px!important;
+}
+.ftc-about-copy ul{
+  margin:26px 0!important;
+  padding-left:1.2em!important;
+}
+.ftc-about-copy li{
+  margin-bottom:14px!important;
+  line-height:1.68!important;
+}
+.ftc-team-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:24px!important;
+}
+.ftc-team-card{
+  display:flex!important;
+  flex-direction:column!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  border-radius:18px!important;
+  background:rgba(255,255,255,.045)!important;
+  padding:22px!important;
+  min-width:0!important;
+}
+.ftc-team-avatar{
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+  background:#2a2a2a!important;
+  margin-bottom:18px!important;
+}
+.ftc-team-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.ftc-team-card strong{
+  font-size:20px!important;
+  line-height:1.18!important;
+}
+.ftc-team-card span{
+  display:block!important;
+  margin:8px 0 12px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+  color:var(--ftc-yellow)!important;
+}
+
+/* #32 spacing between items */
+.ftc-response-content p,
+.ftc-response-content li,
+.ftc-child-grid li,
+.ftc-contact-copy li,
+.ftc-project-text li,
+.ftc-service-detail-copy li,
+.ftc-about-copy li{
+  line-height:1.72!important;
+}
+.ftc-response-content li,
+.ftc-child-grid li,
+.ftc-contact-copy li,
+.ftc-project-text li,
+.ftc-service-detail-copy li,
+.ftc-about-copy li{
+  margin-bottom:15px!important;
+}
+.ftc-child-grid,
+.ftc-proof-grid,
+.ftc-team-grid,
+.ftc-service-grid,
+.ftc-portfolio-full{
+  gap:30px!important;
+}
+
+/* #36 #47 #48 no horizontal scrollbar / no cutoff */
+html,
+body,
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+.ftc-response-shell,
+.ftc-response-content,
+.ftc-about-layout,
+.ftc-contact-layout,
+.ftc-home-overview,
+.ftc-service-detail,
+.ftc-service-detail-hero,
+.ftc-project-page,
+.ftc-project-detail,
+.ftc-project-gallery,
+.ftc-portfolio-panel,
+.ftc-portfolio-latest-wrap{
+  max-width:100%!important;
+  overflow-x:clip!important;
+}
+.ftc-stage-chat,
+.ftc-chat-stream{
+  padding-bottom:calc(var(--ftc-dock-h) + 48px)!important;
+}
+.ftc-response-content{
+  padding-bottom:96px!important;
+}
+.ftc-green-btn,
+.ftc-back-button,
+.ftc-contact-form button,
+.ftc-red-link{
+  margin-top:26px!important;
+  margin-bottom:36px!important;
+}
+
+/* #48 Featured Work: desktop 3 visible with arrows, tablet 2, mobile 1 */
+.ftc-portfolio-latest-wrap{
+  position:relative!important;
+  width:min(1500px,100%)!important;
+  margin:0 auto 68px!important;
+  padding:0 58px!important; /* prevents previous/next button cutoff */
+  overflow:visible!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-template-columns:none!important;
+  grid-auto-columns:calc((100% - 56px)/3)!important;
+  gap:28px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scroll-snap-type:x mandatory!important;
+  padding:0 0 26px!important;
+  scrollbar-width:thin!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-card{
+  scroll-snap-align:start!important;
+}
+.ftc-portfolio-prev,
+.ftc-portfolio-next,
+.ftc-carousel-arrow{
+  z-index:30!important;
+  top:38%!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  border-radius:999px!important;
+  overflow:visible!important;
+  box-shadow:0 10px 22px rgba(0,0,0,.18)!important;
+}
+.ftc-portfolio-prev,
+.ftc-carousel-prev{
+  left:4px!important;
+}
+.ftc-portfolio-next,
+.ftc-carousel-next{
+  right:4px!important;
+}
+.ftc-service-carousel-wrap{
+  overflow:visible!important;
+  padding:0 58px!important;
+}
+
+/* Full portfolio page */
+.ftc-portfolio-full{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  width:min(1500px,100%)!important;
+  margin:0 auto!important;
+}
+.ftc-portfolio-full .ftc-work-featured{
+  grid-column:1 / -1!important;
+}
+.ftc-portfolio-full .ftc-work-featured button{
+  display:grid!important;
+  grid-template-columns:minmax(540px,1.12fr) minmax(380px,.88fr)!important;
+  gap:clamp(42px,5vw,90px)!important;
+  align-items:center!important;
+}
+
+/* #37 Project detail */
+.ftc-project-detail{
+  display:grid!important;
+  grid-template-columns:minmax(440px,.82fr) minmax(580px,1.18fr)!important;
+  gap:clamp(44px,5vw,96px)!important;
+  align-items:start!important;
+}
+.ftc-project-feature img,
+.ftc-work-card img{
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+}
+.ftc-project-gallery{
+  columns:3 340px!important;
+  column-gap:30px!important;
+  margin-top:46px!important;
+  padding-bottom:96px!important;
+}
+.ftc-project-gallery figure{
+  break-inside:avoid!important;
+  margin:0 0 30px!important;
+}
+.ftc-project-gallery img{
+  aspect-ratio:auto!important;
+  width:100%!important;
+  height:auto!important;
+  object-fit:contain!important;
+  background:#2a2a2a!important;
+}
+
+/* #49 visual cluster cleanup */
+.ftc-work-card,
+.ftc-service-card,
+.ftc-team-card{
+  min-width:0!important;
+}
+.ftc-work-card button,
+.ftc-service-card button{
+  min-width:0!important;
+}
+.ftc-work-info{
+  padding-top:20px!important;
+}
+.ftc-work-info h3,
+.ftc-service-card strong{
+  margin:0 0 14px!important;
+}
+.ftc-work-info p,
+.ftc-service-card p{
+  margin:0 0 18px!important;
+}
+
+/* Responsive */
+@media(max-width:1200px){
+  .ftc-about-redesign,
+  .ftc-project-detail,
+  .ftc-portfolio-full .ftc-work-featured button{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-team-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:calc((100% - 28px)/2)!important;
+  }
+  .ftc-portfolio-full{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .ftc-project-gallery{
+    columns:2 300px!important;
+  }
+}
+@media(max-width:760px){
+  .ftc-team-grid,
+  .ftc-portfolio-full{
+    grid-template-columns:1fr!important;
+  }
+  .ftc-portfolio-latest-wrap{
+    padding:0 46px!important;
+  }
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:100%!important;
+    gap:18px!important;
+  }
+  .ftc-project-gallery{
+    columns:1!important;
+  }
+  .ftc-stage-chat,
+  .ftc-chat-stream{
+    padding-bottom:calc(var(--ftc-dock-h) + 54px)!important;
+  }
+  .ftc-response-content{
+    padding-bottom:82px!important;
+  }
+  .ftc-about-copy h3{
+    font-size:34px!important;
+  }
+}
+
+
+/* ==========================================================================
+   2.6.39 DAMAGE CONTROL PASS
+   Fixes the visible regressions from 2.6.38:
+   - About generic response header overlapping the About page
+   - About/team cards using oversized inherited text
+   - Mobile usable viewport being crushed by header/footer/dock spacing
+   ========================================================================== */
+
+/* About page should not render the generic giant response title above the redesigned About content. */
+.ftc-response-layout-about > .ftc-response-header{
+  display:none!important;
+}
+
+.ftc-response-layout-about > .ftc-response-content{
+  padding-top:0!important;
+}
+
+/* Keep About content readable and prevent card text from becoming huge/tall. */
+.ftc-about-redesign{
+  display:grid!important;
+  grid-template-columns:minmax(520px,.95fr) minmax(620px,1.05fr)!important;
+  gap:clamp(36px,4vw,72px)!important;
+  align-items:start!important;
+}
+
+.ftc-about-copy h3{
+  color:var(--ftc-yellow)!important;
+  font-size:clamp(42px,3vw,58px)!important;
+  line-height:1.03!important;
+  letter-spacing:-.045em!important;
+  margin:0 0 22px!important;
+}
+
+.ftc-about-copy p{
+  max-width:720px!important;
+  font-size:clamp(17px,1vw,20px)!important;
+  line-height:1.62!important;
+  margin:0 0 20px!important;
+}
+
+.ftc-about-copy ul{
+  max-width:760px!important;
+  margin:24px 0!important;
+  padding-left:1.1em!important;
+}
+
+.ftc-about-copy li{
+  font-size:clamp(15px,.9vw,17px)!important;
+  line-height:1.55!important;
+  margin-bottom:12px!important;
+}
+
+.ftc-team-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:22px!important;
+}
+
+.ftc-team-card{
+  min-width:0!important;
+  padding:20px!important;
+}
+
+.ftc-team-card strong{
+  display:block!important;
+  font-size:clamp(17px,1vw,21px)!important;
+  line-height:1.15!important;
+  margin:0!important;
+}
+
+.ftc-team-card span{
+  display:block!important;
+  font-size:10.5px!important;
+  line-height:1.25!important;
+  letter-spacing:.055em!important;
+  margin:9px 0 14px!important;
+  color:var(--ftc-yellow)!important;
+}
+
+.ftc-team-card p{
+  font-size:clamp(14px,.82vw,16px)!important;
+  line-height:1.48!important;
+  margin:0!important;
+  color:rgba(245,242,234,.78)!important;
+}
+
+.ftc-team-avatar{
+  max-height:118px!important;
+}
+
+.ftc-app[data-theme="light"] .ftc-about-copy h3,
+.ftc-app[data-theme="light"] .ftc-team-card span{
+  color:var(--ftc-blue)!important;
+}
+
+.ftc-app[data-theme="light"] .ftc-team-card p{
+  color:rgba(20,20,20,.72)!important;
+}
+
+/* Keep carousel arrows inside bounds and visible without being clipped. */
+.ftc-portfolio-latest-wrap,
+.ftc-service-carousel-wrap{
+  overflow:visible!important;
+  padding-left:64px!important;
+  padding-right:64px!important;
+}
+
+.ftc-portfolio-prev,
+.ftc-carousel-prev{
+  left:12px!important;
+}
+
+.ftc-portfolio-next,
+.ftc-carousel-next{
+  right:12px!important;
+}
+
+/* Mobile: restore usable content height. Reduce header/footer/dock reservation. */
+@media(max-width:760px){
+  .ftc-app{
+    --ftc-header-h:56px!important;
+    --ftc-dock-h:132px!important;
+    min-height:100dvh!important;
+  }
+
+  .ftc-app.is-chat{
+    --ftc-dock-h:78px!important;
+  }
+
+  .ftc-header,
+  .ftc-app.is-chat .ftc-header{
+    height:56px!important;
+    padding:8px 16px 0!important;
+  }
+
+  .ftc-app:not(.is-chat) .ftc-logo{
+    width:72px!important;
+  }
+
+  .ftc-app.is-chat .ftc-logo-icon{
+    width:34px!important;
+  }
+
+  .ftc-header-actions{
+    gap:8px!important;
+  }
+
+  .ftc-action{
+    width:36px!important;
+    height:36px!important;
+    min-width:36px!important;
+    min-height:36px!important;
+  }
+
+  .ftc-stage-intro{
+    padding-top:62px!important;
+    padding-bottom:142px!important;
+  }
+
+  .ftc-stage-chat{
+    padding-top:62px!important;
+    padding-bottom:92px!important;
+  }
+
+  .ftc-chat-stream{
+    padding-bottom:92px!important;
+  }
+
+  .ftc-prompt-dock,
+  .ftc-app.is-chat .ftc-prompt-dock,
+  .ftc-app:not(.is-chat) .ftc-prompt-dock{
+    bottom:max(6px,env(safe-area-inset-bottom))!important;
+    min-height:auto!important;
+    gap:6px!important;
+  }
+
+  .ftc-app:not(.is-chat) .ftc-prompt-dock{
+    grid-template-columns:34px minmax(0,1fr)!important;
+  }
+
+  .ftc-app.is-chat .ftc-prompt-dock{
+    grid-template-columns:34px minmax(0,1fr)!important;
+    grid-template-areas:"help search" ". byline"!important;
+  }
+
+  .ftc-help-dot{
+    width:32px!important;
+    height:32px!important;
+    min-width:32px!important;
+    min-height:32px!important;
+    font-size:19px!important;
+  }
+
+  .ftc-dock-prompts{
+    gap:6px!important;
+  }
+
+  .ftc-dock-prompts button{
+    min-height:30px!important;
+    padding:6px 8px!important;
+    font-size:10.25px!important;
+  }
+
+  .ftc-input-shell{
+    min-height:50px!important;
+  }
+
+  .ftc-send{
+    width:76px!important;
+    min-width:76px!important;
+    max-width:76px!important;
+    font-size:12px!important;
+  }
+
+  .ftc-site-byline{
+    display:none!important;
+  }
+
+  .ftc-about-redesign{
+    grid-template-columns:1fr!important;
+    gap:26px!important;
+  }
+
+  .ftc-about-copy h3{
+    font-size:32px!important;
+  }
+
+  .ftc-about-copy p{
+    font-size:16.5px!important;
+    line-height:1.55!important;
+  }
+
+  .ftc-team-grid{
+    grid-template-columns:1fr!important;
+    gap:16px!important;
+  }
+
+  .ftc-team-avatar{
+    max-height:none!important;
+  }
+
+  .ftc-portfolio-latest-wrap,
+  .ftc-service-carousel-wrap{
+    padding-left:44px!important;
+    padding-right:44px!important;
+  }
+
+  .ftc-portfolio-prev,
+  .ftc-carousel-prev{
+    left:6px!important;
+  }
+
+  .ftc-portfolio-next,
+  .ftc-carousel-next{
+    right:6px!important;
+  }
+}
+
+
+
+/* ==========================================================================
+   2.6.40 REGRESSION FIX PASS
+   Fixes issues introduced by 2.6.38/2.6.39:
+   - Generic response header overlap on Get Started and other sections
+   - Missing right-side prompt chip
+   - Visible horizontal carousel scrollbars
+   - Cut-off carousel previous/next buttons
+   - Mobile header/footer fine text regressions
+   ========================================================================== */
+
+/* Rebuild the response header: title + prompt chip on one line, description below.
+   This directly fixes the giant overlapping title/description screenshot. */
+.ftc-response-shell > .ftc-response-header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:
+    "title chip"
+    "desc chip"!important;
+  column-gap:clamp(18px,3vw,44px)!important;
+  row-gap:12px!important;
+  align-items:start!important;
+  width:min(1500px,100%)!important;
+  max-width:1500px!important;
+  margin:0 auto clamp(30px,4vw,56px)!important;
+  padding:0!important;
+  position:relative!important;
+  overflow:visible!important;
+}
+
+.ftc-response-shell > .ftc-response-header .ftc-kicker{
+  display:none!important;
+}
+
+.ftc-response-shell > .ftc-response-header .ftc-answer-heading{
+  grid-area:title!important;
+  display:block!important;
+  position:relative!important;
+  z-index:2!important;
+  max-width:900px!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:clamp(38px,3.15vw,68px)!important;
+  line-height:1.02!important;
+  letter-spacing:-.05em!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  color:var(--ftc-white)!important;
+}
+
+.ftc-response-shell > .ftc-response-header .ftc-answer-description{
+  grid-area:desc!important;
+  display:block!important;
+  max-width:980px!important;
+  margin:0!important;
+  padding:0!important;
+  position:relative!important;
+  z-index:1!important;
+  font-size:clamp(18px,1.25vw,24px)!important;
+  line-height:1.55!important;
+  color:rgba(245,242,234,.82)!important;
+}
+
+/* Restore the prompt chip that was accidentally hidden.
+   This answers the tickets about missing prompt indication on the right. */
+.ftc-response-shell > .ftc-response-header .ftc-question-chip{
+  grid-area:chip!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  justify-self:end!important;
+  align-self:start!important;
+  max-width:340px!important;
+  min-height:40px!important;
+  padding:10px 18px!important;
+  border-radius:999px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  font-size:13px!important;
+  line-height:1!important;
+  font-weight:800!important;
+  border:1.25px solid rgba(57,124,246,.55)!important;
+  background:rgba(10,18,32,.28)!important;
+  color:#9fbdff!important;
+  box-shadow:none!important;
+}
+
+/* About page keeps its custom design and does not show duplicate generic header. */
+.ftc-response-layout-about > .ftc-response-header{
+  display:none!important;
+}
+
+/* Light mode response header */
+.ftc-app[data-theme="light"] .ftc-response-shell > .ftc-response-header .ftc-answer-heading{
+  color:#151515!important;
+}
+.ftc-app[data-theme="light"] .ftc-response-shell > .ftc-response-header .ftc-answer-description{
+  color:rgba(20,20,20,.72)!important;
+}
+.ftc-app[data-theme="light"] .ftc-response-shell > .ftc-response-header .ftc-question-chip{
+  color:var(--ftc-blue)!important;
+  border-color:rgba(57,124,246,.65)!important;
+  background:rgba(57,124,246,.06)!important;
+}
+
+/* Remove unwanted little decorative items, but DO NOT remove prompt chip. */
+.ftc-kicker,
+.ftc-chip,
+.ftc-pill,
+.ftc-tag,
+.ftc-section-label,
+.ftc-work-info > span,
+.ftc-service-card > button > span,
+.ftc-project-industry{
+  display:none!important;
+}
+
+/* Carousel/portfolio: hide ugly browser scrollbars while retaining touch/track scrolling. */
+.ftc-service-carousel-track,
+.ftc-response-layout-home .ftc-portfolio-latest{
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+.ftc-service-carousel-track::-webkit-scrollbar,
+.ftc-response-layout-home .ftc-portfolio-latest::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+}
+
+/* Prevent the previous/next arrows from being cut off. */
+.ftc-portfolio-latest-wrap,
+.ftc-service-carousel-wrap{
+  position:relative!important;
+  overflow:visible!important;
+  padding-left:72px!important;
+  padding-right:72px!important;
+  max-width:min(1500px,100%)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+.ftc-portfolio-prev,
+.ftc-service-carousel-wrap .ftc-carousel-prev{
+  left:14px!important;
+}
+.ftc-portfolio-next,
+.ftc-service-carousel-wrap .ftc-carousel-next{
+  right:14px!important;
+}
+
+.ftc-portfolio-prev,
+.ftc-portfolio-next,
+.ftc-service-carousel-wrap .ftc-carousel-prev,
+.ftc-service-carousel-wrap .ftc-carousel-next{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:48px!important;
+  height:48px!important;
+  min-width:48px!important;
+  min-height:48px!important;
+  border-radius:999px!important;
+  z-index:60!important;
+  overflow:visible!important;
+}
+
+/* Home featured work: 3 visible desktop, 2 tablet, 1 mobile, latest 9 scrollable. */
+.ftc-response-layout-home .ftc-portfolio-latest{
+  display:grid!important;
+  grid-auto-flow:column!important;
+  grid-template-columns:none!important;
+  grid-auto-columns:calc((100% - 56px)/3)!important;
+  gap:28px!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scroll-snap-type:x mandatory!important;
+  padding:0!important;
+  margin:0 0 56px!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-card{
+  scroll-snap-align:start!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-featured{
+  grid-column:auto!important;
+}
+.ftc-response-layout-home .ftc-portfolio-latest .ftc-work-featured button{
+  grid-template-columns:1fr!important;
+  gap:0!important;
+}
+
+/* Spacing and cut-off safety */
+.ftc-stage-chat,
+.ftc-chat-stream{
+  padding-bottom:calc(var(--ftc-dock-h) + 54px)!important;
+}
+.ftc-response-content{
+  padding-bottom:96px!important;
+}
+.ftc-followups{
+  margin-top:48px!important;
+  margin-bottom:44px!important;
+}
+
+/* No horizontal page scrollbar */
+html,
+body,
+.ftc-app,
+.ftc-main,
+.ftc-stage,
+.ftc-stage-intro,
+.ftc-stage-chat,
+.ftc-chat-stream,
+.ftc-response-shell,
+.ftc-response-content{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+/* Mobile: header and footer fine text restored without stealing the whole viewport. */
+@media(max-width:760px){
+  .ftc-app{
+    --ftc-header-h:64px!important;
+    --ftc-dock-h:146px!important;
+  }
+  .ftc-app.is-chat{
+    --ftc-dock-h:98px!important;
+  }
+  .ftc-header,
+  .ftc-app.is-chat .ftc-header{
+    height:64px!important;
+    padding:10px 16px 0!important;
+  }
+  .ftc-app:not(.is-chat) .ftc-logo{
+    width:82px!important;
+  }
+  .ftc-app.is-chat .ftc-logo-icon{
+    width:38px!important;
+  }
+  .ftc-action{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+  }
+  .ftc-stage-intro{
+    padding-top:70px!important;
+    padding-bottom:154px!important;
+  }
+  .ftc-stage-chat{
+    padding-top:70px!important;
+    padding-bottom:112px!important;
+  }
+  .ftc-chat-stream{
+    padding-bottom:112px!important;
+  }
+
+  .ftc-response-shell > .ftc-response-header{
+    grid-template-columns:1fr!important;
+    grid-template-areas:
+      "title"
+      "chip"
+      "desc"!important;
+    row-gap:12px!important;
+    margin-bottom:28px!important;
+  }
+  .ftc-response-shell > .ftc-response-header .ftc-answer-heading{
+    font-size:clamp(30px,9vw,42px)!important;
+    max-width:100%!important;
+  }
+  .ftc-response-shell > .ftc-response-header .ftc-answer-description{
+    font-size:17px!important;
+    line-height:1.55!important;
+  }
+  .ftc-response-shell > .ftc-response-header .ftc-question-chip{
+    justify-self:start!important;
+    max-width:100%!important;
+    min-height:34px!important;
+    font-size:12px!important;
+    padding:8px 14px!important;
+  }
+
+  .ftc-site-byline{
+    display:block!important;
+    font-size:8.5px!important;
+    line-height:1.15!important;
+    color:rgba(255,255,255,.58)!important;
+    white-space:nowrap!important;
+    text-align:center!important;
+  }
+
+  .ftc-portfolio-latest-wrap,
+  .ftc-service-carousel-wrap{
+    padding-left:46px!important;
+    padding-right:46px!important;
+  }
+  .ftc-portfolio-prev,
+  .ftc-service-carousel-wrap .ftc-carousel-prev{
+    left:2px!important;
+  }
+  .ftc-portfolio-next,
+  .ftc-service-carousel-wrap .ftc-carousel-next{
+    right:2px!important;
+  }
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:100%!important;
+    gap:18px!important;
+  }
+}
+
+@media(min-width:761px) and (max-width:1200px){
+  .ftc-response-layout-home .ftc-portfolio-latest{
+    grid-auto-columns:calc((100% - 28px)/2)!important;
+  }
+}
+
+
+/* ==========================================================================
+   2.7.0 Response Engine additions only. Existing design remains intact.
+   ========================================================================== */
+
+.ftc-response-results-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:24px!important;
+  width:min(1500px,100%)!important;
+  margin:0 auto!important;
+}
+
+.ftc-response-result-card button{
+  display:flex!important;
+  flex-direction:column!important;
+  width:100%!important;
+  min-height:190px!important;
+  padding:24px!important;
+  border-radius:20px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  background:rgba(255,255,255,.045)!important;
+  color:inherit!important;
+  text-align:left!important;
+  box-shadow:none!important;
+}
+
+.ftc-response-result-card strong{
+  display:block!important;
+  font-size:clamp(19px,1.2vw,25px)!important;
+  line-height:1.18!important;
+  margin:0 0 12px!important;
+  color:var(--ftc-yellow)!important;
+}
+
+.ftc-response-result-card span{
+  display:block!important;
+  font-size:clamp(15px,.9vw,18px)!important;
+  line-height:1.55!important;
+  color:rgba(245,242,234,.78)!important;
+  margin:0 0 18px!important;
+}
+
+.ftc-response-result-card em{
+  margin-top:auto!important;
+  font-style:normal!important;
+  font-weight:800!important;
+  color:var(--ftc-green)!important;
+}
+
+.ftc-response-block{
+  width:min(1500px,100%)!important;
+  margin:0 auto clamp(34px,4vw,64px)!important;
+}
+
+.ftc-response-block h3{
+  color:var(--ftc-yellow)!important;
+  font-size:clamp(24px,1.7vw,36px)!important;
+  line-height:1.15!important;
+  margin:0 0 18px!important;
+}
+
+.ftc-response-video{
+  width:100%!important;
+  max-width:980px!important;
+  aspect-ratio:16/9!important;
+  border-radius:20px!important;
+  background:#222!important;
+}
+
+.ftc-response-elementor-template{
+  width:100%!important;
+  max-width:1500px!important;
+  margin:0 auto!important;
+}
+
+@media(max-width:1100px){
+  .ftc-response-results-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+
+@media(max-width:760px){
+  .ftc-response-results-grid{grid-template-columns:1fr!important;gap:18px!important;}
+  .ftc-response-result-card button{min-height:150px!important;padding:20px!important;}
+}
+
+
+/* 2.7.1 Response Admin / Elementor support */
+.ftc-response-source-cpt.ftc-response-type-elementor_canvas .ftc-response-elementor-template,
+.ftc-response-source-cpt.ftc-response-type-elementor_template .ftc-response-elementor-template{
+  width:100%!important;
+  max-width:1500px!important;
+  margin:0 auto!important;
+}
+
+
+/* ==========================================================================
+   2.8.0 Response Stack + Field Theory focus transition
+   ========================================================================== */
+
+/* Chat is a growing stack of response sections, not replacement pages. */
+.ftc-chat-stream{
+  scroll-behavior:smooth!important;
+}
+
+.ftc-message.ftc-assistant{
+  position:relative!important;
+  margin-bottom:clamp(22px,3vw,40px)!important;
+  transform-origin:center top!important;
+  transition:filter .42s ease, transform .42s ease, opacity .42s ease!important;
+}
+
+.ftc-message.ftc-assistant .ftc-card{
+  position:relative!important;
+  border-radius:22px!important;
+  background:rgba(255,255,255,.045)!important;
+  border:1px solid rgba(255,255,255,.055)!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.20)!important;
+  padding:clamp(28px,3vw,52px)!important;
+  overflow:visible!important;
+}
+
+.ftc-message.ftc-assistant.is-soft-focus{
+  filter:blur(1.75px)!important;
+  transform:scale(.992)!important;
+  opacity:.72!important;
+}
+
+.ftc-message.ftc-assistant:not(.has-arrived){
+  opacity:0;
+  transform:translateY(34px) scale(.987);
+  filter:blur(4px);
+}
+
+.ftc-message.ftc-assistant.is-arriving{
+  opacity:1!important;
+  transform:translateY(0) scale(1)!important;
+  filter:blur(0)!important;
+}
+
+/* Tiny warp/data streaks on response arrival. */
+.ftc-warp-lines{
+  pointer-events:none!important;
+  position:absolute!important;
+  inset:-22px -10px auto -10px!important;
+  height:120px!important;
+  overflow:hidden!important;
+  opacity:0!important;
+  z-index:1!important;
+}
+
+.ftc-message.is-arriving .ftc-warp-lines{
+  animation:ftcWarpFade .72s ease both!important;
+}
+
+.ftc-warp-lines i{
+  position:absolute!important;
+  top:16px!important;
+  width:1.5px!important;
+  height:92px!important;
+  border-radius:99px!important;
+  background:linear-gradient(to bottom, rgba(255,217,77,0), rgba(255,217,77,.62), rgba(57,124,246,0))!important;
+  transform:rotate(16deg) translateY(-40px)!important;
+  filter:blur(.25px)!important;
+}
+
+.ftc-warp-lines i:nth-child(1){left:12%;animation:ftcWarpLine .62s cubic-bezier(.2,.8,.2,1) .02s both}
+.ftc-warp-lines i:nth-child(2){left:28%;animation:ftcWarpLine .72s cubic-bezier(.2,.8,.2,1) .08s both}
+.ftc-warp-lines i:nth-child(3){left:52%;animation:ftcWarpLine .66s cubic-bezier(.2,.8,.2,1) .04s both}
+.ftc-warp-lines i:nth-child(4){left:74%;animation:ftcWarpLine .78s cubic-bezier(.2,.8,.2,1) .10s both}
+.ftc-warp-lines i:nth-child(5){left:88%;animation:ftcWarpLine .58s cubic-bezier(.2,.8,.2,1) .03s both}
+
+@keyframes ftcWarpFade{
+  0%{opacity:0}
+  22%{opacity:.55}
+  100%{opacity:0}
+}
+@keyframes ftcWarpLine{
+  from{transform:rotate(16deg) translateY(-90px);opacity:0}
+  28%{opacity:1}
+  to{transform:rotate(16deg) translateY(115px);opacity:0}
+}
+
+/* Response first line should feel like chat, not a page H1. */
+.ftc-response-title-label{
+  color:var(--ftc-yellow)!important;
+  font-size:clamp(16px,1.1vw,22px)!important;
+  line-height:1.2!important;
+  font-weight:700!important;
+  margin:0 0 14px!important;
+}
+
+.ftc-response-shell > .ftc-response-header .ftc-answer-heading,
+.ftc-answer-heading{
+  font-size:clamp(22px,1.55vw,31px)!important;
+  line-height:1.42!important;
+  letter-spacing:-.018em!important;
+  font-weight:500!important;
+  max-width:1120px!important;
+  margin:0!important;
+}
+
+.ftc-response-shell > .ftc-response-header{
+  margin-bottom:clamp(24px,3vw,42px)!important;
+}
+
+/* Keep the query chip on the right, like the mockup. */
+.ftc-question-chip{
+  align-self:start!important;
+  margin-top:0!important;
+}
+
+/* Response subsections inside Get Started */
+.ftc-response-subsection{
+  position:relative!important;
+  width:100%!important;
+  margin:0 0 clamp(28px,3vw,42px)!important;
+  padding:clamp(28px,3vw,52px)!important;
+  border-radius:22px!important;
+  background:rgba(255,255,255,.045)!important;
+  border:1px solid rgba(255,255,255,.055)!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.18)!important;
+}
+
+.ftc-message .ftc-response-subsection:first-child{
+  margin-top:0!important;
+}
+
+.ftc-subresponse-header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:20px!important;
+  align-items:start!important;
+  margin:0 0 clamp(24px,3vw,40px)!important;
+}
+
+.ftc-subresponse-header span{
+  display:block!important;
+  color:#8fb5ff!important;
+  font-size:13px!important;
+  font-weight:800!important;
+  margin-bottom:14px!important;
+}
+
+.ftc-subresponse-header h3{
+  color:var(--ftc-yellow)!important;
+  font-size:clamp(24px,1.6vw,34px)!important;
+  line-height:1.12!important;
+  margin:0 0 12px!important;
+  font-weight:700!important;
+}
+
+.ftc-subresponse-header p{
+  max-width:760px!important;
+  margin:0!important;
+}
+
+.ftc-subresponse-header button{
+  min-height:40px!important;
+  padding:9px 18px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(57,124,246,.58)!important;
+  background:rgba(10,18,32,.42)!important;
+  color:#8fb5ff!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+
+/* Make home sections fit the card system */
+.ftc-response-subsection .ftc-home-overview{
+  margin:0!important;
+}
+
+.ftc-response-subsection .ftc-section-label{
+  display:none!important;
+}
+
+/* Testimonials inside the stack */
+.ftc-response-subsection-testimonials .ftc-testimonial-grid{
+  margin-top:0!important;
+}
+
+/* Light mode */
+.ftc-app[data-theme="light"] .ftc-message.ftc-assistant .ftc-card,
+.ftc-app[data-theme="light"] .ftc-response-subsection{
+  background:rgba(255,255,255,.74)!important;
+  border-color:rgba(0,0,0,.07)!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.08)!important;
+}
+
+.ftc-app[data-theme="light"] .ftc-response-title-label,
+.ftc-app[data-theme="light"] .ftc-subresponse-header h3{
+  color:var(--ftc-blue)!important;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .ftc-message.ftc-assistant,
+  .ftc-warp-lines,
+  .ftc-warp-lines i{
+    animation:none!important;
+    transition:none!important;
+    filter:none!important;
+    transform:none!important;
+  }
+}
+
+/* Mobile stack */
+@media(max-width:760px){
+  .ftc-message.ftc-assistant .ftc-card{
+    padding:22px!important;
+    border-radius:18px!important;
+  }
+
+  .ftc-response-subsection{
+    padding:22px!important;
+    border-radius:18px!important;
+  }
+
+  .ftc-subresponse-header{
+    grid-template-columns:1fr!important;
+  }
+
+  .ftc-subresponse-header button{
+    justify-self:start!important;
+  }
+
+  .ftc-response-shell > .ftc-response-header .ftc-answer-heading,
+  .ftc-answer-heading{
+    font-size:clamp(20px,5.8vw,28px)!important;
+    line-height:1.38!important;
+  }
+
+  .ftc-response-title-label{
+    font-size:16px!important;
+  }
 }
+

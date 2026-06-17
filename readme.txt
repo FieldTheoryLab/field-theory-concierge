@@ -3,7 +3,7 @@ Contributors: Jamie Rushad Gros, Field Theory Lab
 Tags: concierge, chat, portfolio, ajax, marketing
 Requires at least: 6.0
 Tested up to: 6.8
-Stable tag: 2.3.0
+Stable tag: 2.6.1
 License: GPLv2 or later
 
 Field Theory Concierge is a conversational WordPress experience for Field Theory Lab.

@@ -3,94 +3,153 @@ if (!defined('ABSPATH')) exit;
 
 function ftc_default_settings(){
     return [
-        'dark_logo' => 'https://fieldtheory.ai/wp-content/uploads/2026/06/FieldTheoryLogo_White_shirt.svg',
-        'light_logo' => 'https://fieldtheory.ai/wp-content/uploads/2026/06/FieldTheoryLab_ColorStacked.svg',
-        'icon_logo' => 'https://fieldtheory.ai/wp-content/uploads/2026/06/FTLIcon.svg',
-        'tagline' => 'Turn Data Into Growth',
-        'descriptor' => 'Web Technology • Analytics • AI Automation • Digital Marketing',
-        'name_prompt' => 'What should I call you?',
-        'input_placeholder' => 'Ask Field Theory anything...',
-        'demo_video_url' => FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
+        'dark_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg',
+        'light_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg',
+        'icon_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColorsIcon.svg',
+        'background_image' => FTC_URL . 'assets/images/FieldTheoryBackground.jpg',
+        'tagline' => 'Creative. Technical. Strategic.',
+        'descriptor' => 'Web Design and Digital Marketing',
+        'name_prompt' => 'How may we help you today?',
+        'input_placeholder' => 'Ask Field Theory Lab...',
+        'demo_video_url' => 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4',
         'contact_email' => 'hello@fieldtheory.ai',
         'contact_phone' => '',
         'contact_url' => 'https://fieldtheory.ai/contact/',
         'calendly_url' => '',
     ];
 }
-function ftc_get_settings(){ return wp_parse_args((array)get_option('ftc_settings', []), ftc_default_settings()); }
+function ftc_get_settings(){
+    $defaults = ftc_default_settings();
+    $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
+    foreach ($defaults as $k=>$v) if ($settings[$k] === '') $settings[$k] = $v;
+    return $settings;
+}
 
 function ftc_default_responses(){
     return [
+        'get_started' => [
+            'title' => 'Get Started.',
+            'description' => 'Start here to explore how Field Theory Lab helps organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI systems.',
+            'html' => '<p><strong>Creative. Technical. Strategic.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>',
+            'layout' => 'home',
+            'followups' => ['Tell me about your company','Show me your work!','How can you help my company?','UX + Web development?','Help me understand my website and marketing data']
+        ],
         'about' => [
-            'title' => 'About Field Theory',
-            'html' => '<p>Field Theory Lab is a web technology and digital marketing company based in Albuquerque, New Mexico. We help organizations make sense of complex digital systems and turn data into growth.</p><div class="ftc-feature-grid"><div><strong>Strategy</strong><span>Clear digital roadmaps.</span></div><div><strong>Technology</strong><span>Websites, tools, and integrations.</span></div><div><strong>Analytics</strong><span>Better visibility into performance.</span></div><div><strong>AI</strong><span>Practical automation and insight systems.</span></div></div>',
-            'layout' => 'services',
-            'followups' => ['Show me your work','What services do you offer?','Can you help with analytics?']
+            'title' => 'About Field Theory Lab.',
+            'description' => 'A creative technology agency in Albuquerque helping organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI.',
+            'html' => '<p>Field Theory Lab is a creative technology agency in Albuquerque, New Mexico. We help organizations plan, design, build, measure, and improve digital systems that support real growth.</p><p>Our team brings together strategy, UX, web development, analytics, SEO/AEO, digital marketing, ecommerce, integrations, and practical AI implementation.</p>',
+            'layout' => 'about',
+            'followups' => ['Show me your work!','Our Services','Hire Our Team']
         ],
         'portfolio' => [
             'title' => 'Our Work',
-            'html' => '<p>Absolutely. Here are examples of the kind of visual, strategic, and technical work Field Theory creates for organizations across education, healthcare, public sector, nonprofits, utilities, and growth-focused brands.</p><p>These projects represent website design, UX, digital strategy, analytics, and complex content systems.</p>',
+            'description' => 'A sample of Field Theory projects across education, healthcare, public sector, nonprofits, utilities, and growth-focused brands.',
+            'html' => '<p>We design and build websites, implement AI, analyze data, improve customer experiences, and solve complex digital challenges through a blend of creativity, strategy, and technology.</p>',
             'layout' => 'portfolio',
-            'followups' => ['Do you build websites?','Can you help my company?','How can we work together?']
+            'followups' => ['Our Services','How can you help my company?','Hire Our Team']
         ],
         'services' => [
-            'title' => 'How We Help',
-            'html' => '<p><strong>We help businesses connect their website, marketing, analytics, and digital tools into one clearer growth system.</strong></p><p>Most clients come to us because something feels disconnected: the site is not explaining the business well, marketing is not measurable enough, analytics are messy, or AI feels interesting but hard to turn into something practical.</p><p>Field Theory brings strategy, UX, development, analytics, content, SEO, and automation together so your digital presence becomes easier to understand, easier to improve, and easier to measure.</p><div class="ftc-feature-grid"><div><strong>Clarify</strong><span>Audit the website, analytics, marketing, and customer journey.</span></div><div><strong>Build</strong><span>Create better websites, landing pages, dashboards, and digital tools.</span></div><div><strong>Measure</strong><span>Set up GA4, reporting, KPIs, and decision-ready dashboards.</span></div><div><strong>Grow</strong><span>Improve visibility, conversion, campaigns, and AI-supported workflows.</span></div></div>',
+            'title' => 'Our Services',
+            'description' => 'Website development, digital marketing, SEO/AEO, analytics, ecommerce, creative technology, and practical AI systems.',
+            'html' => '<p>A sample of Field Theory services across websites, marketing, analytics, AI, ecommerce, and creative technology.</p>',
             'layout' => 'services',
-            'followups' => ['Show me your work','Tell me about AI automation','Help me understand my data']
-        ],
-        'websites' => [
-            'title' => 'Websites & UX',
-            'html' => '<p>Yes. We design and build websites that help organizations communicate clearly, improve user experience, and drive measurable outcomes.</p><ul><li>UX strategy and information architecture</li><li>WordPress, Drupal, and custom frontend development</li><li>Accessibility, performance, and conversion optimization</li><li>Analytics and tracking built in from the start</li></ul>',
-            'layout' => 'portfolio',
-            'followups' => ['Show me your work','What is your web process?','Can you improve our current site?']
+            'followups' => ['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Data, Analysis & Visualization']
         ],
         'analytics' => [
-            'title' => 'Analytics & Data',
-            'html' => '<p>We help organizations understand what their digital data is actually saying. That can include analytics audits, dashboards, campaign reporting, conversion tracking, and decision-ready executive summaries.</p><ul><li>GA4 and tag management</li><li>Looker Studio dashboards</li><li>Campaign and conversion reporting</li><li>Data storytelling for teams and leadership</li></ul>',
-            'layout' => 'services',
-            'followups' => ['What dashboards can you build?','How do you measure marketing?','Tell me about AI']
+            'title' => 'Data, Analysis & Visualization',
+            'description' => 'Clear tracking, useful reporting, dashboards, and decision-ready insights.',
+            'html' => '<p>We help organizations understand website and marketing data, set up GA4, create dashboards, and translate metrics into decisions.</p>',
+            'layout' => 'service_detail',
+            'service_slug' => 'data-analysis-visualization',
+            'followups' => ['Our Services','Show me your work!','Hire Our Team']
         ],
         'ai' => [
-            'title' => 'AI Automation',
-            'html' => '<p>We offer AI services, implementations, and automation strategy. We also use AI as part of our analytics and digital strategy workflow, but AI is not the whole business. It is one of the tools we use to help people work smarter.</p><ul><li>AI assistants and internal knowledge systems</li><li>Workflow automation and reporting support</li><li>Lead qualification and marketing operations</li><li>Practical adoption planning for teams</li></ul>',
-            'layout' => 'services',
-            'followups' => ['Can AI help my business?','Show me your work','How can we work together?']
+            'title' => 'Creative Technology & Innovation',
+            'description' => 'Practical AI workflows, useful automation, and experimental digital tools.',
+            'html' => '<p>We use AI where it helps the business: internal assistants, knowledge systems, automation, lead support, reporting, and creative technology prototypes.</p>',
+            'layout' => 'service_detail',
+            'service_slug' => 'creative-technology-innovation',
+            'followups' => ['Our Services','How can AI help my business?','Hire Our Team']
+        ],
+        'websites' => [
+            'title' => 'Website Development & Core Tech',
+            'description' => 'Websites, UX, WordPress, Drupal, integrations, performance, and accessibility.',
+            'html' => '<p>We design and build websites that explain clearly, perform well, support search, and make the next step obvious.</p>',
+            'layout' => 'service_detail',
+            'service_slug' => 'website-development-core-tech',
+            'followups' => ['Show me your work!','Our Services','Hire Our Team']
         ],
         'marketing' => [
-            'title' => 'Digital Marketing',
-            'html' => '<p>We help brands connect strategy, content, search, campaigns, measurement, and customer experience. The goal is not more activity. The goal is clearer decisions and measurable growth.</p><ul><li>SEO and AI visibility</li><li>Content strategy and campaign planning</li><li>Conversion optimization</li><li>Reporting and marketing analytics</li></ul>',
-            'layout' => 'services',
-            'followups' => ['SEO + AI visibility?','Help me understand my data','Show me your work']
+            'title' => 'Digital Marketing & Growth Strategy',
+            'description' => 'SEO, content, campaign planning, conversion strategy, and marketing measurement.',
+            'html' => '<p>We connect strategy, content, search, campaigns, conversion, and reporting into a clearer growth system.</p>',
+            'layout' => 'service_detail',
+            'service_slug' => 'digital-marketing-growth-strategy',
+            'followups' => ['Search & Discovery Optimization','Data, Analysis & Visualization','Hire Our Team']
         ],
         'contact' => [
-            'title' => 'Contact Field Theory',
-            'html' => '<p>Ready to talk? Tell us what you are trying to solve, and we will help you figure out the clearest path forward.</p>',
+            'title' => 'Hire Our Team',
+            'description' => 'Ready to talk through a website, marketing, analytics, AI, or digital systems challenge?',
+            'html' => '<p>Tell us what you are trying to solve, what is working, what feels stuck, and what success would look like. Field Theory can help clarify the next move, shape the right scope, and build the systems to support growth.</p><p><strong>Good fit projects include:</strong> websites, ecommerce, analytics dashboards, SEO/AEO, paid media, AI workflows, integrations, digital product prototypes, and ongoing managed digital services.</p>',
             'layout' => 'contact',
-            'followups' => ['Show me your work','What services do you offer?','Tell me about Field Theory']
+            'followups' => ['Show me your work!','Our Services','Get Started']
         ],
-        'fallback' => [
-            'title' => 'Good Question',
-            'html' => '<p>I can help explain Field Theory Lab, our services, our work, digital marketing, analytics, AI automation, web technology, and how to contact the team.</p><p>Try asking something like <em>Do you build websites?</em>, <em>Show me your work</em>, or <em>Can you help with analytics?</em></p>',
+        'faq' => [
+            'title' => 'Frequently Asked Questions',
+            'description' => 'Answers about websites, marketing, analytics, AI, SEO, AEO, UX, and working with Field Theory.',
+            'html' => '<p>Here are common questions people ask when they are trying to improve their website, marketing, analytics, AI workflows, or customer experience.</p>',
+            'layout' => 'faq',
+            'followups' => ['Get Started','Our Services','Hire Our Team']
+        ],
+        'privacy' => [
+            'title' => 'Privacy Policy',
+            'description' => 'A simple privacy statement for the Field Theory Concierge experience.',
+            'html' => '<p>We use the information you provide through this experience to respond to your questions, understand project needs, and improve the concierge. Do not submit sensitive personal information through the chat.</p><p>If you contact Field Theory Lab, your message may be stored and used to follow up about your inquiry.</p>',
             'layout' => 'none',
-            'followups' => ['Tell me about your company','Show me your work','How can I work with Field Theory?']
+            'followups' => ['Get Started','FAQ','Hire Our Team']
+        ],
+        'testimonials' => [
+            'title' => 'Testimonials',
+            'description' => 'Client and referral notes about working with Field Theory.',
+            'html' => '<p>Organizations usually come to Field Theory when the website, marketing, analytics, or digital system needs to work better.</p>',
+            'layout' => 'testimonials',
+            'followups' => ['Show me your work!','Our Services','Hire Our Team']
         ],
     ];
 }
 function ftc_get_responses(){ return wp_parse_args((array)get_option('ftc_responses', []), ftc_default_responses()); }
-
 function ftc_get_demo_portfolio(){
-    $base = FTC_URL . 'assets/images/';
     return [
-        ['title'=>'The Education Plan','industry'=>'Education','description'=>'A clear digital experience for helping families understand and plan for education savings.','image'=>$base.'LogoTEP.jpg','tags'=>['Web','UX','Education']],
-        ['title'=>'BeWell NM','industry'=>'Healthcare','description'=>'Mobile-focused health insurance marketplace experience and campaign support.','image'=>$base.'BeWellNM_Mobile.jpg','tags'=>['Healthcare','Mobile','UX']],
-        ['title'=>'Let’s Plant','industry'=>'Environment','description'=>'A friendly, action-oriented mobile experience for environmental engagement.','image'=>$base.'LetsPlantMobile.jpg','tags'=>['Mobile','Campaign']],
-        ['title'=>'Aztec Mechanical','industry'=>'B2B','description'=>'Website presentation for a technical services company with a strong industrial identity.','image'=>$base.'AztecMechanical_Website.png','tags'=>['Web','B2B']],
-        ['title'=>'MySchoolsABQ','industry'=>'Education','description'=>'A public-facing education platform designed to make school choice information easier to understand.','image'=>$base.'MySchoolsAQBDesktop.jpg','tags'=>['Education','Data','UX']],
-        ['title'=>'NMEDD','industry'=>'Government','description'=>'Economic development website experience supporting statewide business growth and navigation.','image'=>$base.'NMEDD_Website.jpg','tags'=>['Government','Web']],
-        ['title'=>'Amy Biehl High School','industry'=>'Education','description'=>'School website design system with responsive layouts and clear student-centered content.','image'=>$base.'AmyBiehlHighMockups.jpg','tags'=>['Education','Web']],
-        ['title'=>'Heading Home','industry'=>'Nonprofit','description'=>'Website and messaging support for a nonprofit focused on homelessness and community services.','image'=>$base.'HeadingHome.jpg','tags'=>['Nonprofit','Web']],
-        ['title'=>'PNM','industry'=>'Utilities','description'=>'Utility-focused digital experience and content presentation work.','image'=>$base.'PNM_Website3.jpg','tags'=>['Utility','Web']],
-        ['title'=>'OMNI CRE','industry'=>'Real Estate','description'=>'Commercial real estate digital presentation with strong visual identity and property-focused UX.','image'=>$base.'OMNICRE_Desktop_Mockup.jpg','tags'=>['Real Estate','Web']],
+        ['title'=>'PNM','industry'=>'Utility','description'=>'Customer-focused energy information and service journeys.','image'=>FTC_URL.'assets/images/PNM_Website3.jpg'],
+        ['title'=>'NMEDD','industry'=>'Government / Economic Development','description'=>'A statewide economic development platform.','image'=>FTC_URL.'assets/images/NMEDD_Website.jpg'],
+        ['title'=>'Rodgers & Co.','industry'=>'Water / Agriculture','description'=>'A mobile-first brand and website experience.','image'=>FTC_URL.'assets/images/Rodgers_MobileSite.jpg'],
+        ['title'=>'St. Clair Winery','industry'=>'Consumer Brand','description'=>'Mobile product storytelling and ecommerce-style presentation.','image'=>FTC_URL.'assets/images/StClairMobile.jpg'],
+        ['title'=>'OMNI CRE','industry'=>'Commercial Real Estate','description'=>'Strategic commercial real estate advisors website and content system.','image'=>FTC_URL.'assets/images/OMNICRE_Desktop_Mockup.jpg'],
+        ['title'=>'MySchoolsABQ','industry'=>'Education','description'=>'School discovery, UX, and public information design.','image'=>FTC_URL.'assets/images/MySchoolsAQBDesktop.jpg'],
     ];
 }
+
+
+function ftc_maybe_migrate_design_defaults(){
+    $current = get_option('ftc_design_version');
+    if ($current === FTC_VERSION) return;
+    $settings = wp_parse_args((array)get_option('ftc_settings', []), ftc_default_settings());
+    $settings['dark_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg';
+    $settings['light_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg';
+    $settings['icon_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColorsIcon.svg';
+    $settings['background_image'] = FTC_URL . 'assets/images/FieldTheoryBackground.jpg';
+    $settings['input_placeholder'] = 'Ask Field Theory Lab...';
+    $settings['demo_video_url'] = 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4';
+    $settings['descriptor'] = 'Web Design and Digital Marketing';
+    $settings['name_prompt'] = 'How may we help you today?';
+    update_option('ftc_settings', $settings);
+    // Refresh key response copy so stale placeholders like {name} do not survive old installs.
+    $responses = ftc_get_responses();
+    $defaults = ftc_default_responses();
+    foreach(['get_started','contact','services','portfolio','faq','about'] as $key){
+        if(isset($defaults[$key])) $responses[$key] = $defaults[$key];
+    }
+    update_option('ftc_responses', $responses);
+    update_option('ftc_design_version', FTC_VERSION);
+}
+add_action('init','ftc_maybe_migrate_design_defaults', 5);

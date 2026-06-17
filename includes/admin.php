@@ -15,7 +15,7 @@ add_action('admin_head','ftc_admin_style');
 function ftc_admin_page(){
     if (isset($_POST['ftc_save_settings']) && check_admin_referer('ftc_save_settings')){
         $settings = ftc_get_settings();
-        foreach (['dark_logo','light_logo','icon_logo','tagline','descriptor','name_prompt','input_placeholder','demo_video_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
+        foreach (['dark_logo','light_logo','icon_logo','background_image','tagline','descriptor','name_prompt','input_placeholder','demo_video_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
         update_option('ftc_settings',$settings);
         echo '<div class="updated"><p>Settings saved.</p></div>';
     }
@@ -26,7 +26,7 @@ function ftc_admin_page(){
     <form method="post"><div class="ftc-admin-card"><h2>Brand & Intro</h2><?php wp_nonce_field('ftc_save_settings'); ?>
     <div class="ftc-admin-grid">
     <?php foreach ([
-        'dark_logo'=>'Dark Mode Logo URL','light_logo'=>'Light Mode Logo URL','icon_logo'=>'Icon Logo URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder','demo_video_url'=>'Intro / Welcome Video URL'
+        'dark_logo'=>'Dark Mode Logo URL','light_logo'=>'Light Mode Logo URL','icon_logo'=>'Icon Logo URL','background_image'=>'Background Image URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder','demo_video_url'=>'Intro / Welcome Video URL'
     ] as $key=>$label): ?>
         <p><label><strong><?php echo esc_html($label); ?></strong></label><br><input type="text" name="<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($s[$key] ?? ''); ?>"></p>
     <?php endforeach; ?>
@@ -57,8 +57,11 @@ function ftc_responses_page(){
         $responses = ftc_get_responses();
         foreach ($responses as $key=>$value){
             $responses[$key]['title'] = sanitize_text_field(wp_unslash($_POST['title'][$key] ?? $value['title']));
+            $responses[$key]['description'] = sanitize_textarea_field(wp_unslash($_POST['description'][$key] ?? ($value['description'] ?? '')));
             $responses[$key]['html'] = wp_kses_post(wp_unslash($_POST['html'][$key] ?? $value['html']));
-            $responses[$key]['layout'] = sanitize_text_field(wp_unslash($_POST['layout'][$key] ?? $value['layout']));
+            $responses[$key]['layout'] = $value['layout'] ?? 'none';
+            $responses[$key]['template_id'] = 0;
+            $responses[$key]['response_image'] = $value['response_image'] ?? '';
             $f = sanitize_textarea_field(wp_unslash($_POST['followups'][$key] ?? ''));
             $responses[$key]['followups'] = array_values(array_filter(array_map('trim', explode("\n", $f))));
         }
@@ -68,12 +71,13 @@ function ftc_responses_page(){
     $responses = ftc_get_responses();
     ?>
     <div class="wrap ftc-admin-wrap"><h1>Concierge Responses</h1><form method="post"><div class="ftc-admin-card"><?php wp_nonce_field('ftc_save_responses'); ?>
-    <p class="ftc-help">Edit the scripted answers, response layout, and follow-up prompts. Layout controls visual modules after the answer.</p>
+    <p class="ftc-help">Manage the common concierge answers. Titles, descriptions, content, images, and follow-up prompts are editable here.</p>
     <?php foreach ($responses as $key=>$response): ?>
         <div class="ftc-response-block"><h2><?php echo esc_html(ucfirst($key)); ?></h2>
-        <div class="ftc-admin-grid"><p><label><strong>Title</strong></label><br><input type="text" name="title[<?php echo esc_attr($key); ?>]" value="<?php echo esc_attr($response['title']); ?>"></p>
-        <p><label><strong>Layout</strong></label><br><select name="layout[<?php echo esc_attr($key); ?>]"><option value="none" <?php selected($response['layout'],'none'); ?>>None</option><option value="portfolio" <?php selected($response['layout'],'portfolio'); ?>>Portfolio Masonry</option><option value="services" <?php selected($response['layout'],'services'); ?>>Services</option><option value="contact" <?php selected($response['layout'],'contact'); ?>>Contact</option></select></p></div>
-        <p><label><strong>Response HTML</strong></label><br><textarea name="html[<?php echo esc_attr($key); ?>]"><?php echo esc_textarea($response['html']); ?></textarea></p>
+        <p><label><strong>Title</strong></label><br><input type="text" name="title[<?php echo esc_attr($key); ?>]" value="<?php echo esc_attr($response['title']); ?>"></p>
+        <p><label><strong>Description</strong></label><br><textarea name="description[<?php echo esc_attr($key); ?>]" style="min-height:70px"><?php echo esc_textarea($response['description'] ?? ''); ?></textarea></p>
+        
+        <p><label><strong>Editable Response Content</strong> <span class="ftc-help">This is the response content area. You can add HTML or Elementor shortcodes here.</span></label><br><textarea name="html[<?php echo esc_attr($key); ?>]"><?php echo esc_textarea($response['html']); ?></textarea></p>
         <p><label><strong>Follow-ups</strong> <span class="ftc-help">one per line</span></label><br><textarea name="followups[<?php echo esc_attr($key); ?>]" style="min-height:90px"><?php echo esc_textarea(implode("\n", $response['followups'] ?? [])); ?></textarea></p>
         </div>
     <?php endforeach; ?>
