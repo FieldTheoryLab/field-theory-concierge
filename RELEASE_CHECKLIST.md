@@ -19,6 +19,9 @@ This release is focused on clean 2.8 packaging, admin stability, and Flywheel up
 - Public AJAX project and service detail endpoints require published posts.
 - Portfolio and service meta saves unslash submitted values before sanitizing.
 - Duplicate portfolio detail AJAX hook registration removed.
+- Legacy response-options admin screen removed.
+- Portfolio projects get 3-5 temporary placeholder gallery images.
+- Service items get temporary placeholder service images and featured images.
 - Version metadata now points to 2.8.0.
 
 ### Before shipping

@@ -21,7 +21,7 @@ function ftc_register_response_cpt(){
             'view_item' => 'View Concierge Response',
             'search_items' => 'Search Concierge Responses',
             'not_found' => 'No concierge responses found',
-            'menu_name' => 'Responses',
+            'menu_name' => 'Response Engine',
         ],
         'public' => false,
         'publicly_queryable' => false,

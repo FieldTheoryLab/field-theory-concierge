@@ -438,3 +438,93 @@ function ftc_migrate_2632_visual_cleanup(){
 }
 add_action('init','ftc_migrate_2632_visual_cleanup',35);
 add_action('admin_init','ftc_migrate_2632_visual_cleanup');
+
+function ftc_placeholder_image_url(){
+    return FTC_URL.'assets/images/placeholder-gray-16x9.svg';
+}
+
+function ftc_placeholder_gallery_urls($count=5){
+    $count = max(3, min(5, absint($count)));
+    return array_fill(0, $count, ftc_placeholder_image_url());
+}
+
+function ftc_get_placeholder_attachment_id(){
+    $existing = get_posts([
+        'post_type'=>'attachment',
+        'post_status'=>'inherit',
+        'posts_per_page'=>1,
+        'fields'=>'ids',
+        'meta_key'=>'_ftc_placeholder_attachment',
+        'meta_value'=>'gray-16x9'
+    ]);
+    if($existing) return absint($existing[0]);
+
+    $source = FTC_PATH.'assets/images/placeholder-gray-16x9.svg';
+    if(!file_exists($source)) return 0;
+
+    $upload = wp_upload_dir();
+    if(!empty($upload['error']) || empty($upload['basedir']) || empty($upload['baseurl'])) return 0;
+
+    $destination_dir = trailingslashit($upload['basedir']).'field-theory-concierge';
+    if(!wp_mkdir_p($destination_dir)) return 0;
+
+    $filename = 'placeholder-gray-16x9.svg';
+    $destination = trailingslashit($destination_dir).$filename;
+    if(!file_exists($destination) || md5_file($destination) !== md5_file($source)){
+        if(!copy($source, $destination)) return 0;
+    }
+
+    $relative_file = 'field-theory-concierge/'.$filename;
+    $attachment_id = wp_insert_attachment([
+        'guid'=>trailingslashit($upload['baseurl']).$relative_file,
+        'post_mime_type'=>'image/svg+xml',
+        'post_title'=>'Field Theory temporary image placeholder',
+        'post_content'=>'',
+        'post_status'=>'inherit'
+    ], $destination);
+
+    if(!$attachment_id || is_wp_error($attachment_id)) return 0;
+
+    update_post_meta($attachment_id, '_ftc_placeholder_attachment', 'gray-16x9');
+    update_post_meta($attachment_id, '_wp_attached_file', $relative_file);
+    wp_update_attachment_metadata($attachment_id, [
+        'width'=>1280,
+        'height'=>720,
+        'file'=>$relative_file,
+    ]);
+
+    return absint($attachment_id);
+}
+
+function ftc_migrate_280_placeholder_media(){
+    if(get_option('ftc_placeholder_media_280')) return;
+
+    $defaults = ftc_default_settings();
+    $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
+    foreach(['dark_logo','light_logo','icon_logo','background_image'] as $key){
+        $settings[$key] = $defaults[$key];
+    }
+    update_option('ftc_settings', $settings);
+
+    $placeholder_url = ftc_placeholder_image_url();
+    $placeholder_gallery = implode("\n", ftc_placeholder_gallery_urls(5));
+    $placeholder_attachment_id = ftc_get_placeholder_attachment_id();
+
+    $services = get_posts(['post_type'=>'ftc_service','post_status'=>'any','posts_per_page'=>-1]);
+    foreach($services as $service){
+        update_post_meta($service->ID, '_ftc_service_image', $placeholder_url);
+        update_post_meta($service->ID, '_ftc_featured', '1');
+        if($placeholder_attachment_id) set_post_thumbnail($service->ID, $placeholder_attachment_id);
+    }
+
+    $projects = get_posts(['post_type'=>'ftc_portfolio','post_status'=>'any','posts_per_page'=>-1]);
+    foreach($projects as $project){
+        update_post_meta($project->ID, '_ftc_gallery_urls', $placeholder_gallery);
+        update_post_meta($project->ID, '_ftc_featured', '1');
+        if($placeholder_attachment_id) set_post_thumbnail($project->ID, $placeholder_attachment_id);
+    }
+
+    update_option('ftc_placeholder_media_280', 1);
+}
+add_action('init','ftc_migrate_280_placeholder_media',45);
+add_action('admin_init','ftc_migrate_280_placeholder_media',45);

@@ -1,9 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="Image placeholder">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#383838"/>
-      <stop offset="1" stop-color="#242424"/>
-    </linearGradient>
-  </defs>
-  <rect width="1280" height="720" rx="22" fill="url(#g)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="Temporary image placeholder">
+  <rect width="1280" height="720" rx="22" fill="#2f2f2f"/>
+  <rect x="482" y="230" width="316" height="208" rx="18" fill="none" stroke="#8f8f8f" stroke-width="14"/>
+  <circle cx="582" cy="300" r="28" fill="#8f8f8f"/>
+  <path d="M514 402l86-82 58 56 48-46 60 72H514z" fill="#8f8f8f"/>
+  <text x="640" y="502" fill="#a9a9a9" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" text-anchor="middle" letter-spacing="2">TEMP IMAGE</text>
 </svg>
