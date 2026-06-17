@@ -1,8 +1,8 @@
 # Field Theory Concierge Release Checklist
 
-## 2.6.10 QA Hotfix
+## 2.8.0 QA Checklist
 
-This release is intentionally limited to regressions called out in review screenshots.
+This release is focused on clean 2.8 packaging, admin stability, and Flywheel upload testing.
 
 ### Must stay locked
 - Search remains at the bottom.
@@ -12,24 +12,19 @@ This release is intentionally limited to regressions called out in review screen
 - Typing animation remains.
 
 ### Fixed in this pass
-- Intro/onboarding renders one centered logo, not duplicate logos.
-- Intro copy is smaller and calmer.
-- Name input is flat: no pill, no shadow, no bordered input box.
-- Typing cursor is removed before the input receives focus, preventing the double-cursor effect.
-- Name/onboarding completion is stored in localStorage and cookie fallback.
-- Returning visitors skip onboarding and go directly to the homepage/chat content.
-- Logo reset no longer clears the visitor name or onboarding state.
-- Response titles are left aligned.
-- Response headlines are constrained to roughly 38–40px desktop with tighter line-height.
-- Response containers use a wider app-style canvas.
-- User chat bubbles and prompt chips no longer clip on the right edge.
-- Homepage video is preserved and styled as a visible media block.
+- Response CPT admin menu slug matches the plugin menu.
+- Version migration no longer overwrites edited response copy on every version bump.
+- Known legacy HTTP demo video default is migrated to the bundled local video.
+- Intro heading and prompt use editable settings.
+- Public AJAX project and service detail endpoints require published posts.
+- Portfolio and service meta saves unslash submitted values before sanitizing.
+- Duplicate portfolio detail AJAX hook registration removed.
+- Version metadata now points to 2.8.0.
 
 ### Before shipping
 - Test first visit: intro types, then input gets focus.
-- Test Set: name saves and homepage appears.
-- Refresh page: onboarding does not appear again.
-- Test Skip: homepage appears and refresh does not show onboarding again.
 - Test chips: no user bubble is cut off.
 - Test response page: headline is left aligned.
 - Test homepage: video is visible.
+- Test the Field Theory Concierge admin menu and Concierge Responses list.
+- Test one portfolio detail and one service detail from the public shortcode.

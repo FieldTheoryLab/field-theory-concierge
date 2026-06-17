@@ -58,7 +58,11 @@ function ftc_service_meta_box($post){
 function ftc_save_portfolio_meta($post_id){
     if (!isset($_POST['ftc_portfolio_nonce']) || !wp_verify_nonce($_POST['ftc_portfolio_nonce'],'ftc_save_portfolio')) return;
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return; if (!current_user_can('edit_post',$post_id)) return;
-    foreach(['industry','video_url','project_url','results','gallery_urls'] as $k){ $field='ftc_'.$k; update_post_meta($post_id,'_ftc_'.$k, $k==='results'||$k==='gallery_urls' ? sanitize_textarea_field($_POST[$field]??'') : sanitize_text_field($_POST[$field]??'')); }
+    update_post_meta($post_id,'_ftc_industry',sanitize_text_field(wp_unslash($_POST['ftc_industry'] ?? '')));
+    update_post_meta($post_id,'_ftc_video_url',esc_url_raw(wp_unslash($_POST['ftc_video_url'] ?? '')));
+    update_post_meta($post_id,'_ftc_project_url',esc_url_raw(wp_unslash($_POST['ftc_project_url'] ?? '')));
+    update_post_meta($post_id,'_ftc_results',sanitize_textarea_field(wp_unslash($_POST['ftc_results'] ?? '')));
+    update_post_meta($post_id,'_ftc_gallery_urls',sanitize_textarea_field(wp_unslash($_POST['ftc_gallery_urls'] ?? '')));
     update_post_meta($post_id,'_ftc_featured',isset($_POST['ftc_featured'])?'1':'0');
     update_post_meta($post_id,'_ftc_elementor_template_id',absint($_POST['ftc_elementor_template_id']??0));
 }
@@ -66,9 +70,9 @@ add_action('save_post_ftc_portfolio','ftc_save_portfolio_meta');
 function ftc_save_service_meta($post_id){
     if (!isset($_POST['ftc_service_nonce']) || !wp_verify_nonce($_POST['ftc_service_nonce'],'ftc_save_service')) return;
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return; if (!current_user_can('edit_post',$post_id)) return;
-    update_post_meta($post_id,'_ftc_service_eyebrow',sanitize_text_field($_POST['ftc_service_eyebrow']??''));
-    update_post_meta($post_id,'_ftc_service_image',esc_url_raw($_POST['ftc_service_image']??''));
-    update_post_meta($post_id,'_ftc_service_tasks',sanitize_textarea_field($_POST['ftc_service_tasks']??''));
+    update_post_meta($post_id,'_ftc_service_eyebrow',sanitize_text_field(wp_unslash($_POST['ftc_service_eyebrow'] ?? '')));
+    update_post_meta($post_id,'_ftc_service_image',esc_url_raw(wp_unslash($_POST['ftc_service_image'] ?? '')));
+    update_post_meta($post_id,'_ftc_service_tasks',sanitize_textarea_field(wp_unslash($_POST['ftc_service_tasks'] ?? '')));
     update_post_meta($post_id,'_ftc_featured',isset($_POST['ftc_featured'])?'1':'0');
     update_post_meta($post_id,'_ftc_elementor_template_id',absint($_POST['ftc_elementor_template_id']??0));
 }
@@ -339,7 +343,7 @@ add_action('init','ftc_force_service_placeholders_2623',22);
 
 
 function ftc_migrate_2626_visual_content(){
-    if (get_option('ftc_visual_content_migrated_2626') === FTC_VERSION) return;
+    if (get_option('ftc_visual_content_migrated_2626')) return;
 
     $service_map = [
         'website-development-core-tech' => FTC_URL.'assets/images/placeholder-service-web.svg',
@@ -374,14 +378,14 @@ function ftc_migrate_2626_visual_content(){
         }
     }
 
-    update_option('ftc_visual_content_migrated_2626', FTC_VERSION);
+    update_option('ftc_visual_content_migrated_2626', 1);
 }
 add_action('init','ftc_migrate_2626_visual_content',30);
 add_action('admin_init','ftc_migrate_2626_visual_content');
 
 
 function ftc_migrate_2627_responsive_cleanup(){
-    if (get_option('ftc_responsive_cleanup_2627') === FTC_VERSION) return;
+    if (get_option('ftc_responsive_cleanup_2627')) return;
 
     $services = get_posts(['post_type'=>'ftc_service','post_status'=>'any','posts_per_page'=>-1]);
     foreach($services as $svc){
@@ -402,14 +406,14 @@ function ftc_migrate_2627_responsive_cleanup(){
         update_post_meta($project->ID,'_ftc_featured','1');
     }
 
-    update_option('ftc_responsive_cleanup_2627', FTC_VERSION);
+    update_option('ftc_responsive_cleanup_2627', 1);
 }
 add_action('init','ftc_migrate_2627_responsive_cleanup',35);
 add_action('admin_init','ftc_migrate_2627_responsive_cleanup');
 
 
 function ftc_migrate_2632_visual_cleanup(){
-    if (get_option('ftc_visual_cleanup_2632') === FTC_VERSION) return;
+    if (get_option('ftc_visual_cleanup_2632')) return;
 
     $services = get_posts(['post_type'=>'ftc_service','post_status'=>'any','posts_per_page'=>-1]);
     foreach($services as $svc){
@@ -430,7 +434,7 @@ function ftc_migrate_2632_visual_cleanup(){
         update_post_meta($project->ID,'_ftc_featured','1');
     }
 
-    update_option('ftc_visual_cleanup_2632', FTC_VERSION);
+    update_option('ftc_visual_cleanup_2632', 1);
 }
 add_action('init','ftc_migrate_2632_visual_cleanup',35);
 add_action('admin_init','ftc_migrate_2632_visual_cleanup');

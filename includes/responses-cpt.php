@@ -27,7 +27,7 @@ function ftc_register_response_cpt(){
         'publicly_queryable' => false,
         'exclude_from_search' => true,
         'show_ui' => true,
-        'show_in_menu' => 'ftc_concierge',
+        'show_in_menu' => 'field-theory-concierge',
         'show_in_rest' => true,
         'supports' => ['title','editor','excerpt','thumbnail','page-attributes','custom-fields','elementor'],
         'menu_icon' => 'dashicons-format-chat',
@@ -561,4 +561,3 @@ function ftc_response_row_actions($actions, $post){
     return $actions;
 }
 add_filter('post_row_actions','ftc_response_row_actions',10,2);
-

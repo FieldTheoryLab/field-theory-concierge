@@ -1,11 +1,11 @@
-Field Theory Concierge 2.6.6
+Field Theory Concierge 2.8.0
 
-Focused UX correction pass:
-- Restored wider desktop response canvas.
-- Kept typewriter intro but removed the double-cursor issue.
-- Reworked first-name input into a flatter design with Set and Skip only.
-- Removed You Choose/generated name flow.
-- Stored visitor name and skips repeated onboarding for returning visitors.
-- Removed unnecessary generic homepage/service blocks from the response content.
-- Tightened response typography to smaller, lighter headlines with more padding.
-- Kept bottom chat composer and quick prompt chips.
+Conversational WordPress concierge for Field Theory Lab.
+
+2.8 cleanup notes:
+- Response CPT appears under the Field Theory Concierge admin menu.
+- Version migrations preserve admin-edited settings and response copy.
+- Default intro video uses the bundled plugin asset instead of an external HTTP URL.
+- Intro heading and prompt use editable settings.
+- Public AJAX detail endpoints only return published portfolio and service posts.
+- Release metadata has been updated for the 2.8 line.

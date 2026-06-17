@@ -15,9 +15,9 @@
   <main class="ftc-main">
     <section class="ftc-stage ftc-stage-intro is-visible" data-ftc-intro>
       <div class="ftc-intro-content">
-        <h1 data-ftc-intro-heading></h1>
+        <h1 data-ftc-intro-heading><?php echo esc_html($s['tagline'] ?? ''); ?></h1>
         <p data-ftc-intro-body>We're a creative technology agency, helping organizations with website, digital marketing, data analysis and A.I.</p>
-        <div class="ftc-intro-question">How may we help you today?</div>
+        <div class="ftc-intro-question"><?php echo esc_html($s['name_prompt'] ?? 'How may we help you today?'); ?></div>
       </div>
     </section>
     <section class="ftc-stage ftc-stage-chat" data-ftc-chat><div class="ftc-chat-stream" data-ftc-stream></div></section>

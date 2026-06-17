@@ -11,7 +11,7 @@ function ftc_default_settings(){
         'descriptor' => 'Web Design and Digital Marketing',
         'name_prompt' => 'How may we help you today?',
         'input_placeholder' => 'Ask Field Theory Lab...',
-        'demo_video_url' => 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4',
+        'demo_video_url' => FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
         'contact_email' => 'hello@fieldtheory.ai',
         'contact_phone' => '',
         'contact_url' => 'https://fieldtheory.ai/contact/',
@@ -133,23 +133,15 @@ function ftc_get_demo_portfolio(){
 function ftc_maybe_migrate_design_defaults(){
     $current = get_option('ftc_design_version');
     if ($current === FTC_VERSION) return;
-    $settings = wp_parse_args((array)get_option('ftc_settings', []), ftc_default_settings());
-    $settings['dark_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg';
-    $settings['light_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg';
-    $settings['icon_logo'] = FTC_URL . 'assets/images/FieldTheory_2026_BrighterColorsIcon.svg';
-    $settings['background_image'] = FTC_URL . 'assets/images/FieldTheoryBackground.jpg';
-    $settings['input_placeholder'] = 'Ask Field Theory Lab...';
-    $settings['demo_video_url'] = 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4';
-    $settings['descriptor'] = 'Web Design and Digital Marketing';
-    $settings['name_prompt'] = 'How may we help you today?';
-    update_option('ftc_settings', $settings);
-    // Refresh key response copy so stale placeholders like {name} do not survive old installs.
-    $responses = ftc_get_responses();
-    $defaults = ftc_default_responses();
-    foreach(['get_started','contact','services','portfolio','faq','about'] as $key){
-        if(isset($defaults[$key])) $responses[$key] = $defaults[$key];
+
+    $defaults = ftc_default_settings();
+    $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
+    $legacy_video_url = 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4';
+    if (($settings['demo_video_url'] ?? '') === $legacy_video_url) {
+        $settings['demo_video_url'] = $defaults['demo_video_url'];
     }
-    update_option('ftc_responses', $responses);
+
+    update_option('ftc_settings', $settings);
     update_option('ftc_design_version', FTC_VERSION);
 }
 add_action('init','ftc_maybe_migrate_design_defaults', 5);

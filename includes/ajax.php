@@ -440,8 +440,24 @@ function ftc_render_followups($followups){
     foreach($followups as $f) echo '<button type="button" class="ftc-followup" data-prompt="'.esc_attr($f).'">'.esc_html($f).'</button>';
     echo '</div></footer>';
 }
-add_action('wp_ajax_ftc_portfolio_detail','ftc_ajax_portfolio_detail'); add_action('wp_ajax_nopriv_ftc_portfolio_detail','ftc_ajax_portfolio_detail');
-function ftc_ajax_service_detail(){ check_ajax_referer('ftc_nonce','nonce'); $id=absint($_POST['service_id']??0); if(!$id||get_post_type($id)!=='ftc_service') wp_send_json_error(); ob_start(); echo '<div class="ftc-response-shell ftc-response-layout-service-detail"><header class="ftc-response-header"><div class="ftc-kicker">Tell Me About Web Dev</div><h2 class="ftc-answer-heading ftc-typewriter" data-text="We completed a fantastic project for '.esc_attr(get_the_title($id)).'">'.esc_html('We completed a fantastic project for '.get_the_title($id)).'</h2></header><section class="ftc-response-content">'; ftc_render_service_detail_by_id($id); echo '</section>'; ftc_render_followups(['Back to Services','Hire Our Team','Show me your work!']); echo '</div>'; wp_send_json_success(['html'=>ob_get_clean()]); }
+function ftc_ajax_service_detail(){
+    check_ajax_referer('ftc_nonce','nonce');
+    $id = absint($_POST['service_id'] ?? 0);
+    $post = $id ? get_post($id) : null;
+    if(!$post || $post->post_type !== 'ftc_service' || $post->post_status !== 'publish') {
+        wp_send_json_error(['message'=>'Service not found.']);
+    }
+
+    $title = get_the_title($id);
+    $heading = 'Here is how we can help with ' . $title . '.';
+    ob_start();
+    echo '<div class="ftc-response-shell ftc-response-layout-service-detail"><header class="ftc-response-header"><div class="ftc-kicker">Our Services</div><h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr($heading).'">'.esc_html($heading).'</h2></header><section class="ftc-response-content">';
+    ftc_render_service_detail_by_id($id);
+    echo '</section>';
+    ftc_render_followups(['Back to Services','Hire Our Team','Show me your work!']);
+    echo '</div>';
+    wp_send_json_success(['html'=>ob_get_clean()]);
+}
 add_action('wp_ajax_ftc_service_detail','ftc_ajax_service_detail'); add_action('wp_ajax_nopriv_ftc_service_detail','ftc_ajax_service_detail');
 function ftc_ajax_post_detail(){ wp_send_json_error(); }
 add_action('wp_ajax_ftc_post_detail','ftc_ajax_post_detail'); add_action('wp_ajax_nopriv_ftc_post_detail','ftc_ajax_post_detail');
@@ -488,7 +504,7 @@ function ftc_ajax_portfolio_detail(){
     check_ajax_referer('ftc_nonce','nonce');
     $post_id = absint($_POST['post_id'] ?? 0);
     $post = get_post($post_id);
-    if(!$post || $post->post_type !== 'ftc_portfolio'){
+    if(!$post || $post->post_type !== 'ftc_portfolio' || $post->post_status !== 'publish'){
         wp_send_json_error(['message'=>'Project not found.']);
     }
 
