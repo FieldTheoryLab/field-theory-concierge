@@ -45,10 +45,14 @@ function ftc_response_meta_defaults(){
         '_ftc_response_type' => 'legacy',
         '_ftc_response_intent_type' => 'general',
         '_ftc_response_template_id' => 0,
+        '_ftc_response_preview_template_id' => 0,
+        '_ftc_response_full_template_id' => 0,
         '_ftc_response_legacy_layout' => 'none',
         '_ftc_response_blocks' => '',
         '_ftc_response_prompt_label' => '',
         '_ftc_response_intro_phrase' => '',
+        '_ftc_response_content_preview' => '',
+        '_ftc_response_full_content' => '',
     ];
 }
 
@@ -63,6 +67,8 @@ function ftc_response_block_types(){
         'testimonials' => 'Testimonials',
         'contact' => 'Contact',
         'elementor_template' => 'Elementor Template',
+        'elementor_preview_template' => 'Elementor Preview Template',
+        'elementor_full_template' => 'Elementor Full Template',
         'custom_html' => 'Custom HTML',
         'legacy_layout' => 'Legacy Layout',
     ];
@@ -79,7 +85,7 @@ function ftc_response_intent_types(){
         'portfolio' => 'Portfolio Overview',
         'project_detail' => 'Project Detail',
         'faq' => 'FAQ / Quick Answer',
-        'contact' => 'Contact / Hire Our Team',
+        'contact' => 'Contact / Request a Proposal',
         'privacy' => 'Privacy',
         'custom' => 'Custom Campaign / Landing Response',
     ];
@@ -187,19 +193,42 @@ function ftc_response_meta_box($post){
 
     <div class="ftc-response-admin-grid">
       <p>
-        <label><strong>Elementor Template ID</strong></label><br>
+        <label><strong>Elementor Preview Template ID</strong></label><br>
+        <input type="number" name="ftc_response_preview_template_id" value="<?php echo esc_attr($meta['_ftc_response_preview_template_id']); ?>">
+        <span class="ftc-help">Optional template for the first compact response preview.</span>
+      </p>
+      <p>
+        <label><strong>Elementor Full Template ID</strong></label><br>
+        <input type="number" name="ftc_response_full_template_id" value="<?php echo esc_attr($meta['_ftc_response_full_template_id']); ?>">
+        <span class="ftc-help">Optional template for the full response after the preview.</span>
+      </p>
+    </div>
+
+    <div class="ftc-response-admin-grid">
+      <p>
+        <label><strong>Legacy Elementor Template ID</strong></label><br>
         <input type="number" name="ftc_response_template_id" value="<?php echo esc_attr($meta['_ftc_response_template_id']); ?>">
         <span class="ftc-help">Use this for a reusable Elementor Template. Use “Edit this Response with Elementor” to design this response directly.</span>
       </p>
     </div>
 
     <div class="ftc-response-admin-full">
-      <label><strong>Trigger Keywords / Phrases</strong> <span class="ftc-help">One per line. If multiple responses share a keyword, the engine can return multiple response cards.</span></label><br>
+      <label><strong>Content Preview</strong> <span class="ftc-help">Short editable content shown in the first response.</span></label><br>
+      <textarea name="ftc_response_content_preview" rows="5"><?php echo esc_textarea($meta['_ftc_response_content_preview']); ?></textarea>
+    </div>
+
+    <div class="ftc-response-admin-full">
+      <label><strong>Full Content</strong> <span class="ftc-help">Longer editable content shown when the response expands below the preview.</span></label><br>
+      <textarea name="ftc_response_full_content" rows="7"><?php echo esc_textarea($meta['_ftc_response_full_content']); ?></textarea>
+    </div>
+
+    <div class="ftc-response-admin-full">
+      <label><strong>Trigger Prompts</strong> <span class="ftc-help">One per line. If multiple responses share a prompt, the engine can return multiple response cards.</span></label><br>
       <textarea name="ftc_response_keywords" rows="5"><?php echo esc_textarea($meta['_ftc_response_keywords']); ?></textarea>
     </div>
 
     <div class="ftc-response-admin-full">
-      <label><strong>Follow-Up Prompts</strong> <span class="ftc-help">One per line.</span></label><br>
+      <label><strong>Related Prompts</strong> <span class="ftc-help">One per line.</span></label><br>
       <textarea name="ftc_response_followups" rows="4"><?php echo esc_textarea($meta['_ftc_response_followups']); ?></textarea>
     </div>
 
@@ -277,9 +306,13 @@ function ftc_save_response_meta($post_id){
     update_post_meta($post_id,'_ftc_response_type', sanitize_key(wp_unslash($_POST['ftc_response_type'] ?? 'legacy')));
     update_post_meta($post_id,'_ftc_response_intent_type', sanitize_key(wp_unslash($_POST['ftc_response_intent_type'] ?? 'general')));
     update_post_meta($post_id,'_ftc_response_template_id', absint($_POST['ftc_response_template_id'] ?? 0));
+    update_post_meta($post_id,'_ftc_response_preview_template_id', absint($_POST['ftc_response_preview_template_id'] ?? 0));
+    update_post_meta($post_id,'_ftc_response_full_template_id', absint($_POST['ftc_response_full_template_id'] ?? 0));
     update_post_meta($post_id,'_ftc_response_legacy_layout', sanitize_key(wp_unslash($_POST['ftc_response_legacy_layout'] ?? 'none')));
     update_post_meta($post_id,'_ftc_response_prompt_label', sanitize_text_field(wp_unslash($_POST['ftc_response_prompt_label'] ?? '')));
     update_post_meta($post_id,'_ftc_response_intro_phrase', sanitize_text_field(wp_unslash($_POST['ftc_response_intro_phrase'] ?? '')));
+    update_post_meta($post_id,'_ftc_response_content_preview', wp_kses_post(wp_unslash($_POST['ftc_response_content_preview'] ?? '')));
+    update_post_meta($post_id,'_ftc_response_full_content', wp_kses_post(wp_unslash($_POST['ftc_response_full_content'] ?? '')));
 
     $blocks = [];
     foreach((array)($_POST['ftc_response_blocks'] ?? []) as $block){
@@ -305,19 +338,28 @@ function ftc_get_response_post_data($post_id){
     $followups = get_post_meta($post_id,'_ftc_response_followups',true);
     $blocks = json_decode(get_post_meta($post_id,'_ftc_response_blocks',true), true);
     if(!is_array($blocks)) $blocks = [];
+    $content_preview = get_post_meta($post_id,'_ftc_response_content_preview',true);
+    $full_content = get_post_meta($post_id,'_ftc_response_full_content',true);
+    $legacy_template_id = absint(get_post_meta($post_id,'_ftc_response_template_id',true));
+    $preview_template_id = absint(get_post_meta($post_id,'_ftc_response_preview_template_id',true));
+    $full_template_id = absint(get_post_meta($post_id,'_ftc_response_full_template_id',true));
 
     return [
         'id' => $post_id,
         'source' => 'cpt',
         'title' => get_the_title($post_id),
         'description' => get_post_meta($post_id,'_ftc_response_intro_phrase',true) ?: (has_excerpt($post_id) ? get_the_excerpt($post_id) : ''),
-        'html' => apply_filters('the_content', $post->post_content),
+        'content_preview' => $content_preview,
+        'full_content' => $full_content,
+        'html' => $full_content !== '' ? $full_content : apply_filters('the_content', $post->post_content),
         'keywords' => array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string)$keywords)))),
         'followups' => array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string)$followups)))),
         'status' => get_post_meta($post_id,'_ftc_response_status',true) ?: 'active',
         'type' => get_post_meta($post_id,'_ftc_response_type',true) ?: 'legacy',
         'intent_type' => get_post_meta($post_id,'_ftc_response_intent_type',true) ?: 'general',
-        'template_id' => absint(get_post_meta($post_id,'_ftc_response_template_id',true)),
+        'template_id' => $legacy_template_id,
+        'preview_template_id' => $preview_template_id,
+        'full_template_id' => $full_template_id,
         'legacy_layout' => get_post_meta($post_id,'_ftc_response_legacy_layout',true) ?: 'none',
         'prompt_label' => get_post_meta($post_id,'_ftc_response_prompt_label',true),
         'blocks' => $blocks,
@@ -414,6 +456,8 @@ function ftc_render_response_engine_block($block){
             if(function_exists('ftc_render_contact_panel')) ftc_render_contact_panel(ftc_get_settings());
             break;
         case 'elementor_template':
+        case 'elementor_preview_template':
+        case 'elementor_full_template':
             if($template_id && function_exists('ftc_render_elementor_template_by_id')) echo ftc_render_elementor_template_by_id($template_id);
             break;
         case 'legacy_layout':
@@ -492,6 +536,18 @@ function ftc_seed_default_response_posts(){
             ['type'=>'legacy_layout','title'=>'Current Testimonials Layout','content'=>'','template_id'=>0,'source'=>'testimonials']
         ],
     ];
+    $defaults[] = [
+        'post_title'=>'FAQ',
+        'post_excerpt'=>'Quick answers to common questions about websites, marketing, analytics, AI, SEO, budgets, timelines, and support.',
+        'intro_phrase'=>'Here are quick answers to common questions.',
+        'menu_order'=>60,
+        'keywords'=>"faq\nquestions\nfrequently asked questions\nwhat budget should i plan for\nhow long does a website take\nhow much\nhow long\nbudget\ntimeline",
+        'layout'=>'faq',
+        'intent_type'=>'faq',
+        'blocks'=>[
+            ['type'=>'legacy_layout','title'=>'Current FAQ Layout','content'=>'','template_id'=>0,'source'=>'faq']
+        ],
+    ];
 
     foreach($defaults as $item){
         $post_id = wp_insert_post([
@@ -505,11 +561,15 @@ function ftc_seed_default_response_posts(){
         if($post_id && !is_wp_error($post_id)){
             update_post_meta($post_id,'_ftc_response_keywords',$item['keywords']);
             update_post_meta($post_id,'_ftc_response_intro_phrase',$item['intro_phrase'] ?? $item['post_excerpt']);
-            update_post_meta($post_id,'_ftc_response_followups',"Get Started\nShow me your work!\nOur Services\nHire Our Team");
+            update_post_meta($post_id,'_ftc_response_followups',"Get Started\nShow me your work!\nOur Services\nRequest a Proposal");
             update_post_meta($post_id,'_ftc_response_status','active');
             update_post_meta($post_id,'_ftc_response_type','legacy');
             update_post_meta($post_id,'_ftc_response_intent_type',$item['intent_type'] ?? 'general');
             update_post_meta($post_id,'_ftc_response_legacy_layout',$item['layout']);
+            update_post_meta($post_id,'_ftc_response_content_preview',$item['content_preview'] ?? '');
+            update_post_meta($post_id,'_ftc_response_full_content',$item['full_content'] ?? '');
+            update_post_meta($post_id,'_ftc_response_preview_template_id',0);
+            update_post_meta($post_id,'_ftc_response_full_template_id',0);
             update_post_meta($post_id,'_ftc_response_blocks',wp_json_encode($item['blocks']));
         }
     }
@@ -517,6 +577,62 @@ function ftc_seed_default_response_posts(){
     update_option('ftc_response_posts_seeded', 1);
 }
 add_action('init','ftc_seed_default_response_posts', 20);
+
+function ftc_ensure_prd_300_response_posts(){
+    $faq_keywords = "faq\nquestions\nfrequently asked questions\nwhat budget should i plan for\nhow long does a website take\nhow much\nhow long\nbudget\ntimeline";
+    $responses = get_posts([
+        'post_type'=>'ftc_response',
+        'post_status'=>'any',
+        'numberposts'=>-1,
+    ]);
+    $has_faq = false;
+    foreach($responses as $response){
+        if(strtolower(trim($response->post_title)) === 'faq'){
+            $has_faq = true;
+            $current_keywords = (string)get_post_meta($response->ID,'_ftc_response_keywords',true);
+            if($current_keywords === '' || preg_match('/(^|\n)(seo|analytics|ai)(\n|$)/i', $current_keywords)){
+                update_post_meta($response->ID,'_ftc_response_keywords',$faq_keywords);
+            }
+        }
+        foreach(['_ftc_response_content_preview','_ftc_response_full_content','_ftc_response_preview_template_id','_ftc_response_full_template_id'] as $key){
+            if(!metadata_exists('post', $response->ID, $key)){
+                update_post_meta($response->ID, $key, strpos($key, 'template') !== false ? 0 : '');
+            }
+        }
+        $followups = (string)get_post_meta($response->ID,'_ftc_response_followups',true);
+        if(strpos($followups, 'Hire Our Team') !== false){
+            update_post_meta($response->ID,'_ftc_response_followups',str_replace('Hire Our Team','Request a Proposal',$followups));
+        }
+    }
+
+    if(!$has_faq){
+        $post_id = wp_insert_post([
+            'post_type'=>'ftc_response',
+            'post_status'=>'publish',
+            'post_title'=>'FAQ',
+            'post_excerpt'=>'Quick answers to common questions about websites, marketing, analytics, AI, SEO, budgets, timelines, and support.',
+            'post_content'=>'',
+            'menu_order'=>60,
+        ]);
+        if($post_id && !is_wp_error($post_id)){
+            update_post_meta($post_id,'_ftc_response_keywords',$faq_keywords);
+            update_post_meta($post_id,'_ftc_response_intro_phrase','Here are quick answers to common questions.');
+            update_post_meta($post_id,'_ftc_response_followups',"Get Started\nOur Services\nShow me your work!\nRequest a Proposal");
+            update_post_meta($post_id,'_ftc_response_status','active');
+            update_post_meta($post_id,'_ftc_response_type','legacy');
+            update_post_meta($post_id,'_ftc_response_intent_type','faq');
+            update_post_meta($post_id,'_ftc_response_legacy_layout','faq');
+            update_post_meta($post_id,'_ftc_response_content_preview','');
+            update_post_meta($post_id,'_ftc_response_full_content','');
+            update_post_meta($post_id,'_ftc_response_preview_template_id',0);
+            update_post_meta($post_id,'_ftc_response_full_template_id',0);
+            update_post_meta($post_id,'_ftc_response_blocks',wp_json_encode([
+                ['type'=>'legacy_layout','title'=>'Current FAQ Layout','content'=>'','template_id'=>0,'source'=>'faq']
+            ]));
+        }
+    }
+}
+add_action('init','ftc_ensure_prd_300_response_posts', 25);
 
 
 function ftc_response_admin_columns($columns){
@@ -526,7 +642,7 @@ function ftc_response_admin_columns($columns){
         if($key === 'title'){
             $new['ftc_response_type'] = 'Response Type';
             $new['ftc_rendering_mode'] = 'Rendering';
-            $new['ftc_keywords'] = 'Keywords';
+            $new['ftc_keywords'] = 'Trigger Prompts';
             $new['ftc_elementor'] = 'Elementor';
         }
     }

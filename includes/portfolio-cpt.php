@@ -16,6 +16,18 @@ function ftc_register_portfolio_cpt(){
     ]);
     register_taxonomy('ftc_service_group','ftc_service',['label'=>'Service Groups','hierarchical'=>true,'show_ui'=>true,'show_in_menu'=>true]);
 
+    register_post_type('ftc_lead', [
+        'labels'=>['name'=>'Concierge Leads','singular_name'=>'Concierge Lead','edit_item'=>'View Concierge Lead'],
+        'public'=>false,
+        'publicly_queryable'=>false,
+        'show_ui'=>true,
+        'show_in_menu'=>'field-theory-concierge',
+        'menu_icon'=>'dashicons-clipboard',
+        'supports'=>['title','custom-fields'],
+        'capability_type'=>'post',
+        'map_meta_cap'=>true,
+    ]);
+
     ftc_register_faq_cpt();
 }
 add_action('init','ftc_register_portfolio_cpt');
@@ -35,16 +47,69 @@ function ftc_portfolio_meta_boxes(){
 }
 add_action('add_meta_boxes','ftc_portfolio_meta_boxes');
 
+function ftc_portfolio_admin_assets($hook){
+    if(!in_array($hook, ['post.php','post-new.php'], true)) return;
+    $screen = get_current_screen();
+    if(!$screen || $screen->post_type !== 'ftc_portfolio') return;
+    wp_enqueue_media();
+}
+add_action('admin_enqueue_scripts','ftc_portfolio_admin_assets');
+
 function ftc_portfolio_meta_box($post){
     wp_nonce_field('ftc_save_portfolio','ftc_portfolio_nonce');
-    $industry=get_post_meta($post->ID,'_ftc_industry',true); $video=get_post_meta($post->ID,'_ftc_video_url',true); $url=get_post_meta($post->ID,'_ftc_project_url',true); $results=get_post_meta($post->ID,'_ftc_results',true); $featured=get_post_meta($post->ID,'_ftc_featured',true); $gallery=get_post_meta($post->ID,'_ftc_gallery_urls',true); $template_id=get_post_meta($post->ID,'_ftc_elementor_template_id',true);
+    $industry=get_post_meta($post->ID,'_ftc_industry',true); $video=get_post_meta($post->ID,'_ftc_video_url',true); $url=get_post_meta($post->ID,'_ftc_project_url',true); $results=get_post_meta($post->ID,'_ftc_results',true); $featured=get_post_meta($post->ID,'_ftc_featured',true); $gallery=get_post_meta($post->ID,'_ftc_gallery_urls',true); $gallery_ids=get_post_meta($post->ID,'_ftc_gallery_ids',true); $template_id=get_post_meta($post->ID,'_ftc_elementor_template_id',true);
     echo '<p><label><strong>Industry</strong></label><br><input type="text" name="ftc_industry" value="'.esc_attr($industry).'" class="widefat"></p>';
     echo '<p><label><strong>Project URL</strong></label><br><input type="url" name="ftc_project_url" value="'.esc_attr($url).'" class="widefat"></p>';
     echo '<p><label><strong>Video URL</strong></label><br><input type="url" name="ftc_video_url" value="'.esc_attr($video).'" class="widefat"></p>';
     echo '<p><label><strong>Elementor Template ID</strong> <span style="color:#666">Optional. If set, this full-width Elementor template replaces the default concierge project detail.</span></label><br><input type="number" name="ftc_elementor_template_id" value="'.esc_attr($template_id).'" class="widefat"></p>';
-    echo '<p><label><strong>Multi Image Gallery URLs</strong> <span style="color:#666">One image URL per line. Use Media Library URLs.</span></label><br><textarea name="ftc_gallery_urls" class="widefat" rows="6">'.esc_textarea($gallery).'</textarea></p>';
+    echo '<div class="ftc-portfolio-gallery-field"><label><strong>Project Gallery</strong> <span style="color:#666">Choose images from the Media Library. The first selected image is used first in the gallery.</span></label>';
+    echo '<input type="hidden" name="ftc_gallery_ids" class="ftc-gallery-ids" value="'.esc_attr($gallery_ids).'">';
+    echo '<p><button type="button" class="button ftc-gallery-select">Choose Gallery Images</button> <button type="button" class="button ftc-gallery-clear">Clear Gallery</button></p>';
+    echo '<div class="ftc-gallery-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 16px;">';
+    foreach(array_filter(array_map('absint',explode(',',(string)$gallery_ids))) as $attachment_id){
+        $thumb = wp_get_attachment_image_url($attachment_id,'thumbnail');
+        if($thumb) echo '<span data-id="'.esc_attr($attachment_id).'" style="display:block;width:86px;height:64px;border:1px solid #ccd0d4;background:#f6f7f7;border-radius:4px;overflow:hidden;"><img src="'.esc_url($thumb).'" alt="" style="width:100%;height:100%;object-fit:cover;"></span>';
+    }
+    echo '</div></div>';
+    echo '<p><label><strong>Fallback Gallery URLs</strong> <span style="color:#666">Advanced fallback only. One image URL per line.</span></label><br><textarea name="ftc_gallery_urls" class="widefat" rows="4">'.esc_textarea($gallery).'</textarea></p>';
     echo '<p><label><strong>Results / Impact</strong></label><br><textarea name="ftc_results" class="widefat" rows="4">'.esc_textarea($results).'</textarea></p>';
     echo '<p><label><input type="checkbox" name="ftc_featured" value="1" '.checked($featured,'1',false).'> Featured in Concierge</label></p>';
+    ?>
+    <script>
+    jQuery(function($){
+      $('.ftc-gallery-select').on('click', function(e){
+        e.preventDefault();
+        const wrap = $(this).closest('.ftc-portfolio-gallery-field');
+        const input = wrap.find('.ftc-gallery-ids');
+        const preview = wrap.find('.ftc-gallery-preview');
+        const frame = wp.media({
+          title: 'Choose Project Gallery Images',
+          button: { text: 'Use selected images' },
+          multiple: true,
+          library: { type: 'image' }
+        });
+        frame.on('select', function(){
+          const selection = frame.state().get('selection').toArray();
+          const ids = selection.map(function(attachment){ return attachment.id; });
+          input.val(ids.join(','));
+          preview.empty();
+          selection.forEach(function(attachment){
+            const data = attachment.toJSON();
+            const url = (data.sizes && data.sizes.thumbnail) ? data.sizes.thumbnail.url : data.url;
+            preview.append('<span data-id="'+attachment.id+'" style="display:block;width:86px;height:64px;border:1px solid #ccd0d4;background:#f6f7f7;border-radius:4px;overflow:hidden;"><img src="'+url+'" alt="" style="width:100%;height:100%;object-fit:cover;"></span>');
+          });
+        });
+        frame.open();
+      });
+      $('.ftc-gallery-clear').on('click', function(e){
+        e.preventDefault();
+        const wrap = $(this).closest('.ftc-portfolio-gallery-field');
+        wrap.find('.ftc-gallery-ids').val('');
+        wrap.find('.ftc-gallery-preview').empty();
+      });
+    });
+    </script>
+    <?php
 }
 function ftc_service_meta_box($post){
     wp_nonce_field('ftc_save_service','ftc_service_nonce');
@@ -63,6 +128,8 @@ function ftc_save_portfolio_meta($post_id){
     update_post_meta($post_id,'_ftc_project_url',esc_url_raw(wp_unslash($_POST['ftc_project_url'] ?? '')));
     update_post_meta($post_id,'_ftc_results',sanitize_textarea_field(wp_unslash($_POST['ftc_results'] ?? '')));
     update_post_meta($post_id,'_ftc_gallery_urls',sanitize_textarea_field(wp_unslash($_POST['ftc_gallery_urls'] ?? '')));
+    $gallery_ids = array_filter(array_map('absint',explode(',',sanitize_text_field(wp_unslash($_POST['ftc_gallery_ids'] ?? '')))));
+    update_post_meta($post_id,'_ftc_gallery_ids',implode(',',array_unique($gallery_ids)));
     update_post_meta($post_id,'_ftc_featured',isset($_POST['ftc_featured'])?'1':'0');
     update_post_meta($post_id,'_ftc_elementor_template_id',absint($_POST['ftc_elementor_template_id']??0));
 }
@@ -86,7 +153,7 @@ function ftc_seed_default_services(){
         ['Search & Discovery Optimization (SEO / AEO)','SEO','Search visibility, answer engine optimization, content architecture, technical SEO, and useful search-ready websites.',FTC_URL.'assets/images/service-seo.svg',['Technical SEO','AI Search Visibility','Structured Data','Content Architecture','Local SEO','Editorial Planning','Search Audits','Optimization Roadmaps']],
         ['Ecommerce & Conversion Rate Optimization (CRO)','CRO','Ecommerce, product journeys, checkout experience, testing, conversion funnels, and measurable growth improvements.',FTC_URL.'assets/images/service-cro.svg',['Shop UX','Product Pages','Checkout Optimization','Conversion Funnels','A/B Test Planning','Memberships','Subscriptions','Analytics Events']],
         ['Data, Analysis & Visualization','DATA','GA4, dashboards, reporting, campaign measurement, and decision-ready insights.','https://placehold.co/960x540/242424/ffd94d?text=Data+%26+Analytics',['GA4 Configuration','Looker Studio Dashboards','KPI Planning','Campaign Reporting','Data Storytelling','Tag Management','Executive Summaries','Tracking Audits']],
-        ['Creative Technology & Innovation','AI','Practical AI workflows, internal assistants, automation, and experimental digital tools.','https://placehold.co/960x540/242424/ffd94d?text=AI+%26+Innovation',['AI Assistants','Workflow Automation','Internal Knowledge Tools','Lead Support','Prototype Development','Creative Experiments','Prompt Systems','Team Adoption']],
+        ['Technology, Innovation and A.I.','AI','Practical AI workflows, internal assistants, automation, and experimental digital tools.','https://placehold.co/960x540/242424/ffd94d?text=AI+%26+Innovation',['AI Assistants','Workflow Automation','Internal Knowledge Tools','Lead Support','Prototype Development','Creative Experiments','Prompt Systems','Team Adoption']],
     ];
     $i=0; foreach($services as $svc){
         if (get_page_by_title($svc[0], OBJECT, 'ftc_service')) continue;
@@ -121,12 +188,14 @@ add_action('admin_init','ftc_refresh_service_art_2620');
 
 
 function ftc_default_faqs(){ return [
-    ['Websites','What makes a website effective?','An effective website explains the business clearly, helps visitors find what they need, works on mobile, earns trust, and makes the next step obvious.'],
-    ['Marketing','How do I know if my marketing is working?','Start with goals, conversion events, traffic quality, lead quality, and reporting that ties activity to outcomes.'],
-    ['SEO / AEO','What is AI visibility?','AI visibility makes your expertise, brand, and content easier for AI-powered search and answer systems to understand and summarize.'],
-    ['Analytics','What should we track?','Track meaningful events like forms, calls, downloads, purchases, key button clicks, qualified traffic sources, and conversion paths.'],
-    ['AI','How can AI help my business?','AI can support research, reporting, content workflows, customer service, internal knowledge, and repetitive operations.'],
-    ['Working Together','How can we work with Field Theory?','Start with a conversation. We will help clarify the problem, define the next right step, and build a practical plan.'],
+    ['Websites','What does Field Theory provide for website development?','Field Theory plans, designs, builds, hosts, maintains, and improves websites across WordPress, Drupal, custom applications, integrations, accessibility, performance, security, and content workflows.'],
+    ['Marketing','What does Field Theory provide for digital marketing?','Field Theory connects strategy, content, campaigns, paid media, conversion planning, customer journeys, reporting, and ongoing optimization so marketing activity is tied to measurable business outcomes.'],
+    ['SEO / AEO','How does Field Theory improve search and AI visibility?','Field Theory works on technical SEO, content architecture, schema, local visibility, answer engine optimization, AI citation readiness, and structured content that helps people and AI systems understand your organization.'],
+    ['Analytics','How does Field Theory help with analytics and reporting?','Field Theory sets up meaningful tracking, GA4, dashboards, campaign reporting, attribution, KPI planning, executive summaries, and decision-ready views of website and marketing performance.'],
+    ['AI','What does Field Theory build with AI and automation?','Field Theory builds practical AI assistants, workflow automations, internal knowledge tools, lead support flows, reporting automation, prototypes, and interactive digital tools that solve specific operational or customer experience problems.'],
+    ['Ecommerce','How does Field Theory help with ecommerce and conversion?','Field Theory improves ecommerce strategy, product journeys, checkout flows, subscriptions, conversion funnels, testing plans, analytics events, retention, and revenue-focused customer experience.'],
+    ['Working Together','How does a proposal request work?','Start with the Request a Proposal quiz. Field Theory reviews the services, goals, timing, budget, and context you submit, then follows up with a practical recommendation for the next step.'],
+    ['Websites','Can Field Theory improve our current website?','Yes. Field Theory can audit the current experience, clarify messaging, improve UX, fix technical issues, strengthen search visibility, add analytics, modernize content workflows, and plan phased improvements around your goals.'],
 ]; }
 function ftc_more_default_faqs(){ return []; }
 function ftc_seed_default_faqs(){
@@ -135,6 +204,41 @@ function ftc_seed_default_faqs(){
     update_option('ftc_default_faqs_seeded_270',1);
 }
 add_action('admin_init','ftc_seed_default_faqs');
+
+function ftc_sync_faq_catalog_2811(){
+    if (get_option('ftc_faq_catalog_synced_2811')) return;
+    $legacy_titles = [
+        'What does Field Theory provide for website development?' => ['What makes a website effective?'],
+        'What does Field Theory provide for digital marketing?' => ['How do I know if my marketing is working?'],
+        'How does Field Theory improve search and AI visibility?' => ['What is AI visibility?'],
+        'How does Field Theory help with analytics and reporting?' => ['What should we track?'],
+        'What does Field Theory build with AI and automation?' => ['How can AI help my business?'],
+        'How does a proposal request work?' => ['How can we work with Field Theory?'],
+    ];
+    foreach(ftc_default_faqs() as $i=>$faq){
+        [$topic,$question,$answer] = $faq;
+        $post = get_page_by_title($question, OBJECT, 'ftc_faq');
+        if(!$post && isset($legacy_titles[$question])){
+            foreach($legacy_titles[$question] as $legacy_title){
+                $post = get_page_by_title($legacy_title, OBJECT, 'ftc_faq');
+                if($post) break;
+            }
+        }
+        $postarr = [
+            'post_type'=>'ftc_faq',
+            'post_status'=>'publish',
+            'post_title'=>$question,
+            'post_content'=>'<p>'.esc_html($answer).'</p>',
+            'menu_order'=>$i,
+        ];
+        if($post) $postarr['ID'] = $post->ID;
+        $id = $post ? wp_update_post($postarr) : wp_insert_post($postarr);
+        if($id && !is_wp_error($id)) wp_set_object_terms($id, $topic, 'ftc_faq_topic');
+    }
+    update_option('ftc_faq_catalog_synced_2811',1);
+}
+add_action('init','ftc_sync_faq_catalog_2811',24);
+add_action('admin_init','ftc_sync_faq_catalog_2811',24);
 
 function ftc_seed_default_portfolio(){
     if (get_option('ftc_portfolio_seeded_2617')) return;
@@ -267,7 +371,7 @@ function ftc_service_catalog_2621(){
             ]
         ],
         [
-            'title'=>'Creative Technology & Innovation','slug'=>'creative-technology-innovation','eyebrow'=>'AI','image'=>'https://placehold.co/960x540/242424/ffd94d?text=AI+%26+Innovation',
+            'title'=>'Technology, Innovation and A.I.','slug'=>'creative-technology-innovation','eyebrow'=>'AI','image'=>'https://placehold.co/960x540/242424/ffd94d?text=AI+%26+Innovation',
             'excerpt'=>'AI agents, workflow automation, conversational interfaces, interactive digital experiences, prototypes, and innovation consulting.',
             'content'=>'<p>Technology should create better experiences, improve efficiency, and unlock new opportunities. We help organizations explore and implement emerging technologies that drive business results.</p><p>From AI agents and automation to interactive digital experiences, we build innovative solutions that solve real-world problems.</p><p><strong>Outcome:</strong> Transform ideas into practical technology solutions that improve customer experiences, increase efficiency, and create competitive advantages.</p>',
             'tasks'=>[
@@ -496,6 +600,50 @@ function ftc_get_placeholder_attachment_id(){
     return absint($attachment_id);
 }
 
+function ftc_import_plugin_image_attachment($relative_path, $title, $meta_key, $meta_value){
+    $existing = get_posts([
+        'post_type'=>'attachment',
+        'post_status'=>'inherit',
+        'posts_per_page'=>1,
+        'fields'=>'ids',
+        'meta_key'=>$meta_key,
+        'meta_value'=>$meta_value,
+    ]);
+    if($existing) return absint($existing[0]);
+
+    $source = FTC_PATH.ltrim($relative_path,'/');
+    if(!file_exists($source)) return 0;
+
+    $upload = wp_upload_dir();
+    if(!empty($upload['error']) || empty($upload['basedir']) || empty($upload['baseurl'])) return 0;
+
+    $destination_dir = trailingslashit($upload['basedir']).'field-theory-concierge';
+    if(!wp_mkdir_p($destination_dir)) return 0;
+
+    $filename = wp_unique_filename($destination_dir, basename($source));
+    $destination = trailingslashit($destination_dir).$filename;
+    if(!copy($source, $destination)) return 0;
+
+    $relative_file = 'field-theory-concierge/'.$filename;
+    $filetype = wp_check_filetype($filename, null);
+    $attachment_id = wp_insert_attachment([
+        'guid'=>trailingslashit($upload['baseurl']).$relative_file,
+        'post_mime_type'=>$filetype['type'] ?: 'image/jpeg',
+        'post_title'=>$title,
+        'post_content'=>'',
+        'post_status'=>'inherit',
+    ], $destination);
+
+    if(!$attachment_id || is_wp_error($attachment_id)) return 0;
+
+    require_once ABSPATH.'wp-admin/includes/image.php';
+    update_post_meta($attachment_id, $meta_key, $meta_value);
+    update_post_meta($attachment_id, '_wp_attached_file', $relative_file);
+    wp_update_attachment_metadata($attachment_id, wp_generate_attachment_metadata($attachment_id, $destination));
+
+    return absint($attachment_id);
+}
+
 function ftc_migrate_280_placeholder_media(){
     if(get_option('ftc_placeholder_media_280')) return;
 
@@ -528,3 +676,354 @@ function ftc_migrate_280_placeholder_media(){
 }
 add_action('init','ftc_migrate_280_placeholder_media',45);
 add_action('admin_init','ftc_migrate_280_placeholder_media',45);
+
+function ftc_migrate_281_portfolio_images(){
+    if(get_option('ftc_portfolio_images_281')) return;
+
+    $base = FTC_URL.'assets/images/portfolio/';
+    $sets = [
+        'pnm' => [
+            $base.'PNM_Website.jpg',
+            $base.'PNM_Website2.jpg',
+            $base.'PNM_Website3.jpg',
+            $base.'HeadingHome.jpg',
+        ],
+        'nmedd' => [
+            $base.'NMEDD_Website.jpg',
+            $base.'USAMapMockup.jpg',
+            $base.'SOS_LandingPage.jpg',
+            $base.'SteamResources.jpg',
+        ],
+        'rodgers-co' => [
+            $base.'Rodgers_MobileSite.jpg',
+            $base.'LetsPlantMobile.jpg',
+            $base.'LetsPlantMobile2.jpg',
+            $base.'AztecMechanical_Website.png',
+        ],
+        'omni-cre' => [
+            $base.'OMNICRE_Desktop_Mockup.jpg',
+            $base.'OMNICRE_Desktop_Mockup2.jpg',
+            $base.'OMNI_CRE.jpg',
+        ],
+        'myschoolsabq' => [
+            $base.'MySchoolsAQBDesktop.jpg',
+            $base.'MySchoolsAbQ_Mobile.jpg',
+            $base.'EducationCenterMockup.jpg',
+            $base.'TheEducaationPlan_mobile.jpg',
+        ],
+        'amy-biehl-high-school' => [
+            $base.'AmyBiehlHighMockups.jpg',
+            $base.'AmyBiehlHighMobileMocks.jpg',
+            $base.'AmyBiehlHighMobileMocks2.jpg',
+            $base.'AmyBiehlMockupsClose.jpg',
+            $base.'AmyBiehlMockupsJPG.jpg',
+        ],
+    ];
+
+    foreach($sets as $slug=>$imgs){
+        $posts = get_posts(['post_type'=>'ftc_portfolio','name'=>$slug,'posts_per_page'=>1,'post_status'=>'any']);
+        if(!$posts) continue;
+        $project_id = $posts[0]->ID;
+        update_post_meta($project_id, '_ftc_gallery_urls', implode("\n", $imgs));
+        update_post_meta($project_id, '_ftc_featured', '1');
+        delete_post_thumbnail($project_id);
+    }
+
+    update_option('ftc_portfolio_images_281', 1);
+}
+add_action('init','ftc_migrate_281_portfolio_images',55);
+add_action('admin_init','ftc_migrate_281_portfolio_images',55);
+
+function ftc_migrate_2812_amy_biehl_hero(){
+    if(get_option('ftc_amy_biehl_hero_2812')) return;
+
+    $posts = get_posts(['post_type'=>'ftc_portfolio','name'=>'amy-biehl-high-school','posts_per_page'=>1,'post_status'=>'any']);
+    if(!$posts) $posts = get_posts(['post_type'=>'ftc_portfolio','s'=>'Amy Biehl','posts_per_page'=>1,'post_status'=>'any']);
+    if($posts){
+        $project_id = $posts[0]->ID;
+        $hero_id = ftc_import_plugin_image_attachment('assets/images/portfolio/AmyBiehlHero.jpg','Amy Biehl High School hero mockup','_ftc_asset_attachment','amy-biehl-hero-2812');
+        if($hero_id){
+            set_post_thumbnail($project_id, $hero_id);
+            $existing_ids = array_filter(array_map('absint',explode(',',(string)get_post_meta($project_id,'_ftc_gallery_ids',true))));
+            array_unshift($existing_ids, $hero_id);
+            update_post_meta($project_id,'_ftc_gallery_ids',implode(',',array_values(array_unique($existing_ids))));
+        }
+        update_post_meta($project_id,'_ftc_gallery_urls',implode("\n",[
+            FTC_URL.'assets/images/portfolio/AmyBiehlHero.jpg',
+            FTC_URL.'assets/images/portfolio/AmyBiehlHighMockups.jpg',
+            FTC_URL.'assets/images/portfolio/AmyBiehlHighMobileMocks.jpg',
+            FTC_URL.'assets/images/portfolio/AmyBiehlHighMobileMocks2.jpg',
+            FTC_URL.'assets/images/portfolio/AmyBiehlMockupsClose.jpg',
+        ]));
+        update_post_meta($project_id,'_ftc_featured','1');
+    }
+
+    update_option('ftc_amy_biehl_hero_2812', 1);
+}
+add_action('init','ftc_migrate_2812_amy_biehl_hero',58);
+add_action('admin_init','ftc_migrate_2812_amy_biehl_hero',58);
+
+function ftc_portfolio_is_placeholder_url_2813($url){
+    $url = strtolower((string)$url);
+    if($url === '') return false;
+    return strpos($url,'placeholder-gray') !== false || strpos($url,'placeholder-portfolio') !== false || strpos($url,'placehold.co') !== false;
+}
+
+function ftc_migrate_2813_remove_portfolio_fallback_images(){
+    if(get_option('ftc_portfolio_no_fallback_images_2813')) return;
+
+    $projects = get_posts(['post_type'=>'ftc_portfolio','post_status'=>'any','posts_per_page'=>-1]);
+    foreach($projects as $project){
+        $gallery = get_post_meta($project->ID,'_ftc_gallery_urls',true);
+        $urls = array_values(array_filter(array_map('trim',explode("\n",(string)$gallery)), function($url){
+            return $url !== '' && !ftc_portfolio_is_placeholder_url_2813($url);
+        }));
+        if($urls) update_post_meta($project->ID,'_ftc_gallery_urls',implode("\n",array_unique($urls)));
+        else delete_post_meta($project->ID,'_ftc_gallery_urls');
+
+        $ids = array_values(array_filter(array_map('absint',explode(',',(string)get_post_meta($project->ID,'_ftc_gallery_ids',true))), function($id){
+            $url = $id ? wp_get_attachment_image_url($id,'large') : '';
+            return $url && !ftc_portfolio_is_placeholder_url_2813($url);
+        }));
+        if($ids) update_post_meta($project->ID,'_ftc_gallery_ids',implode(',',array_unique($ids)));
+        else delete_post_meta($project->ID,'_ftc_gallery_ids');
+
+        $thumb = has_post_thumbnail($project->ID) ? get_the_post_thumbnail_url($project->ID,'large') : '';
+        if($thumb && ftc_portfolio_is_placeholder_url_2813($thumb)) delete_post_thumbnail($project->ID);
+    }
+
+    update_option('ftc_portfolio_no_fallback_images_2813', 1);
+}
+add_action('init','ftc_migrate_2813_remove_portfolio_fallback_images',59);
+add_action('admin_init','ftc_migrate_2813_remove_portfolio_fallback_images',59);
+
+function ftc_portfolio_project_catalog_2818(){
+    return [
+        [
+            'title'=>"Let's Plant Albuquerque",
+            'slug'=>'lets-plant-albuquerque',
+            'aliases'=>["Let's Plant Albuquerque"],
+            'industry'=>'Civic / Environment',
+            'excerpt'=>'A mobile-forward public campaign experience for community tree planting and local participation.',
+            'content'=>'<p>Field Theory helped shape a clear digital experience for a public-facing environmental campaign, making it easier for people to understand the program, take action, and connect with the work.</p>',
+            'results'=>'Clearer campaign storytelling, mobile-first access, and stronger community action pathways.',
+            'images'=>['assets/images/portfolio/LetsPlantMobile.jpg','assets/images/portfolio/LetsPlantMobile2.jpg'],
+        ],
+        [
+            'title'=>'The Education Plan',
+            'slug'=>'the-education-plan',
+            'aliases'=>['The Education Plan'],
+            'industry'=>'Education / Finance',
+            'excerpt'=>'Digital storytelling and mobile content pathways for education savings programs.',
+            'content'=>'<p>Field Theory supported education-focused digital communication with cleaner mobile presentation, clearer program messaging, and easier pathways for families to understand next steps.</p>',
+            'results'=>'Improved mobile storytelling, clearer program communication, and easier access to key information.',
+            'images'=>['assets/images/portfolio/TheEducaationPlan_mobile.jpg','assets/images/portfolio/TheEducaationPlan_mobile2.jpg','assets/images/LogoTEP.jpg'],
+        ],
+        [
+            'title'=>'BeWell New Mexico',
+            'slug'=>'bewell-new-mexico',
+            'aliases'=>['BeWell New Mexico','BeWellNM'],
+            'industry'=>'Healthcare',
+            'excerpt'=>'A clearer mobile experience for healthcare information and enrollment support.',
+            'content'=>'<p>Field Theory helped translate complex healthcare information into a more approachable digital experience, with attention to mobile access, content clarity, and user confidence.</p>',
+            'results'=>'Better mobile access, clearer user pathways, and more understandable healthcare content.',
+            'images'=>['assets/images/BeWellNM_Mobile.jpg'],
+        ],
+        [
+            'title'=>'Amy Biehl High School',
+            'slug'=>'amy-biehl-high-school',
+            'aliases'=>['Amy Biehl Highschool','Amy Biehl High School'],
+            'industry'=>'Education',
+            'excerpt'=>'Mobile-first school storytelling and resource access.',
+            'content'=>'<p>Field Theory developed a bold school website experience focused on student-centered storytelling, fast mobile navigation, and clearer access to academic information, resources, and enrollment pathways.</p>',
+            'results'=>'Stronger school storytelling, improved mobile navigation, and easier resource discovery.',
+            'images'=>['assets/images/portfolio/AmyBiehlHero.jpg','assets/images/portfolio/AmyBiehlHighMockups.jpg','assets/images/portfolio/AmyBiehlHighMobileMocks.jpg','assets/images/portfolio/AmyBiehlHighMobileMocks2.jpg','assets/images/portfolio/AmyBiehlMockupsClose.jpg'],
+        ],
+        [
+            'title'=>'BioAffinity Technologies',
+            'slug'=>'bioaffinity-technologies',
+            'aliases'=>['BioAffinity Technologies','bioAffinity Technologies'],
+            'industry'=>'Healthcare / Biotechnology',
+            'excerpt'=>'A placeholder project entry ready for BioAffinity Technologies images and detail content.',
+            'content'=>'<p>This project entry is ready for BioAffinity Technologies imagery and details. Replace the placeholder image in the portfolio admin when final assets are available.</p>',
+            'results'=>'Temporary placeholder entry prepared for image replacement in WordPress.',
+            'images'=>[],
+        ],
+        [
+            'title'=>'Heading Home ABQ',
+            'slug'=>'heading-home-abq',
+            'aliases'=>['Heading Home ABQ','Heading Home'],
+            'industry'=>'Nonprofit / Housing',
+            'excerpt'=>'Mission-driven digital storytelling for housing, support, and community services.',
+            'content'=>'<p>Field Theory supported mission-driven communication with clearer presentation, approachable content, and digital pathways that help people understand programs, impact, and ways to engage.</p>',
+            'results'=>'Clearer nonprofit storytelling and more approachable service communication.',
+            'images'=>['assets/images/portfolio/HeadingHome.jpg'],
+        ],
+        [
+            'title'=>'MySchoolsABQ',
+            'slug'=>'myschoolsabq',
+            'aliases'=>['MySchoolsABQ','MySchoolsABQ','MySchools ABQ'],
+            'industry'=>'Education',
+            'excerpt'=>'School discovery, UX, and public information design.',
+            'content'=>'<p>Field Theory helped create a school discovery experience focused on clarity, trust, and easier public navigation, making education options easier for families to compare and understand.</p>',
+            'results'=>'Improved school discovery, clearer public information, and better mobile access.',
+            'images'=>['assets/images/portfolio/MySchoolsAQBDesktop.jpg','assets/images/portfolio/MySchoolsAbQ_Mobile.jpg','assets/images/portfolio/EducationCenterMockup.jpg'],
+        ],
+        [
+            'title'=>'PNM',
+            'slug'=>'pnm',
+            'aliases'=>['PNM'],
+            'industry'=>'Utility',
+            'excerpt'=>'Customer-focused energy information and service journeys.',
+            'content'=>'<p>Field Theory worked on digital presentation and customer pathways for energy information, helping make service content easier to understand and navigate.</p>',
+            'results'=>'Improved storytelling, navigation, usability, and digital presentation.',
+            'images'=>['assets/images/portfolio/PNM_Website.jpg','assets/images/portfolio/PNM_Website2.jpg','assets/images/portfolio/PNM_Website3.jpg'],
+        ],
+        [
+            'title'=>'New Mexico Economic Development',
+            'slug'=>'nmedd',
+            'aliases'=>['NMEDD','New Mexico Economic Development','New Mexico Economic Development Department'],
+            'industry'=>'Government / Economic Development',
+            'excerpt'=>'A statewide economic development platform.',
+            'content'=>'<p>Field Theory helped organize a data-rich economic development website designed to help businesses understand New Mexico as a strategic place to start, grow, or relocate.</p>',
+            'results'=>'Clearer business attraction content, stronger navigation, and more useful statewide economic development storytelling.',
+            'images'=>['assets/images/portfolio/NMEDD_Website.jpg','assets/images/portfolio/USAMapMockup.jpg','assets/images/portfolio/SOS_LandingPage.jpg','assets/images/portfolio/SteamResources.jpg'],
+        ],
+        [
+            'title'=>'Omni CRE',
+            'slug'=>'omni-cre',
+            'aliases'=>['OMNI CRE','Omni CRE'],
+            'industry'=>'Commercial Real Estate',
+            'excerpt'=>'Strategic commercial real estate advisors website and content system.',
+            'content'=>'<p>Field Theory supported a high-contrast commercial real estate experience with project spotlight content, advisor positioning, and clearer presentation of expertise.</p>',
+            'results'=>'Stronger firm positioning, clearer project storytelling, and improved content presentation.',
+            'images'=>['assets/images/portfolio/OMNICRE_Desktop_Mockup.jpg','assets/images/portfolio/OMNICRE_Desktop_Mockup2.jpg','assets/images/portfolio/OMNI_CRE.jpg'],
+        ],
+        [
+            'title'=>'New Mexico Partnership',
+            'slug'=>'new-mexico-partnership',
+            'aliases'=>['New Mexico Partnership'],
+            'industry'=>'Economic Development',
+            'excerpt'=>'A placeholder project entry ready for New Mexico Partnership images and detail content.',
+            'content'=>'<p>This project entry is ready for New Mexico Partnership imagery and details. Replace the placeholder image in the portfolio admin when final assets are available.</p>',
+            'results'=>'Temporary placeholder entry prepared for image replacement in WordPress.',
+            'images'=>[],
+        ],
+        [
+            'title'=>'Enhanced Wellness',
+            'slug'=>'enhanced-wellness',
+            'aliases'=>['Enhanced Wellness'],
+            'industry'=>'Healthcare / Wellness',
+            'excerpt'=>'A placeholder project entry ready for Enhanced Wellness images and detail content.',
+            'content'=>'<p>This project entry is ready for Enhanced Wellness imagery and details. Replace the placeholder image in the portfolio admin when final assets are available.</p>',
+            'results'=>'Temporary placeholder entry prepared for image replacement in WordPress.',
+            'images'=>[],
+        ],
+        [
+            'title'=>'Rodgers & Co.',
+            'slug'=>'rodgers-co',
+            'aliases'=>['Rodgers & Co.','Rodgers and Co.','Rodgers & Co'],
+            'industry'=>'Water / Agriculture',
+            'excerpt'=>'A mobile-first brand and website experience.',
+            'content'=>'<p>Field Theory helped translate field expertise into a memorable digital presence, using strong visual storytelling and a mobile-friendly presentation for a New Mexico water company.</p>',
+            'results'=>'A stronger visual story, clearer service positioning, and improved mobile presentation.',
+            'images'=>['assets/images/portfolio/Rodgers_MobileSite.jpg'],
+        ],
+        [
+            'title'=>'Aztec Mechanical',
+            'slug'=>'aztec-mechanical',
+            'aliases'=>['Aztec Mechanical'],
+            'industry'=>'Construction / Mechanical',
+            'excerpt'=>'A practical digital presence for mechanical services and project credibility.',
+            'content'=>'<p>Field Theory supported a straightforward website presentation focused on service clarity, credibility, and making the company easier to understand online.</p>',
+            'results'=>'Clearer service presentation and a more polished digital presence.',
+            'images'=>['assets/images/portfolio/AztecMechanical_Website.png'],
+        ],
+    ];
+}
+
+function ftc_find_portfolio_project_for_sync_2818($project){
+    $existing = get_page_by_path($project['slug'], OBJECT, 'ftc_portfolio');
+    if($existing) return $existing;
+    foreach((array)($project['aliases'] ?? []) as $title){
+        $existing = get_page_by_title($title, OBJECT, 'ftc_portfolio');
+        if($existing) return $existing;
+    }
+    $existing = get_page_by_title($project['title'], OBJECT, 'ftc_portfolio');
+    return $existing ?: null;
+}
+
+function ftc_migrate_2818_portfolio_project_catalog(){
+    if(get_option('ftc_portfolio_project_catalog_2818')) return;
+
+    $placeholder_id = ftc_get_placeholder_attachment_id();
+    foreach(ftc_portfolio_project_catalog_2818() as $order=>$project){
+        $existing = ftc_find_portfolio_project_for_sync_2818($project);
+        $postarr = [
+            'post_type'=>'ftc_portfolio',
+            'post_status'=>'publish',
+            'post_title'=>$project['title'],
+            'post_name'=>$project['slug'],
+            'post_excerpt'=>$project['excerpt'],
+            'post_content'=>$project['content'],
+            'menu_order'=>$order,
+        ];
+        if($existing) $postarr['ID'] = $existing->ID;
+        $id = $existing ? wp_update_post($postarr) : wp_insert_post($postarr);
+        if(!$id || is_wp_error($id)) continue;
+
+        $attachment_ids = [];
+        foreach((array)$project['images'] as $relative_path){
+            $relative_path = ltrim((string)$relative_path, '/');
+            if(!file_exists(FTC_PATH.$relative_path)) continue;
+            $asset_key = $project['slug'].'-'.sanitize_title(basename($relative_path));
+            $attachment_id = ftc_import_plugin_image_attachment($relative_path, $project['title'].' project image', '_ftc_portfolio_asset_2818', $asset_key);
+            if($attachment_id) $attachment_ids[] = $attachment_id;
+        }
+
+        $uses_placeholder = false;
+        if(!$attachment_ids && $placeholder_id){
+            $attachment_ids[] = $placeholder_id;
+            $uses_placeholder = true;
+        }
+
+        update_post_meta($id,'_ftc_industry',$project['industry']);
+        update_post_meta($id,'_ftc_results',$project['results']);
+        update_post_meta($id,'_ftc_featured','1');
+        delete_post_meta($id,'_ftc_gallery_urls');
+
+        if($attachment_ids){
+            $attachment_ids = array_values(array_unique(array_map('absint',$attachment_ids)));
+            update_post_meta($id,'_ftc_gallery_ids',implode(',',$attachment_ids));
+            set_post_thumbnail($id,$attachment_ids[0]);
+        } else {
+            delete_post_meta($id,'_ftc_gallery_ids');
+            delete_post_thumbnail($id);
+        }
+
+        if($uses_placeholder) update_post_meta($id,'_ftc_allow_placeholder_image','1');
+        else delete_post_meta($id,'_ftc_allow_placeholder_image');
+    }
+
+    update_option('ftc_portfolio_project_catalog_2818', 1);
+}
+add_action('init','ftc_migrate_2818_portfolio_project_catalog',61);
+add_action('admin_init','ftc_migrate_2818_portfolio_project_catalog',61);
+
+function ftc_migrate_2819_service_naming_cleanup(){
+    if(get_option('ftc_service_naming_cleanup_2819')) return;
+
+    $post = get_page_by_path('creative-technology-innovation', OBJECT, 'ftc_service');
+    if($post){
+        wp_update_post([
+            'ID'=>$post->ID,
+            'post_title'=>'Technology, Innovation and A.I.',
+            'post_excerpt'=>'AI agents, workflow automation, conversational interfaces, interactive digital experiences, prototypes, and innovation consulting.',
+        ]);
+        update_post_meta($post->ID,'_ftc_service_eyebrow','AI');
+    }
+
+    update_option('ftc_service_naming_cleanup_2819', 1);
+}
+add_action('init','ftc_migrate_2819_service_naming_cleanup',62);
+add_action('admin_init','ftc_migrate_2819_service_naming_cleanup',62);

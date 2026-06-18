@@ -14,7 +14,7 @@ add_action('admin_head','ftc_admin_style');
 function ftc_admin_page(){
     if (isset($_POST['ftc_save_settings']) && check_admin_referer('ftc_save_settings')){
         $settings = ftc_get_settings();
-        foreach (['dark_logo','light_logo','icon_logo','background_image','tagline','descriptor','name_prompt','input_placeholder','demo_video_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
+        foreach (['dark_logo','icon_logo','tagline','descriptor','name_prompt','input_placeholder','demo_video_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
         update_option('ftc_settings',$settings);
         echo '<div class="updated"><p>Settings saved.</p></div>';
     }
@@ -25,7 +25,7 @@ function ftc_admin_page(){
     <form method="post"><div class="ftc-admin-card"><h2>Brand & Intro</h2><?php wp_nonce_field('ftc_save_settings'); ?>
     <div class="ftc-admin-grid">
     <?php foreach ([
-        'dark_logo'=>'Dark Mode Logo URL','light_logo'=>'Light Mode Logo URL','icon_logo'=>'Icon Logo URL','background_image'=>'Background Image URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder','demo_video_url'=>'Intro / Welcome Video URL'
+        'dark_logo'=>'Logo URL','icon_logo'=>'Icon Logo URL','tagline'=>'Tagline','descriptor'=>'Descriptor','name_prompt'=>'Name Prompt','input_placeholder'=>'Chat Input Placeholder','demo_video_url'=>'Intro / Welcome Video URL'
     ] as $key=>$label): ?>
         <p><label><strong><?php echo esc_html($label); ?></strong></label><br><input type="text" name="<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($s[$key] ?? ''); ?>"></p>
     <?php endforeach; ?>
@@ -36,7 +36,9 @@ function ftc_admin_page(){
 function ftc_contact_page(){
     if (isset($_POST['ftc_save_contact']) && check_admin_referer('ftc_save_contact')){
         $settings = ftc_get_settings();
-        foreach (['contact_email','contact_phone','contact_url','calendly_url'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
+        foreach (['contact_email','contact_phone','contact_url','calendly_url','recaptcha_site_key','recaptcha_secret_key'] as $key){ $settings[$key] = sanitize_text_field(wp_unslash($_POST[$key] ?? '')); }
+        $threshold = (float)($_POST['recaptcha_threshold'] ?? 0.5);
+        $settings['recaptcha_threshold'] = (string)max(0, min(1, $threshold));
         update_option('ftc_settings',$settings);
         echo '<div class="updated"><p>Contact saved.</p></div>';
     }
@@ -47,6 +49,9 @@ function ftc_contact_page(){
     <?php foreach (['contact_email'=>'Email','contact_phone'=>'Phone','contact_url'=>'Contact Page URL','calendly_url'=>'Calendly / Booking URL'] as $key=>$label): ?>
         <p><label><strong><?php echo esc_html($label); ?></strong></label><br><input type="text" name="<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($s[$key] ?? ''); ?>"></p>
     <?php endforeach; ?>
+        <p><label><strong>Google reCAPTCHA Site Key</strong></label><br><input type="text" name="recaptcha_site_key" value="<?php echo esc_attr($s['recaptcha_site_key'] ?? ''); ?>"></p>
+        <p><label><strong>Google reCAPTCHA Secret Key</strong></label><br><input type="password" name="recaptcha_secret_key" value="<?php echo esc_attr($s['recaptcha_secret_key'] ?? ''); ?>" autocomplete="new-password"></p>
+        <p><label><strong>reCAPTCHA Score Threshold</strong></label><br><input type="number" step="0.1" min="0" max="1" name="recaptcha_threshold" value="<?php echo esc_attr($s['recaptcha_threshold'] ?? '0.5'); ?>"><span class="ftc-help"> reCAPTCHA v3 runs silently on Submit Inquiry when both keys are present. 0.5 is a typical starting point.</span></p>
     </div><p><button class="button button-primary" name="ftc_save_contact" value="1">Save Contact</button></p></div></form></div>
     <?php
 }

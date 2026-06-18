@@ -3,7 +3,7 @@
  * Plugin Name: Field Theory Concierge
  * Plugin URI: https://fieldtheory.ai
  * Description: A polished conversational concierge experience for Field Theory Lab with portfolio, services, contact, prompt routing, and editable responses.
- * Version: 2.8.0
+ * Version: 2.8.24
  * Author: Jamie Rushad Gros
  * Author URI: https://fieldtheory.ai
  * Text Domain: field-theory-concierge
@@ -11,7 +11,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('FTC_VERSION', '2.8.0');
+define('FTC_VERSION', '2.8.24');
 define('FTC_PATH', plugin_dir_path(__FILE__));
 define('FTC_URL', plugin_dir_url(__FILE__));
 
@@ -49,14 +49,28 @@ function ftc_mobile_theme_color(){
 add_action('wp_head', 'ftc_mobile_theme_color', 1);
 
 function ftc_enqueue_assets(){
+    $settings = ftc_get_settings();
+    $public_settings = $settings;
+    unset($public_settings['recaptcha_secret_key']);
     wp_enqueue_style('ftc-app', FTC_URL . 'assets/css/app.css', [], FTC_VERSION);
     wp_enqueue_script('ftc-app', FTC_URL . 'assets/js/app.js', [], FTC_VERSION, true);
+    if(!empty($settings['recaptcha_site_key'])){
+        wp_enqueue_script(
+            'google-recaptcha',
+            'https://www.google.com/recaptcha/api.js?render=' . rawurlencode($settings['recaptcha_site_key']),
+            [],
+            null,
+            true
+        );
+    }
     wp_localize_script('ftc-app', 'ftcData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('ftc_nonce'),
-        'settings' => ftc_get_settings(),
+        'settings' => $public_settings,
         'responses' => ftc_get_responses(),
         'portfolio' => ftc_get_demo_portfolio(),
+        'recaptchaSiteKey' => $settings['recaptcha_site_key'] ?? '',
+        'recaptchaAction' => 'ftc_submit_inquiry',
     ]);
 }
 add_action('wp_enqueue_scripts', 'ftc_enqueue_assets');

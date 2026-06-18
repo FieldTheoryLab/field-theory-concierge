@@ -7,21 +7,27 @@ function ftc_default_settings(){
         'light_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg',
         'icon_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColorsIcon.svg',
         'background_image' => FTC_URL . 'assets/images/FieldTheoryBackground.jpg',
-        'tagline' => 'Creative. Technical. Strategic.',
+        'tagline' => 'Better technology. Smarter marketing. Clearer growth.',
         'descriptor' => 'Web Design and Digital Marketing',
         'name_prompt' => 'How may we help you today?',
         'input_placeholder' => 'Ask Field Theory Lab...',
         'demo_video_url' => FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
-        'contact_email' => 'hello@fieldtheory.ai',
+        'contact_email' => 'jamie@fieldtheory.ai',
         'contact_phone' => '',
         'contact_url' => 'https://fieldtheory.ai/contact/',
         'calendly_url' => '',
+        'recaptcha_site_key' => '',
+        'recaptcha_secret_key' => '',
+        'recaptcha_threshold' => '0.5',
     ];
 }
 function ftc_get_settings(){
     $defaults = ftc_default_settings();
     $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
     foreach ($defaults as $k=>$v) if ($settings[$k] === '') $settings[$k] = $v;
+    if (($settings['contact_email'] ?? '') === 'hello@fieldtheory.ai') {
+        $settings['contact_email'] = $defaults['contact_email'];
+    }
     return $settings;
 }
 
@@ -30,7 +36,7 @@ function ftc_default_responses(){
         'get_started' => [
             'title' => 'Get Started.',
             'description' => 'Start here to explore how Field Theory Lab helps organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI systems.',
-            'html' => '<p><strong>Creative. Technical. Strategic.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>',
+            'html' => '<p><strong>Better technology. Smarter marketing. Clearer growth.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>',
             'layout' => 'home',
             'followups' => ['Tell me about your company','Show me your work!','How can you help my company?','UX + Web development?','Help me understand my website and marketing data']
         ],
@@ -39,14 +45,14 @@ function ftc_default_responses(){
             'description' => 'A creative technology agency in Albuquerque helping organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI.',
             'html' => '<p>Field Theory Lab is a creative technology agency in Albuquerque, New Mexico. We help organizations plan, design, build, measure, and improve digital systems that support real growth.</p><p>Our team brings together strategy, UX, web development, analytics, SEO/AEO, digital marketing, ecommerce, integrations, and practical AI implementation.</p>',
             'layout' => 'about',
-            'followups' => ['Show me your work!','Our Services','Hire Our Team']
+            'followups' => ['Show me your work!','Our Services','Request a Proposal']
         ],
         'portfolio' => [
             'title' => 'Our Work',
             'description' => 'A sample of Field Theory projects across education, healthcare, public sector, nonprofits, utilities, and growth-focused brands.',
             'html' => '<p>We design and build websites, implement AI, analyze data, improve customer experiences, and solve complex digital challenges through a blend of creativity, strategy, and technology.</p>',
             'layout' => 'portfolio',
-            'followups' => ['Our Services','How can you help my company?','Hire Our Team']
+            'followups' => ['Our Services','How can you help my company?','Request a Proposal']
         ],
         'services' => [
             'title' => 'Our Services',
@@ -61,15 +67,15 @@ function ftc_default_responses(){
             'html' => '<p>We help organizations understand website and marketing data, set up GA4, create dashboards, and translate metrics into decisions.</p>',
             'layout' => 'service_detail',
             'service_slug' => 'data-analysis-visualization',
-            'followups' => ['Our Services','Show me your work!','Hire Our Team']
+            'followups' => ['Our Services','Show me your work!','Request a Proposal']
         ],
         'ai' => [
-            'title' => 'Creative Technology & Innovation',
+            'title' => 'Technology, Innovation and A.I.',
             'description' => 'Practical AI workflows, useful automation, and experimental digital tools.',
             'html' => '<p>We use AI where it helps the business: internal assistants, knowledge systems, automation, lead support, reporting, and creative technology prototypes.</p>',
             'layout' => 'service_detail',
             'service_slug' => 'creative-technology-innovation',
-            'followups' => ['Our Services','How can AI help my business?','Hire Our Team']
+            'followups' => ['Our Services','How can AI help my business?','Request a Proposal']
         ],
         'websites' => [
             'title' => 'Website Development & Core Tech',
@@ -77,7 +83,7 @@ function ftc_default_responses(){
             'html' => '<p>We design and build websites that explain clearly, perform well, support search, and make the next step obvious.</p>',
             'layout' => 'service_detail',
             'service_slug' => 'website-development-core-tech',
-            'followups' => ['Show me your work!','Our Services','Hire Our Team']
+            'followups' => ['Show me your work!','Our Services','Request a Proposal']
         ],
         'marketing' => [
             'title' => 'Digital Marketing & Growth Strategy',
@@ -85,12 +91,12 @@ function ftc_default_responses(){
             'html' => '<p>We connect strategy, content, search, campaigns, conversion, and reporting into a clearer growth system.</p>',
             'layout' => 'service_detail',
             'service_slug' => 'digital-marketing-growth-strategy',
-            'followups' => ['Search & Discovery Optimization','Data, Analysis & Visualization','Hire Our Team']
+            'followups' => ['Search & Discovery Optimization','Data, Analysis & Visualization','Request a Proposal']
         ],
         'contact' => [
-            'title' => 'Hire Our Team',
-            'description' => 'Ready to talk through a website, marketing, analytics, AI, or digital systems challenge?',
-            'html' => '<p>Tell us what you are trying to solve, what is working, what feels stuck, and what success would look like. Field Theory can help clarify the next move, shape the right scope, and build the systems to support growth.</p><p><strong>Good fit projects include:</strong> websites, ecommerce, analytics dashboards, SEO/AEO, paid media, AI workflows, integrations, digital product prototypes, and ongoing managed digital services.</p>',
+            'title' => 'Work With Us',
+            'description' => 'We would love to learn more about your organization and what you are trying to accomplish. This will only take a minute.',
+            'html' => '',
             'layout' => 'contact',
             'followups' => ['Show me your work!','Our Services','Get Started']
         ],
@@ -99,21 +105,21 @@ function ftc_default_responses(){
             'description' => 'Answers about websites, marketing, analytics, AI, SEO, AEO, UX, and working with Field Theory.',
             'html' => '<p>Here are common questions people ask when they are trying to improve their website, marketing, analytics, AI workflows, or customer experience.</p>',
             'layout' => 'faq',
-            'followups' => ['Get Started','Our Services','Hire Our Team']
+            'followups' => ['Get Started','Our Services','Request a Proposal']
         ],
         'privacy' => [
             'title' => 'Privacy Policy',
             'description' => 'A simple privacy statement for the Field Theory Concierge experience.',
             'html' => '<p>We use the information you provide through this experience to respond to your questions, understand project needs, and improve the concierge. Do not submit sensitive personal information through the chat.</p><p>If you contact Field Theory Lab, your message may be stored and used to follow up about your inquiry.</p>',
             'layout' => 'none',
-            'followups' => ['Get Started','FAQ','Hire Our Team']
+            'followups' => ['Get Started','Our Services','Request a Proposal']
         ],
         'testimonials' => [
             'title' => 'Testimonials',
             'description' => 'Client and referral notes about working with Field Theory.',
             'html' => '<p>Organizations usually come to Field Theory when the website, marketing, analytics, or digital system needs to work better.</p>',
             'layout' => 'testimonials',
-            'followups' => ['Show me your work!','Our Services','Hire Our Team']
+            'followups' => ['Show me your work!','Our Services','Request a Proposal']
         ],
     ];
 }
@@ -140,8 +146,43 @@ function ftc_maybe_migrate_design_defaults(){
     if (($settings['demo_video_url'] ?? '') === $legacy_video_url) {
         $settings['demo_video_url'] = $defaults['demo_video_url'];
     }
+    if (($settings['contact_email'] ?? '') === 'hello@fieldtheory.ai') {
+        $settings['contact_email'] = $defaults['contact_email'];
+    }
+    if (($settings['tagline'] ?? '') === 'Creative. Technical. Strategic.') {
+        $settings['tagline'] = $defaults['tagline'];
+    }
 
     update_option('ftc_settings', $settings);
+
+    $responses = wp_parse_args((array)get_option('ftc_responses', []), ftc_default_responses());
+    if(isset($responses['get_started'])){
+        $responses['get_started']['html'] = '<p><strong>Better technology. Smarter marketing. Clearer growth.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>';
+    }
+    if(isset($responses['contact'])){
+        $responses['contact']['title'] = 'Work With Us';
+        $responses['contact']['description'] = 'Tell Field Theory what you are trying to improve. This will only take a minute.';
+        $responses['contact']['followups'] = ['Show me your work!','Our Services','Get Started'];
+    }
+    if(isset($responses['ai'])){
+        $responses['ai']['title'] = 'Technology, Innovation and A.I.';
+    }
+    foreach(['about','portfolio','analytics','ai','websites','marketing','faq','privacy','testimonials'] as $key){
+        if(isset($responses[$key]['followups']) && is_array($responses[$key]['followups'])){
+            $responses[$key]['followups'] = array_values(array_map(function($prompt){
+                return $prompt === 'Hire Our Team' ? 'Request a Proposal' : $prompt;
+            }, $responses[$key]['followups']));
+        }
+    }
+    foreach($responses as $key=>$response){
+        if(isset($responses[$key]['followups']) && is_array($responses[$key]['followups'])){
+            $responses[$key]['followups'] = array_values(array_filter($responses[$key]['followups'], function($prompt){
+                return $prompt !== 'Show Me All Services';
+            }));
+        }
+    }
+    update_option('ftc_responses', $responses);
+
     update_option('ftc_design_version', FTC_VERSION);
 }
 add_action('init','ftc_maybe_migrate_design_defaults', 5);
