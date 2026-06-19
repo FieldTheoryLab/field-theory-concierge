@@ -190,22 +190,26 @@ function ftc_render_cpt_response_shell($response, $settings=[]){
     $type = $response['type'] ?? 'legacy';
     $layout = $response['legacy_layout'] ?? 'none';
     $template_id = !empty($response['full_template_id']) ? absint($response['full_template_id']) : absint($response['template_id'] ?? 0);
+    $has_elementor_canvas = !empty($response['id']) && get_post_meta(absint($response['id']),'_elementor_edit_mode',true) === 'builder';
+    $prompt_label = $response['prompt_label'] ?? $title;
 
-    if($type === 'legacy' && in_array($layout, ['home','about','portfolio','services','contact'], true)){
+    if(!$has_elementor_canvas && $type === 'legacy' && in_array($layout, ['home','about','portfolio','services','contact'], true)){
         ftc_render_response_shell([
             'title'=>$title,
             'description'=>$desc,
             'html'=>$response['html'] ?? '',
             'layout'=>$layout,
+            'prompt'=>$prompt_label,
             'followups'=>$response['followups'] ?? [],
         ], $settings);
         return;
     }
 
-    echo '<div class="ftc-response-shell ftc-response-layout-'.esc_attr($layout).' ftc-response-source-cpt ftc-response-type-'.esc_attr($type).'" data-response-title="'.esc_attr($title).'">';
+    echo '<div class="ftc-response-shell ftc-response-layout-'.esc_attr($layout).' ftc-response-source-cpt ftc-response-type-'.esc_attr($type).'" data-response-title="'.esc_attr($title).'" data-ftc-response-prompt="'.esc_attr($prompt_label).'">';
     echo '<header class="ftc-response-header"><div class="ftc-response-title-label">'.esc_html($title).'</div>';
     $typed = $desc ?: $title;
     echo '<h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr($typed).'">'.esc_html($typed).'</h2>';
+    if($prompt_label) echo '<span class="ftc-question-chip ftc-question-chip-pop" aria-hidden="true">'.esc_html($prompt_label).'</span>';
     echo '</header><section class="ftc-response-content">';
 
     $rendered = false;
@@ -222,7 +226,7 @@ function ftc_render_cpt_response_shell($response, $settings=[]){
         $rendered = true;
     }
 
-    if(!$rendered && $type === 'elementor_canvas' && !empty($response['id']) && function_exists('ftc_render_elementor_template_by_id')){
+    if(!$rendered && ($type === 'elementor_canvas' || $has_elementor_canvas) && !empty($response['id']) && function_exists('ftc_render_elementor_template_by_id')){
         echo '<div class="ftc-response-elementor-template">'.ftc_render_elementor_template_by_id(absint($response['id'])).'</div>';
         $rendered = true;
     }
@@ -448,6 +452,25 @@ function ftc_ajax_answer(){
     check_ajax_referer('ftc_nonce','nonce');
     $term = sanitize_text_field(wp_unslash($_POST['term'] ?? ''));
     $settings = ftc_get_settings();
+    $normalized_term = ftc_normalize_prompt_text($term);
+
+    if(in_array($normalized_term, ['get started','start','home'], true)){
+        $response = ftc_pick_response('Get Started');
+        ob_start();
+        ftc_render_get_started_sequence($response,$settings,true);
+        $html = ob_get_clean();
+        wp_send_json_success(['html'=>$html]);
+    }
+
+    if(function_exists('ftc_core_response_for_prompt')){
+        $core_response = ftc_core_response_for_prompt($term);
+        if($core_response){
+            ob_start();
+            ftc_render_cpt_response_shell($core_response, $settings);
+            $html = ob_get_clean();
+            wp_send_json_success(['html'=>$html]);
+        }
+    }
 
     if(ftc_is_about_prompt($term)){
         $responses = ftc_get_responses();
@@ -712,7 +735,7 @@ function ftc_ajax_submit_inquiry(){
     $lead_id = wp_insert_post([
         'post_type'=>'ftc_lead',
         'post_status'=>'publish',
-        'post_title'=>sprintf('Concierge Lead - %s - %s', $title_name, current_time('Y-m-d H:i')),
+        'post_title'=>sprintf('Proposal Request - %s - %s', $title_name, current_time('Y-m-d H:i')),
     ]);
 
     if(!$lead_id || is_wp_error($lead_id)){
@@ -780,19 +803,24 @@ function ftc_render_editable_html($html){
 function ftc_render_elementor_template_by_id($template_id){
     $template_id = absint($template_id);
     if (!$template_id) return '';
+    if(class_exists('\\Elementor\\Plugin')){
+        $content = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display($template_id, true);
+        if($content !== '') return $content;
+    }
     return do_shortcode('[elementor-template id="' . $template_id . '"]');
 }
 
-function ftc_render_response_header_markup($title,$desc,$settings=[]){
+function ftc_render_response_header_markup($title,$desc,$settings=[],$prompt=''){
     echo '<header class="ftc-response-header"><div class="ftc-kicker">'.esc_html($settings['descriptor'] ?? 'Web Design and Digital Marketing').'</div><h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr($title).'">'.esc_html($title).'</h2>';
     if($desc) echo '<div class="ftc-answer-description">'.esc_html($desc).'</div>';
+    if($prompt) echo '<span class="ftc-question-chip ftc-question-chip-pop" aria-hidden="true">'.esc_html($prompt).'</span>';
     echo '</header>';
 }
 
 function ftc_open_response_shell($layout,$title,$desc,$settings=[],$prompt='',$extra_class=''){
     $classes = trim('ftc-response-shell ftc-response-layout-'.sanitize_html_class($layout).' '.$extra_class);
     echo '<div class="'.esc_attr($classes).'"'.($prompt ? ' data-ftc-response-prompt="'.esc_attr($prompt).'"' : '').' data-response-title="'.esc_attr($title).'">';
-    ftc_render_response_header_markup($title,$desc,$settings);
+    ftc_render_response_header_markup($title,$desc,$settings,$prompt);
 }
 
 function ftc_close_response_shell($followups=[]){
@@ -819,8 +847,9 @@ function ftc_render_response_shell($response,$settings=[],$search_term=''){
         return;
     }
     echo '<div class="ftc-response-shell ftc-response-layout-'.esc_attr($layout).'">';
-    ftc_render_response_header_markup($title,$desc,$settings);
-    if(!empty($response['html']) && !in_array($layout, ['about','contact'], true)) echo '<section class="ftc-answer-body ftc-editable-content">'.ftc_render_editable_html($response['html']).'</section>';
+    $prompt = $search_term ?: ($response['prompt'] ?? $title);
+    ftc_render_response_header_markup($title,$desc,$settings,$prompt);
+    if(!empty($response['html'])) echo '<section class="ftc-answer-body ftc-editable-content">'.ftc_render_editable_html($response['html']).'</section>';
     echo '<section class="ftc-response-content">';
     switch($layout){
         case 'home': ftc_render_home_panel($settings); break;
@@ -979,7 +1008,7 @@ function ftc_render_about_panel($settings){
 function ftc_get_services($limit=-1){
     $q=new WP_Query(['post_type'=>'ftc_service','post_status'=>'publish','posts_per_page'=>$limit,'orderby'=>'menu_order title','order'=>'ASC']);
     if(!$q->have_posts()){ return []; }
-    $items=[]; while($q->have_posts()){ $q->the_post(); $id=get_the_ID(); $items[]=['id'=>$id,'title'=>get_the_title(),'desc'=>get_the_excerpt() ?: wp_trim_words(wp_strip_all_tags(get_the_content()),22),'eyebrow'=>get_post_meta($id,'_ftc_service_eyebrow',true),'image'=>get_post_meta($id,'_ftc_service_image',true),'tasks'=>array_filter(array_map('trim',explode("\n",get_post_meta($id,'_ftc_service_tasks',true))))]; } wp_reset_postdata(); return $items;
+    $items=[]; while($q->have_posts()){ $q->the_post(); $id=get_the_ID(); $items[]=['id'=>$id,'title'=>get_the_title(),'desc'=>get_the_excerpt() ?: wp_trim_words(wp_strip_all_tags(get_the_content()),22),'eyebrow'=>get_post_meta($id,'_ftc_service_eyebrow',true),'image'=>get_the_post_thumbnail_url($id,'large') ?: get_post_meta($id,'_ftc_service_image',true),'tasks'=>array_filter(array_map('trim',explode("\n",get_post_meta($id,'_ftc_service_tasks',true))))]; } wp_reset_postdata(); return $items;
 }
 
 function ftc_service_default_image($title=''){
@@ -998,13 +1027,30 @@ function ftc_service_badges_for_title($title){
 }
 
 function ftc_render_service_card_markup($item, $featured=false){
-    $image = $item['image'] ?: ftc_service_default_image($item['title'].' '.$item['eyebrow']);
     $badges = ftc_service_badges_for_title($item['title']);
     echo '<article class="ftc-service-card'.($featured ? ' ftc-service-featured' : '').'"><button type="button" class="ftc-service-open" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
-    echo '<div class="ftc-service-art"><img src="'.esc_url($image).'" alt="'.esc_attr($item['title']).'" loading="lazy"></div>';
+    echo '<div class="ftc-service-art ftc-service-art-webgl">';
+    ftc_render_service_webgl_visual($item['title']);
+    echo '</div>';
     echo '<strong>'.esc_html($item['title']).'</strong><p>'.esc_html($item['desc']).'</p>';
     echo '<div class="ftc-tech-badges">'; foreach($badges as $badge) echo '<span>'.esc_html($badge).'</span>'; echo '</div>';
     echo '<em>Explore service &rarr;</em></button></article>';
+}
+
+function ftc_service_visual_key($title){
+    $t = strtolower((string)$title);
+    if(strpos($t,'website') !== false || strpos($t,'web development') !== false || strpos($t,'core tech') !== false) return 'web';
+    if(strpos($t,'ecommerce') !== false || strpos($t,'conversion') !== false || strpos($t,'cro') !== false) return 'commerce';
+    if(strpos($t,'data') !== false || strpos($t,'analysis') !== false || strpos($t,'visualization') !== false) return 'data';
+    if(strpos($t,'search') !== false || strpos($t,'seo') !== false || strpos($t,'aeo') !== false || strpos($t,'discovery') !== false) return 'search';
+    if(strpos($t,'marketing') !== false || strpos($t,'growth') !== false) return 'marketing';
+    if(strpos($t,'innovation') !== false || strpos($t,'ai') !== false || strpos($t,'technology') !== false) return 'innovation';
+    return 'innovation';
+}
+
+function ftc_render_service_webgl_visual($title){
+    $key = ftc_service_visual_key($title);
+    echo '<div class="ftc-service-webgl ftc-service-webgl-'.esc_attr($key).'" data-ftc-service-visual="'.esc_attr($key).'" aria-hidden="true"><canvas></canvas><span></span></div>';
 }
 
 function ftc_service_child_labels($item, $limit=4){
@@ -1081,6 +1127,9 @@ function ftc_render_service_category_card_markup($item){
     $labels = ftc_service_child_labels($item, 4);
     echo '<article class="ftc-service-category-card"><button type="button" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
     echo '<span>'.esc_html($item['eyebrow'] ?: 'SERVICE').'</span>';
+    echo '<div class="ftc-service-category-visual">';
+    ftc_render_service_webgl_visual($item['title']);
+    echo '</div>';
     echo '<strong>'.esc_html($item['title']).'</strong>';
     echo '<p>'.esc_html($item['desc']).'</p>';
     if($labels){
@@ -1130,10 +1179,11 @@ function ftc_render_services_panel($full=true){
         echo '<div class="ftc-service-grid">';
     }
     foreach($items as $item){
-        $image = $item['image'] ?: ftc_service_default_image($item['title'].' '.$item['eyebrow']);
         $badges = ftc_service_badges_for_title($item['title']);
         echo '<article class="ftc-service-card"><button type="button" class="ftc-service-open" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
-        echo '<div class="ftc-service-art"><img src="'.esc_url($image).'" alt="'.esc_attr($item['title']).'" loading="lazy"></div>';
+        echo '<div class="ftc-service-art ftc-service-art-webgl">';
+        ftc_render_service_webgl_visual($item['title']);
+        echo '</div>';
         echo '<strong>'.esc_html($item['title']).'</strong><p>'.esc_html($item['desc']).'</p>';
         echo '<div class="ftc-tech-badges">'; foreach($badges as $badge) echo '<span>'.esc_html($badge).'</span>'; echo '</div>';
         echo '<em>Explore service →</em></button></article>';
@@ -1335,9 +1385,10 @@ function ftc_render_service_detail($response){
 function ftc_render_service_detail_by_id($id, $focus_label=''){
     $template_id = get_post_meta($id,'_ftc_elementor_template_id',true);
     if($template_id){ echo '<div class="ftc-elementor-template ftc-service-elementor-template">'.ftc_render_elementor_template_by_id($template_id).'</div>'; return; }
-    $image=get_post_meta($id,'_ftc_service_image',true); if(!$image) $image=ftc_service_default_image(get_the_title($id));
     echo '<div class="ftc-service-detail"><div class="ftc-service-detail-hero"><div class="ftc-service-detail-copy"><div class="ftc-service-detail-body">'.wp_kses_post(apply_filters('the_content',get_post_field('post_content',$id))).'</div></div>';
-    echo '<div class="ftc-service-detail-image"><img src="'.esc_url($image).'" alt="'.esc_attr(get_the_title($id)).'"></div>';
+    echo '<div class="ftc-service-detail-image ftc-service-detail-webgl">';
+    ftc_render_service_webgl_visual(get_the_title($id));
+    echo '</div>';
     echo '</div><div class="ftc-child-grid">';
     $focus_key = ftc_normalize_prompt_text($focus_label);
     foreach(ftc_service_task_groups($id) as $label=>$items){
@@ -1545,7 +1596,45 @@ function ftc_render_faq_panel(){
     }
     echo '</div>';
 }
-function ftc_render_testimonials_panel(){ echo '<div class="ftc-testimonial-grid"><figure><blockquote>“A clearer website, cleaner message, and a team that understood the business problem before touching the design.”</blockquote><figcaption>Healthcare client</figcaption></figure><figure><blockquote>“Field Theory brought strategy, design, development, and analytics together without making the process feel heavy.”</blockquote><figcaption>Nonprofit partner</figcaption></figure><figure><blockquote>“The reporting finally made sense. We could see what was working and what to do next.”</blockquote><figcaption>Marketing director</figcaption></figure></div>'; }
+function ftc_render_testimonials_panel(){
+    $q = new WP_Query([
+        'post_type'=>'ftc_testimonial',
+        'post_status'=>'publish',
+        'posts_per_page'=>6,
+        'orderby'=>'menu_order title',
+        'order'=>'ASC',
+        'meta_query'=>[
+            'relation'=>'OR',
+            [
+                'key'=>'_ftc_featured',
+                'value'=>'1',
+            ],
+            [
+                'key'=>'_ftc_featured',
+                'compare'=>'NOT EXISTS',
+            ],
+        ],
+    ]);
+    echo '<div class="ftc-testimonial-grid">';
+    if($q->have_posts()){
+        while($q->have_posts()){
+            $q->the_post();
+            $role = get_post_meta(get_the_ID(),'_ftc_testimonial_role',true);
+            $company = get_post_meta(get_the_ID(),'_ftc_testimonial_company',true);
+            $caption = trim($role ?: get_the_title());
+            if($company) $caption .= ' / '.$company;
+            $quote = wp_strip_all_tags(get_the_content());
+            if($quote === '') $quote = get_the_excerpt();
+            echo '<figure><blockquote>'.esc_html($quote).'</blockquote><figcaption>'.esc_html($caption).'</figcaption></figure>';
+        }
+        wp_reset_postdata();
+    } else {
+        echo '<figure><blockquote>A clearer website, cleaner message, and a team that understood the business problem before touching the design.</blockquote><figcaption>Healthcare client</figcaption></figure>';
+        echo '<figure><blockquote>Field Theory brought strategy, design, development, and analytics together without making the process feel heavy.</blockquote><figcaption>Nonprofit partner</figcaption></figure>';
+        echo '<figure><blockquote>The reporting finally made sense. We could see what was working and what to do next.</blockquote><figcaption>Marketing director</figcaption></figure>';
+    }
+    echo '</div>';
+}
 function ftc_contact_card_buttons($items, $selected=''){
     foreach($items as $item){
         $is_selected = $selected && $item === $selected;
@@ -1553,29 +1642,35 @@ function ftc_contact_card_buttons($items, $selected=''){
     }
 }
 
+function ftc_phone_link_value($phone){
+    $digits = preg_replace('/\D+/', '', (string)$phone);
+    if($digits === '') return '';
+    if(strlen($digits) === 10) $digits = '1'.$digits;
+    return '+'.$digits;
+}
+
 function ftc_render_contact_panel($settings){
     $email = $settings['contact_email'] ?: 'jamie@fieldtheory.ai';
-    $schedule_url = $settings['calendly_url'] ?: ($settings['contact_url'] ?: 'mailto:'.$email);
+    $phone = trim((string)($settings['contact_phone'] ?? ''));
+    if($phone === '') $phone = '(505) 456-3193';
+    $phone_link = ftc_phone_link_value($phone);
 
     echo '<div class="ftc-contact-onboarding ftc-two-column-response">';
-    echo '<div class="ftc-contact-intro"><h3>Work With Us</h3><p>Share the shape of the project, what is working, what feels stuck, and what a useful next step would look like.</p><p class="ftc-contact-email">Email: <a href="mailto:'.esc_attr($email).'">'.esc_html($email).'</a></p></div>';
-    echo '<div class="ftc-contact-quiz" data-ftc-contact-quiz data-schedule-url="'.esc_url($schedule_url).'">';
-    echo '<div class="ftc-quiz-progress"><span data-ftc-quiz-progress-text>Step 1 of 8</span><div><i data-ftc-quiz-progress-bar></i></div></div>';
+    echo '<div class="ftc-contact-intro"><h3>Work With Us</h3><p>Tell us what you want to improve and how to reach you. The form is short, and you can also call or text directly.</p><div class="ftc-contact-direct-actions">';
+    if($phone_link){
+        echo '<a class="ftc-contact-direct ftc-contact-call" href="tel:'.esc_attr($phone_link).'">Call '.esc_html($phone).'</a>';
+        echo '<a class="ftc-contact-direct ftc-contact-text" href="sms:'.esc_attr($phone_link).'">Text '.esc_html($phone).'</a>';
+    }
+    echo '<a class="ftc-contact-direct ftc-contact-email-link" href="mailto:'.esc_attr($email).'">Email '.esc_html($email).'</a></div></div>';
+    echo '<div class="ftc-contact-quiz" data-ftc-contact-quiz>';
+    echo '<div class="ftc-quiz-progress"><span data-ftc-quiz-progress-text>Step 1</span><div><i data-ftc-quiz-progress-bar></i></div></div>';
     echo '<div class="ftc-quiz-error" data-ftc-quiz-error role="alert" aria-live="polite"></div>';
 
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="services" data-multi><h4>What should the proposal focus on?</h4><p>Select all that apply.</p><div class="ftc-quiz-card-grid">';
+    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="services" data-multi><h4>What do you want help with?</h4><p>Select all that apply.</p><div class="ftc-quiz-card-grid">';
     ftc_contact_card_buttons(['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Ecommerce & Conversion','Data, Analysis & Visualization','Technology, Innovation and A.I.','Not Sure Yet']);
     echo '</div><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
 
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step><h4>Tell us about your organization.</h4><div class="ftc-quiz-fields"><label>Company Name<input type="text" data-ftc-input="company" required autocomplete="organization"></label><label>Website URL<input type="url" data-ftc-input="website" placeholder="https://"></label></div><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
-
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="orgType"><h4>What best describes your organization?</h4><div class="ftc-quiz-card-grid">';
-    ftc_contact_card_buttons(['Startup','Small Business','Mid-Size Company','Enterprise','Government','Nonprofit','Education','Healthcare','Other']);
-    echo '</div></section>';
-
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="challenge"><h4>What is your biggest challenge right now?</h4><div class="ftc-quiz-card-grid">';
-    ftc_contact_card_buttons(['Need a Better Website','Need More Leads','Need More Sales','Need Better Analytics','Need Marketing Help','Need AI Implementation','Need Automation','Need Technical Support','Need a Strategic Partner','Other']);
-    echo '</div></section>';
+    echo '<section class="ftc-quiz-step" data-ftc-quiz-step><h4>What should we know?</h4><div class="ftc-quiz-fields"><label>Company Name<input type="text" data-ftc-input="company" required autocomplete="organization"></label><label>Website URL<input type="url" data-ftc-input="website" placeholder="https://"></label></div><label class="ftc-quiz-textarea">Project notes<textarea data-ftc-input="notes" rows="4" placeholder="Goals, timing, problems to solve, or anything helpful."></textarea></label><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
 
     echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="timeline"><h4>How soon are you looking to get started?</h4><div class="ftc-quiz-card-grid">';
     ftc_contact_card_buttons(['Just Exploring','Within 6 Months','Within 90 Days','Within 30 Days','Immediately']);
@@ -1585,13 +1680,11 @@ function ftc_render_contact_panel($settings){
     ftc_contact_card_buttons(['Under $5,000','$5,000-$15,000','$15,000-$50,000','$50,000+','Not Sure Yet']);
     echo '</div></section>';
 
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step><h4>Tell us a little more.</h4><label class="ftc-quiz-textarea">What is on your mind?<textarea data-ftc-input="notes" rows="5" placeholder="Share anything useful about the project, timing, goals, or what feels stuck."></textarea></label><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
-
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="contactMethod"><h4>Great. How can we reach you?</h4><div class="ftc-quiz-fields"><label>Name<input type="text" data-ftc-input="name" required autocomplete="name"></label><label>Email<input type="email" data-ftc-input="email" required autocomplete="email"></label><label>Phone<input type="tel" data-ftc-input="phone" autocomplete="tel"></label></div><p>Preferred contact method</p><div class="ftc-quiz-card-grid ftc-quiz-card-grid-small">';
+    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="contactMethod"><h4>How should we reach you?</h4><div class="ftc-quiz-fields"><label>Name<input type="text" data-ftc-input="name" required autocomplete="name"></label><label>Email<input type="email" data-ftc-input="email" required autocomplete="email"></label><label>Phone<input type="tel" data-ftc-input="phone" autocomplete="tel"></label></div><p>Preferred contact method</p><div class="ftc-quiz-card-grid ftc-quiz-card-grid-small">';
     ftc_contact_card_buttons(['Email','Phone','Text Message'], 'Email');
     echo '</div><button type="button" class="ftc-quiz-next" data-ftc-next>Review</button></section>';
 
-    echo '<section class="ftc-quiz-step ftc-quiz-complete" data-ftc-quiz-step><h4>Review your proposal request.</h4><p>Here is what Field Theory will receive when you submit.</p><div class="ftc-quiz-summary" data-ftc-submission-summary></div><div class="ftc-quiz-actions"><a class="ftc-quiz-schedule" href="'.esc_url($schedule_url).'" target="_blank" rel="noopener">Schedule a Call</a><button type="button" class="ftc-quiz-submit" data-ftc-submit-inquiry>Submit Proposal Request</button></div><div class="ftc-quiz-submit-status" data-ftc-submit-status aria-live="polite"></div></section>';
+    echo '<section class="ftc-quiz-step ftc-quiz-complete" data-ftc-quiz-step><h4>Review your request.</h4><p>Here is what Field Theory will receive.</p><div class="ftc-quiz-summary" data-ftc-submission-summary></div><div class="ftc-quiz-actions"><button type="button" class="ftc-quiz-submit" data-ftc-submit-inquiry>Submit Proposal Request</button></div><div class="ftc-quiz-submit-status" data-ftc-submit-status aria-live="polite"></div></section>';
     echo '</div></div>';
 }
 function ftc_render_followups($followups){

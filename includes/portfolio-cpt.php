@@ -3,21 +3,21 @@ if (!defined('ABSPATH')) exit;
 
 function ftc_register_portfolio_cpt(){
     register_post_type('ftc_portfolio', [
-        'labels' => ['name'=>'Concierge Portfolio','singular_name'=>'Portfolio Item','add_new_item'=>'Add Portfolio Item','edit_item'=>'Edit Portfolio Item'],
+        'labels' => ['name'=>'Portfolio Projects','singular_name'=>'Portfolio Project','add_new_item'=>'Add Portfolio Project','edit_item'=>'Edit Portfolio Project','menu_name'=>'Portfolio Projects'],
         'public'=>true,'show_ui'=>true,'show_in_menu'=>'field-theory-concierge','menu_icon'=>'dashicons-portfolio',
-        'supports'=>['title','editor','thumbnail','excerpt','custom-fields'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-work'],
+        'supports'=>['title','editor','thumbnail','excerpt','custom-fields','elementor'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-work'],
     ]);
     register_taxonomy('ftc_portfolio_tag','ftc_portfolio',['label'=>'Portfolio Tags','hierarchical'=>false,'show_ui'=>true,'show_in_menu'=>true,'rewrite'=>['slug'=>'ft-work-tag']]);
 
     register_post_type('ftc_service', [
-        'labels' => ['name'=>'Concierge Services','singular_name'=>'Service','add_new_item'=>'Add Service','edit_item'=>'Edit Service'],
+        'labels' => ['name'=>'Services','singular_name'=>'Service','add_new_item'=>'Add Service','edit_item'=>'Edit Service','menu_name'=>'Services'],
         'public'=>true,'show_ui'=>true,'show_in_menu'=>'field-theory-concierge','menu_icon'=>'dashicons-admin-tools',
-        'supports'=>['title','editor','thumbnail','excerpt','page-attributes','custom-fields'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-service'],
+        'supports'=>['title','editor','thumbnail','excerpt','page-attributes','custom-fields','elementor'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-service'],
     ]);
     register_taxonomy('ftc_service_group','ftc_service',['label'=>'Service Groups','hierarchical'=>true,'show_ui'=>true,'show_in_menu'=>true]);
 
     register_post_type('ftc_lead', [
-        'labels'=>['name'=>'Concierge Leads','singular_name'=>'Concierge Lead','edit_item'=>'View Concierge Lead'],
+        'labels'=>['name'=>'Proposal Requests','singular_name'=>'Proposal Request','edit_item'=>'View Proposal Request','menu_name'=>'Proposal Requests'],
         'public'=>false,
         'publicly_queryable'=>false,
         'show_ui'=>true,
@@ -29,21 +29,47 @@ function ftc_register_portfolio_cpt(){
     ]);
 
     ftc_register_faq_cpt();
+    ftc_register_testimonial_cpt();
 }
 add_action('init','ftc_register_portfolio_cpt');
 
 function ftc_register_faq_cpt(){
     register_post_type('ftc_faq', [
-        'labels'=>['name'=>'Concierge FAQs','singular_name'=>'FAQ','add_new_item'=>'Add FAQ','edit_item'=>'Edit FAQ'],
+        'labels'=>['name'=>'FAQs','singular_name'=>'FAQ','add_new_item'=>'Add FAQ','edit_item'=>'Edit FAQ','menu_name'=>'FAQs'],
         'public'=>true,'show_ui'=>true,'show_in_menu'=>'field-theory-concierge','menu_icon'=>'dashicons-editor-help',
-        'supports'=>['title','editor','excerpt','page-attributes','custom-fields'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-faq'],
+        'supports'=>['title','editor','excerpt','thumbnail','page-attributes','custom-fields','elementor'],'show_in_rest'=>true,'has_archive'=>false,'rewrite'=>['slug'=>'ft-faq'],
     ]);
     register_taxonomy('ftc_faq_topic','ftc_faq',['label'=>'FAQ Topics','hierarchical'=>true,'show_ui'=>true,'show_in_menu'=>true,'rewrite'=>['slug'=>'ft-faq-topic']]);
+}
+
+function ftc_register_testimonial_cpt(){
+    register_post_type('ftc_testimonial', [
+        'labels'=>[
+            'name'=>'Testimonials',
+            'singular_name'=>'Testimonial',
+            'add_new_item'=>'Add Testimonial',
+            'edit_item'=>'Edit Testimonial',
+            'menu_name'=>'Testimonials',
+        ],
+        'public'=>true,
+        'publicly_queryable'=>true,
+        'exclude_from_search'=>true,
+        'show_ui'=>true,
+        'show_in_menu'=>'field-theory-concierge',
+        'menu_icon'=>'dashicons-format-quote',
+        'supports'=>['title','editor','excerpt','thumbnail','page-attributes','custom-fields','elementor'],
+        'show_in_rest'=>true,
+        'has_archive'=>false,
+        'rewrite'=>['slug'=>'ft-testimonial'],
+        'show_in_nav_menus'=>false,
+    ]);
 }
 
 function ftc_portfolio_meta_boxes(){
     add_meta_box('ftc_portfolio_details','Concierge Portfolio Details','ftc_portfolio_meta_box','ftc_portfolio','normal','high');
     add_meta_box('ftc_service_details','Concierge Service Details','ftc_service_meta_box','ftc_service','normal','high');
+    add_meta_box('ftc_testimonial_details','Testimonial Details','ftc_testimonial_meta_box','ftc_testimonial','normal','high');
+    add_meta_box('ftc_lead_details','Proposal Request Details','ftc_lead_meta_box','ftc_lead','normal','high');
 }
 add_action('add_meta_boxes','ftc_portfolio_meta_boxes');
 
@@ -115,11 +141,81 @@ function ftc_service_meta_box($post){
     wp_nonce_field('ftc_save_service','ftc_service_nonce');
     $eyebrow=get_post_meta($post->ID,'_ftc_service_eyebrow',true); $image=get_post_meta($post->ID,'_ftc_service_image',true); $tasks=get_post_meta($post->ID,'_ftc_service_tasks',true); $featured=get_post_meta($post->ID,'_ftc_featured',true); $template_id=get_post_meta($post->ID,'_ftc_elementor_template_id',true);
     echo '<p><label><strong>Small Label / Icon Text</strong></label><br><input type="text" name="ftc_service_eyebrow" value="'.esc_attr($eyebrow).'" class="widefat" placeholder="API, SEO, DATA, AI"></p>';
-    echo '<p><label><strong>Service Image URL</strong></label><br><input type="url" name="ftc_service_image" value="'.esc_attr($image).'" class="widefat"></p>';
+    echo '<p><label><strong>Service Image URL</strong> <span style="color:#666">Fallback only. Prefer the normal Featured Image box for service artwork.</span></label><br><input type="url" name="ftc_service_image" value="'.esc_attr($image).'" class="widefat"></p>';
     echo '<p><label><strong>Elementor Template ID</strong> <span style="color:#666">Optional. If set, this full-width Elementor template replaces the default concierge service detail.</span></label><br><input type="number" name="ftc_elementor_template_id" value="'.esc_attr($template_id).'" class="widefat"></p>';
     echo '<p><label><strong>Child Categories / Tasks</strong> <span style="color:#666">One per line</span></label><br><textarea name="ftc_service_tasks" class="widefat" rows="8">'.esc_textarea($tasks).'</textarea></p>';
     echo '<p><label><input type="checkbox" name="ftc_featured" value="1" '.checked($featured,'1',false).'> Featured in Concierge</label></p>';
 }
+
+function ftc_testimonial_meta_box($post){
+    wp_nonce_field('ftc_save_testimonial','ftc_testimonial_nonce');
+    $role = get_post_meta($post->ID,'_ftc_testimonial_role',true);
+    $company = get_post_meta($post->ID,'_ftc_testimonial_company',true);
+    $featured = get_post_meta($post->ID,'_ftc_featured',true);
+    echo '<p class="description">Use the title for the person or client label, and the main editor for the quote. Keep the quote short enough to scan in the chat response.</p>';
+    echo '<p><label><strong>Role / Label</strong></label><br><input type="text" name="ftc_testimonial_role" value="'.esc_attr($role).'" class="widefat" placeholder="Healthcare client, Marketing director, Nonprofit partner"></p>';
+    echo '<p><label><strong>Company / Organization</strong></label><br><input type="text" name="ftc_testimonial_company" value="'.esc_attr($company).'" class="widefat"></p>';
+    echo '<p><label><input type="checkbox" name="ftc_featured" value="1" '.checked($featured,'1',false).'> Show in Concierge testimonials</label></p>';
+}
+
+function ftc_lead_meta_value($post_id, $key){
+    $value = get_post_meta($post_id, $key, true);
+    return is_array($value) ? implode(', ', $value) : (string)$value;
+}
+
+function ftc_lead_phone_href($phone, $scheme='tel'){
+    $digits = preg_replace('/\D+/', '', (string)$phone);
+    if($digits === '') return '';
+    if(strlen($digits) === 10) $digits = '1'.$digits;
+    return $scheme . ':+' . $digits;
+}
+
+function ftc_lead_detail_row($label, $value){
+    if(is_array($value)) $value = implode(', ', array_filter($value));
+    $value = trim((string)$value);
+    if($value === '') $value = 'Not provided';
+    echo '<tr><th scope="row">'.esc_html($label).'</th><td>'.nl2br(esc_html($value)).'</td></tr>';
+}
+
+function ftc_lead_meta_box($post){
+    $services = get_post_meta($post->ID,'_ftc_lead_services',true);
+    if(!is_array($services)) $services = array_filter(array_map('trim', explode(',', (string)$services)));
+    $name = ftc_lead_meta_value($post->ID,'_ftc_lead_name');
+    $email = ftc_lead_meta_value($post->ID,'_ftc_lead_email');
+    $phone = ftc_lead_meta_value($post->ID,'_ftc_lead_phone');
+    $company = ftc_lead_meta_value($post->ID,'_ftc_lead_company');
+    $website = ftc_lead_meta_value($post->ID,'_ftc_lead_website');
+    $contact_method = ftc_lead_meta_value($post->ID,'_ftc_lead_contact_method');
+    $priority = ftc_lead_meta_value($post->ID,'_ftc_lead_priority');
+    $score = ftc_lead_meta_value($post->ID,'_ftc_lead_score');
+    $timestamp = ftc_lead_meta_value($post->ID,'_ftc_lead_timestamp');
+    echo '<style>.ftc-lead-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.ftc-lead-summary{border-collapse:collapse;width:100%;max-width:960px}.ftc-lead-summary th{width:190px;text-align:left;color:#50575e}.ftc-lead-summary th,.ftc-lead-summary td{padding:10px 12px;border-bottom:1px solid #dcdcde;vertical-align:top}.ftc-lead-priority{display:inline-block;border-radius:999px;padding:4px 10px;background:#f0f6fc;color:#0969da;font-weight:700}</style>';
+    echo '<div class="ftc-lead-actions">';
+    if(is_email($email)) echo '<a class="button button-primary" href="mailto:'.esc_attr($email).'?subject='.rawurlencode('Re: Field Theory proposal request').'">Email '.esc_html($name ?: $email).'</a>';
+    $tel = ftc_lead_phone_href($phone, 'tel');
+    $sms = ftc_lead_phone_href($phone, 'sms');
+    if($tel) echo '<a class="button" href="'.esc_attr($tel).'">Call</a>';
+    if($sms) echo '<a class="button" href="'.esc_attr($sms).'">Text</a>';
+    if($website) echo '<a class="button" href="'.esc_url($website).'" target="_blank" rel="noopener">Open Website</a>';
+    echo '</div>';
+    echo '<p><span class="ftc-lead-priority">'.esc_html($priority ?: 'Unscored').($score !== '' ? ' / '.esc_html($score) : '').'</span></p>';
+    echo '<table class="ftc-lead-summary"><tbody>';
+    ftc_lead_detail_row('Submitted', $timestamp);
+    ftc_lead_detail_row('Name', $name);
+    ftc_lead_detail_row('Email', $email);
+    ftc_lead_detail_row('Phone', $phone);
+    ftc_lead_detail_row('Preferred Contact', $contact_method);
+    ftc_lead_detail_row('Company', $company);
+    ftc_lead_detail_row('Website', $website);
+    ftc_lead_detail_row('Services', $services);
+    ftc_lead_detail_row('Timeline', ftc_lead_meta_value($post->ID,'_ftc_lead_timeline'));
+    ftc_lead_detail_row('Budget', ftc_lead_meta_value($post->ID,'_ftc_lead_budget'));
+    ftc_lead_detail_row('Organization Type', ftc_lead_meta_value($post->ID,'_ftc_lead_org_type'));
+    ftc_lead_detail_row('Challenge', ftc_lead_meta_value($post->ID,'_ftc_lead_challenge'));
+    ftc_lead_detail_row('Notes', ftc_lead_meta_value($post->ID,'_ftc_lead_notes'));
+    echo '</tbody></table>';
+}
+
 function ftc_save_portfolio_meta($post_id){
     if (!isset($_POST['ftc_portfolio_nonce']) || !wp_verify_nonce($_POST['ftc_portfolio_nonce'],'ftc_save_portfolio')) return;
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return; if (!current_user_can('edit_post',$post_id)) return;
@@ -144,6 +240,119 @@ function ftc_save_service_meta($post_id){
     update_post_meta($post_id,'_ftc_elementor_template_id',absint($_POST['ftc_elementor_template_id']??0));
 }
 add_action('save_post_ftc_service','ftc_save_service_meta');
+
+function ftc_save_testimonial_meta($post_id){
+    if (!isset($_POST['ftc_testimonial_nonce']) || !wp_verify_nonce($_POST['ftc_testimonial_nonce'],'ftc_save_testimonial')) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post',$post_id)) return;
+    update_post_meta($post_id,'_ftc_testimonial_role',sanitize_text_field(wp_unslash($_POST['ftc_testimonial_role'] ?? '')));
+    update_post_meta($post_id,'_ftc_testimonial_company',sanitize_text_field(wp_unslash($_POST['ftc_testimonial_company'] ?? '')));
+    update_post_meta($post_id,'_ftc_featured',isset($_POST['ftc_featured'])?'1':'0');
+}
+add_action('save_post_ftc_testimonial','ftc_save_testimonial_meta');
+
+function ftc_lead_admin_columns($columns){
+    return [
+        'cb'=>$columns['cb'] ?? '',
+        'title'=>'Proposal Request',
+        'ftc_lead_contact'=>'Contact',
+        'ftc_lead_company'=>'Company',
+        'ftc_lead_services'=>'Services',
+        'ftc_lead_timeline'=>'Timeline',
+        'ftc_lead_priority'=>'Priority',
+        'date'=>'Date',
+    ];
+}
+add_filter('manage_ftc_lead_posts_columns','ftc_lead_admin_columns');
+
+function ftc_lead_admin_column_content($column, $post_id){
+    if($column === 'ftc_lead_contact'){
+        $name = ftc_lead_meta_value($post_id,'_ftc_lead_name');
+        $email = ftc_lead_meta_value($post_id,'_ftc_lead_email');
+        $phone = ftc_lead_meta_value($post_id,'_ftc_lead_phone');
+        if($name) echo '<strong>'.esc_html($name).'</strong><br>';
+        if(is_email($email)) echo '<a href="mailto:'.esc_attr($email).'">'.esc_html($email).'</a><br>';
+        if($phone) echo esc_html($phone);
+    }
+    if($column === 'ftc_lead_company'){
+        $company = ftc_lead_meta_value($post_id,'_ftc_lead_company');
+        $website = ftc_lead_meta_value($post_id,'_ftc_lead_website');
+        echo $company ? esc_html($company) : '<span style="color:#777">Not provided</span>';
+        if($website) echo '<br><a href="'.esc_url($website).'" target="_blank" rel="noopener">Website</a>';
+    }
+    if($column === 'ftc_lead_services'){
+        $services = get_post_meta($post_id,'_ftc_lead_services',true);
+        if(is_array($services)) echo esc_html(implode(', ', $services));
+        else echo esc_html((string)$services);
+    }
+    if($column === 'ftc_lead_timeline'){
+        echo esc_html(ftc_lead_meta_value($post_id,'_ftc_lead_timeline'));
+    }
+    if($column === 'ftc_lead_priority'){
+        $priority = ftc_lead_meta_value($post_id,'_ftc_lead_priority');
+        $score = ftc_lead_meta_value($post_id,'_ftc_lead_score');
+        echo esc_html($priority ?: 'Unscored');
+        if($score !== '') echo ' / '.esc_html($score);
+    }
+}
+add_action('manage_ftc_lead_posts_custom_column','ftc_lead_admin_column_content',10,2);
+
+function ftc_lead_row_actions($actions, $post){
+    if($post->post_type !== 'ftc_lead') return $actions;
+    $email = ftc_lead_meta_value($post->ID,'_ftc_lead_email');
+    $phone = ftc_lead_meta_value($post->ID,'_ftc_lead_phone');
+    if(is_email($email)) $actions['ftc_email'] = '<a href="mailto:'.esc_attr($email).'">Email</a>';
+    $tel = ftc_lead_phone_href($phone, 'tel');
+    $sms = ftc_lead_phone_href($phone, 'sms');
+    if($tel) $actions['ftc_call'] = '<a href="'.esc_attr($tel).'">Call</a>';
+    if($sms) $actions['ftc_text'] = '<a href="'.esc_attr($sms).'">Text</a>';
+    return $actions;
+}
+add_filter('post_row_actions','ftc_lead_row_actions',10,2);
+
+function ftc_seed_default_testimonials_2828(){
+    if(get_option('ftc_testimonials_seeded_2828')) return;
+    $items = [
+        [
+            'title'=>'Healthcare client',
+            'quote'=>'A clearer website, cleaner message, and a team that understood the business problem before touching the design.',
+            'role'=>'Healthcare client',
+            'order'=>10,
+        ],
+        [
+            'title'=>'Nonprofit partner',
+            'quote'=>'Field Theory brought strategy, design, development, and analytics together without making the process feel heavy.',
+            'role'=>'Nonprofit partner',
+            'order'=>20,
+        ],
+        [
+            'title'=>'Marketing director',
+            'quote'=>'The reporting finally made sense. We could see what was working and what to do next.',
+            'role'=>'Marketing director',
+            'order'=>30,
+        ],
+    ];
+    foreach($items as $item){
+        $existing = get_page_by_title($item['title'], OBJECT, 'ftc_testimonial');
+        if($existing){
+            $post_id = $existing->ID;
+        } else {
+            $post_id = wp_insert_post([
+                'post_type'=>'ftc_testimonial',
+                'post_status'=>'publish',
+                'post_title'=>$item['title'],
+                'post_content'=>'<p>'.esc_html($item['quote']).'</p>',
+                'menu_order'=>$item['order'],
+            ]);
+        }
+        if(!$post_id || is_wp_error($post_id)) continue;
+        if(!get_post_meta($post_id,'_ftc_testimonial_role',true)) update_post_meta($post_id,'_ftc_testimonial_role',$item['role']);
+        if(!metadata_exists('post',$post_id,'_ftc_featured')) update_post_meta($post_id,'_ftc_featured','1');
+    }
+    update_option('ftc_testimonials_seeded_2828',1);
+}
+add_action('init','ftc_seed_default_testimonials_2828',63);
+add_action('admin_init','ftc_seed_default_testimonials_2828',63);
 
 function ftc_seed_default_services(){
     if (get_option('ftc_services_seeded_270')) return;

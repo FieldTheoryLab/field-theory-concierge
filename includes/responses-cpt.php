@@ -13,18 +13,18 @@ if (!defined('ABSPATH')) exit;
 function ftc_register_response_cpt(){
     register_post_type('ftc_response', [
         'labels' => [
-            'name' => 'Concierge Responses',
-            'singular_name' => 'Concierge Response',
-            'add_new_item' => 'Add Concierge Response',
-            'edit_item' => 'Edit Concierge Response',
-            'new_item' => 'New Concierge Response',
-            'view_item' => 'View Concierge Response',
-            'search_items' => 'Search Concierge Responses',
-            'not_found' => 'No concierge responses found',
-            'menu_name' => 'Response Engine',
+            'name' => 'Pages & Responses',
+            'singular_name' => 'Page / Response',
+            'add_new_item' => 'Add Page or Response',
+            'edit_item' => 'Edit Page or Response',
+            'new_item' => 'New Page or Response',
+            'view_item' => 'View Page or Response',
+            'search_items' => 'Search Pages & Responses',
+            'not_found' => 'No pages or responses found',
+            'menu_name' => 'Pages & Responses',
         ],
-        'public' => false,
-        'publicly_queryable' => false,
+        'public' => true,
+        'publicly_queryable' => true,
         'exclude_from_search' => true,
         'show_ui' => true,
         'show_in_menu' => 'field-theory-concierge',
@@ -33,6 +33,9 @@ function ftc_register_response_cpt(){
         'menu_icon' => 'dashicons-format-chat',
         'capability_type' => 'post',
         'hierarchical' => false,
+        'has_archive' => false,
+        'rewrite' => ['slug'=>'ft-response'],
+        'show_in_nav_menus' => false,
     ]);
 }
 add_action('init','ftc_register_response_cpt');
@@ -85,20 +88,37 @@ function ftc_response_intent_types(){
         'portfolio' => 'Portfolio Overview',
         'project_detail' => 'Project Detail',
         'faq' => 'FAQ / Quick Answer',
+        'testimonials' => 'Testimonials',
         'contact' => 'Contact / Request a Proposal',
         'privacy' => 'Privacy',
         'custom' => 'Custom Campaign / Landing Response',
     ];
 }
 
+function ftc_elementor_supported_post_types(){
+    return ['ftc_response','ftc_portfolio','ftc_service','ftc_faq','ftc_testimonial'];
+}
+
+function ftc_is_elementor_available(){
+    return did_action('elementor/loaded') || defined('ELEMENTOR_VERSION') || class_exists('\\Elementor\\Plugin');
+}
+
 function ftc_enable_elementor_for_responses(){
-    add_post_type_support('ftc_response','elementor');
+    foreach(ftc_elementor_supported_post_types() as $post_type){
+        add_post_type_support($post_type,'elementor');
+    }
 
     // Elementor stores enabled post types in this option.
     $supported = get_option('elementor_cpt_support', []);
     if(!is_array($supported)) $supported = [];
-    if(!in_array('ftc_response', $supported, true)){
-        $supported[] = 'ftc_response';
+    $changed = false;
+    foreach(ftc_elementor_supported_post_types() as $post_type){
+        if(!in_array($post_type, $supported, true)){
+            $supported[] = $post_type;
+            $changed = true;
+        }
+    }
+    if($changed){
         update_option('elementor_cpt_support', array_values(array_unique($supported)));
     }
 }
@@ -106,8 +126,16 @@ add_action('init','ftc_enable_elementor_for_responses', 30);
 add_action('admin_init','ftc_enable_elementor_for_responses');
 
 function ftc_response_elementor_edit_url($post_id){
-    if(!did_action('elementor/loaded') && !class_exists('\\Elementor\\Plugin')) return '';
+    if(!ftc_is_elementor_available()) return '';
+    if(!$post_id || !get_post($post_id)) return '';
     return admin_url('post.php?post='.absint($post_id).'&action=elementor');
+}
+
+function ftc_admin_elementor_link($post_id, $label='Edit with Elementor', $class=''){
+    $url = ftc_response_elementor_edit_url($post_id);
+    if(!$url) return '';
+    $class_attr = $class ? ' class="'.esc_attr($class).'"' : '';
+    return '<a'.$class_attr.' href="'.esc_url($url).'">'.esc_html($label).'</a>';
 }
 
 function ftc_add_response_meta_boxes(){
@@ -418,6 +446,200 @@ function ftc_find_response_cpt_matches($term){
     return $matches;
 }
 
+function ftc_get_response_cpt_by_intent($intent){
+    $intent = sanitize_key($intent);
+    if(!$intent) return null;
+    $posts = get_posts([
+        'post_type'=>'ftc_response',
+        'post_status'=>'publish',
+        'posts_per_page'=>1,
+        'orderby'=>'menu_order title',
+        'order'=>'ASC',
+        'meta_query'=>[
+            [
+                'key'=>'_ftc_response_intent_type',
+                'value'=>$intent,
+            ],
+        ],
+    ]);
+    return $posts ? ftc_get_response_post_data($posts[0]->ID) : null;
+}
+
+function ftc_core_response_for_prompt($term){
+    $t = function_exists('ftc_normalize_prompt_text') ? ftc_normalize_prompt_text($term) : strtolower(trim((string)$term));
+    if($t === '') return null;
+    $intent = '';
+    if(in_array($t, ['about','about us','about field theory','about field theory lab','tell me about your company','company','team','who are you'], true)) $intent = 'about';
+    elseif(in_array($t, ['request a proposal','request proposal','contact','contact us','work with us','work together','hire our team','schedule a consultation'], true)) $intent = 'contact';
+    elseif(in_array($t, ['testimonials','testimonial','reviews','what do clients say'], true)) $intent = 'testimonials';
+    elseif(in_array($t, ['faq','faqs','questions','helpful prompts'], true)) $intent = 'faq';
+    elseif(in_array($t, ['get started','start','home'], true)) $intent = 'get_started';
+    elseif(in_array($t, ['our services','services','how can you help my company','help my company'], true)) $intent = 'services';
+    elseif(in_array($t, ['show me your work','show me your work!','portfolio','portfolios','projects'], true)) $intent = 'portfolio';
+    elseif(in_array($t, ['privacy','privacy policy'], true)) $intent = 'privacy';
+    return $intent ? ftc_get_response_cpt_by_intent($intent) : null;
+}
+
+function ftc_core_response_definitions_2828(){
+    return [
+        [
+            'title'=>'Get Started',
+            'slug'=>'get-started',
+            'intent'=>'get_started',
+            'layout'=>'home',
+            'prompt'=>'Get Started',
+            'excerpt'=>'Start here to explore how Field Theory Lab helps organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI systems.',
+            'keywords'=>"Get Started\nstart\nhome\noverview",
+            'order'=>10,
+        ],
+        [
+            'title'=>'Portfolio',
+            'slug'=>'portfolio',
+            'intent'=>'portfolio',
+            'layout'=>'portfolio',
+            'prompt'=>'Show me your work!',
+            'excerpt'=>'A sample of Field Theory projects across education, healthcare, public sector, nonprofits, utilities, and growth-focused brands.',
+            'keywords'=>"Show me your work!\nportfolio\nprojects\ncase studies\nshow me all portfolios",
+            'order'=>20,
+        ],
+        [
+            'title'=>'Services',
+            'slug'=>'services',
+            'intent'=>'services',
+            'layout'=>'services',
+            'prompt'=>'Our Services',
+            'excerpt'=>'Website development, digital marketing, SEO/AEO, analytics, ecommerce, creative technology, and practical AI systems.',
+            'keywords'=>"Our Services\nservices\nhow can you help my company\nhelp my company\nwhat do you do",
+            'order'=>30,
+        ],
+        [
+            'title'=>'About Field Theory',
+            'slug'=>'about-field-theory',
+            'intent'=>'about',
+            'layout'=>'about',
+            'prompt'=>'Tell me about your company',
+            'excerpt'=>'Field Theory Lab is a creative technology agency based in Albuquerque, New Mexico.',
+            'keywords'=>"Tell me about your company\nabout\nabout us\nabout field theory\ncompany\nteam\nwho are you",
+            'order'=>40,
+        ],
+        [
+            'title'=>'Testimonials',
+            'slug'=>'testimonials',
+            'intent'=>'testimonials',
+            'layout'=>'testimonials',
+            'prompt'=>'Testimonials',
+            'excerpt'=>'Client feedback, proof points, and stories from teams Field Theory has helped.',
+            'keywords'=>"Testimonials\ntestimonial\nreviews\nclients\nwhat do clients say",
+            'order'=>50,
+        ],
+        [
+            'title'=>'FAQ',
+            'slug'=>'faq',
+            'intent'=>'faq',
+            'layout'=>'faq',
+            'prompt'=>'FAQ',
+            'excerpt'=>'Quick answers to common questions about websites, marketing, analytics, AI, SEO, budgets, timelines, and support.',
+            'keywords'=>"FAQ\nFAQs\nquestions\nhelpful prompts\nhow long does a website take\nwhat budget should I plan for",
+            'order'=>60,
+        ],
+        [
+            'title'=>'Request a Proposal',
+            'slug'=>'request-a-proposal',
+            'intent'=>'contact',
+            'layout'=>'contact',
+            'prompt'=>'Request a Proposal',
+            'excerpt'=>'Tell Field Theory what you are trying to improve. This proposal quiz only takes a minute.',
+            'keywords'=>"Request a Proposal\nrequest proposal\ncontact\ncontact us\nwork with us\nwork together\nhire our team\nschedule a consultation",
+            'order'=>70,
+        ],
+        [
+            'title'=>'Privacy Policy',
+            'slug'=>'privacy-policy',
+            'intent'=>'privacy',
+            'layout'=>'none',
+            'prompt'=>'Privacy Policy',
+            'excerpt'=>'A simple privacy statement for the Field Theory Concierge experience.',
+            'content'=>'<p>We use the information you provide through this experience to respond to your questions, understand project needs, and improve the concierge. Do not submit sensitive personal information through the chat.</p><p>If you contact Field Theory Lab, your message may be stored and used to follow up about your inquiry.</p>',
+            'keywords'=>"Privacy Policy\nprivacy",
+            'order'=>80,
+        ],
+    ];
+}
+
+function ftc_find_response_post_for_core_definition_2828($definition){
+    $intent = $definition['intent'] ?? '';
+    if($intent){
+        $posts = get_posts([
+            'post_type'=>'ftc_response',
+            'post_status'=>'any',
+            'posts_per_page'=>1,
+            'meta_query'=>[
+                [
+                    'key'=>'_ftc_response_intent_type',
+                    'value'=>$intent,
+                ],
+            ],
+        ]);
+        if($posts) return $posts[0];
+    }
+    $post = get_page_by_path($definition['slug'], OBJECT, 'ftc_response');
+    if($post) return $post;
+    return get_page_by_title($definition['title'], OBJECT, 'ftc_response');
+}
+
+function ftc_ensure_core_editable_responses_2828(){
+    if(get_option('ftc_core_editable_responses_2828')) return;
+    foreach(ftc_core_response_definitions_2828() as $definition){
+        $existing = ftc_find_response_post_for_core_definition_2828($definition);
+        if($existing){
+            $post_id = $existing->ID;
+            $updates = ['ID'=>$post_id];
+            if(!$existing->post_name) $updates['post_name'] = $definition['slug'];
+            if(!$existing->post_excerpt) $updates['post_excerpt'] = $definition['excerpt'];
+            if($existing->menu_order === 0) $updates['menu_order'] = $definition['order'];
+            if(count($updates) > 1) wp_update_post($updates);
+        } else {
+            $post_id = wp_insert_post([
+                'post_type'=>'ftc_response',
+                'post_status'=>'publish',
+                'post_title'=>$definition['title'],
+                'post_name'=>$definition['slug'],
+                'post_excerpt'=>$definition['excerpt'],
+                'post_content'=>$definition['content'] ?? '',
+                'menu_order'=>$definition['order'],
+            ]);
+        }
+        if(!$post_id || is_wp_error($post_id)) continue;
+
+        $meta_defaults = [
+            '_ftc_response_keywords'=>$definition['keywords'],
+            '_ftc_response_followups'=>"Get Started\nOur Services\nShow me your work!\nRequest a Proposal",
+            '_ftc_response_status'=>'active',
+            '_ftc_response_type'=>'legacy',
+            '_ftc_response_intent_type'=>$definition['intent'],
+            '_ftc_response_legacy_layout'=>$definition['layout'],
+            '_ftc_response_prompt_label'=>$definition['prompt'],
+            '_ftc_response_intro_phrase'=>$definition['excerpt'],
+            '_ftc_response_content_preview'=>'',
+            '_ftc_response_full_content'=>'',
+            '_ftc_response_preview_template_id'=>0,
+            '_ftc_response_full_template_id'=>0,
+            '_ftc_response_template_id'=>0,
+            '_ftc_response_blocks'=>wp_json_encode([
+                ['type'=>'legacy_layout','title'=>'Current '.$definition['title'].' Layout','content'=>'','template_id'=>0,'source'=>$definition['layout']]
+            ]),
+        ];
+        foreach($meta_defaults as $key=>$value){
+            if(!metadata_exists('post', $post_id, $key) || get_post_meta($post_id, $key, true) === ''){
+                update_post_meta($post_id, $key, $value);
+            }
+        }
+    }
+    update_option('ftc_core_editable_responses_2828', 1);
+}
+add_action('init','ftc_ensure_core_editable_responses_2828', 28);
+add_action('admin_init','ftc_ensure_core_editable_responses_2828', 28);
+
 function ftc_render_response_engine_block($block){
     $type = $block['type'] ?? '';
     $title = $block['title'] ?? '';
@@ -671,7 +893,7 @@ function ftc_response_admin_column_content($column, $post_id){
 add_action('manage_ftc_response_posts_custom_column','ftc_response_admin_column_content',10,2);
 
 function ftc_response_row_actions($actions, $post){
-    if($post->post_type !== 'ftc_response') return $actions;
+    if(!in_array($post->post_type, ftc_elementor_supported_post_types(), true)) return $actions;
     $url = ftc_response_elementor_edit_url($post->ID);
     if($url) $actions['ftc_elementor'] = '<a href="'.esc_url($url).'">Edit with Elementor</a>';
     return $actions;
