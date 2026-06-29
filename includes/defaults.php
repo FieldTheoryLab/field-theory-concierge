@@ -17,8 +17,8 @@ function ftc_default_settings(){
         'contact_phone' => '(505) 456-3193',
         'contact_url' => '',
         'calendly_url' => '',
-        'recaptcha_site_key' => '6LcKeTAtAAAAAKYrDNezHD5aEoXl_eEumyGh3ciS',
-        'recaptcha_secret_key' => '6LcKeTAtAAAAADzUHPm5MTWi16S6idGDloPfXdnb',
+        'recaptcha_site_key' => '',
+        'recaptcha_secret_key' => '',
         'recaptcha_threshold' => '0.5',
     ];
 }
@@ -126,7 +126,7 @@ function ftc_default_responses(){
         'privacy' => [
             'title' => 'Privacy Policy',
             'description' => 'A simple privacy statement for the Field Theory Concierge experience.',
-            'html' => '<p>We use the information you provide through this experience to respond to your questions, understand project needs, and improve the concierge. Do not submit sensitive personal information through the chat.</p><p>If you contact Field Theory Lab, your message may be stored and used to follow up about your inquiry.</p>',
+            'html' => '<p>We use information submitted through this experience to respond to questions, evaluate project fit, and improve concierge responses. Please do not submit sensitive personal information in chat or proposal notes.</p><p>If you request a proposal, your details may be stored in our WordPress system and shared with our internal team so we can follow up by email, phone, or text based on your selected preference.</p><p>This experience also loads third-party runtime infrastructure (for example, CDN-hosted scripts and 3D rendering assets) that may process technical request data such as IP address and browser metadata.</p><p>You can request updates or deletion of inquiry details by contacting Field Theory Lab directly.</p>',
             'layout' => 'none',
             'followups' => ['Get Started','Our Services','Request a Proposal']
         ],
@@ -187,6 +187,12 @@ function ftc_maybe_migrate_design_defaults(){
         $responses['contact']['title'] = 'Work With Us';
         $responses['contact']['description'] = 'Tell Field Theory what you are trying to improve. This will only take a minute.';
         $responses['contact']['followups'] = ['Show me your work!','Our Services','Get Started'];
+    }
+    if(isset($responses['privacy'])){
+        $legacy_privacy_html = '<p>We use the information you provide through this experience to respond to your questions, understand project needs, and improve the concierge. Do not submit sensitive personal information through the chat.</p><p>If you contact Field Theory Lab, your message may be stored and used to follow up about your inquiry.</p>';
+        if(empty($responses['privacy']['html']) || trim((string)$responses['privacy']['html']) === $legacy_privacy_html){
+            $responses['privacy']['html'] = $defaults['privacy']['html'];
+        }
     }
     if(isset($responses['ai'])){
         $responses['ai']['title'] = 'Technology, Innovation and A.I.';

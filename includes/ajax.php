@@ -663,13 +663,8 @@ function ftc_response_library_to_shell($entry){
     if(!$entry) return null;
     $answer = trim((string)($entry['answer'] ?? ''));
     $short = trim((string)($entry['short_answer'] ?? ''));
-    $location_line = '';
-    if(!empty($entry['locations']) && is_array($entry['locations'])){
-        $location_line = '<p><strong>New Mexico coverage:</strong> '.esc_html(implode(', ', array_slice($entry['locations'], 0, 5))).'.</p>';
-    }
     $html = '';
     if($answer !== '') $html .= '<p>'.esc_html($answer).'</p>';
-    if($location_line) $html .= $location_line;
     return [
         'title'=>$entry['question'] ?? ($entry['title'] ?? 'Field Theory Response'),
         'description'=>$short !== '' ? $short : wp_trim_words(wp_strip_all_tags($answer), 20),
@@ -784,7 +779,10 @@ function ftc_go_time_spline_url(){
 }
 
 function ftc_go_time_spline_ajax_url(){
-    return admin_url('admin-ajax.php?action=ftc_go_time_spline');
+    return add_query_arg([
+        'action' => 'ftc_go_time_spline',
+        'nonce' => wp_create_nonce('ftc_go_time_spline'),
+    ], admin_url('admin-ajax.php'));
 }
 
 function ftc_go_time_spline_direct_url(){
@@ -792,6 +790,11 @@ function ftc_go_time_spline_direct_url(){
 }
 
 function ftc_serve_go_time_spline(){
+    $nonce = sanitize_text_field(wp_unslash($_REQUEST['nonce'] ?? ''));
+    if($nonce === '' || !wp_verify_nonce($nonce, 'ftc_go_time_spline')){
+        status_header(403);
+        exit('Forbidden');
+    }
     while (ob_get_level()) {
         ob_end_clean();
     }
@@ -1183,8 +1186,35 @@ function ftc_verify_recaptcha_siteverify_token($token, $secret_key, $settings){
     return true;
 }
 
+function ftc_inquiry_client_ip(){
+    $keys = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
+    foreach($keys as $key){
+        if(empty($_SERVER[$key])) continue;
+        $raw = sanitize_text_field(wp_unslash((string)$_SERVER[$key]));
+        $first = trim(explode(',', $raw)[0]);
+        if(filter_var($first, FILTER_VALIDATE_IP)) return $first;
+    }
+    return 'unknown';
+}
+
+function ftc_inquiry_rate_limit_key($prefix, $subject){
+    return 'ftc_rl_' . $prefix . '_' . md5((string)$subject);
+}
+
+function ftc_inquiry_rate_limited($key, $limit, $window_seconds){
+    $hits = (int) get_transient($key);
+    if($hits >= $limit) return true;
+    set_transient($key, $hits + 1, $window_seconds);
+    return false;
+}
+
 function ftc_ajax_submit_inquiry(){
     check_ajax_referer('ftc_nonce','nonce');
+
+    $honeypot = sanitize_text_field(wp_unslash($_POST['ftc_hp'] ?? ''));
+    if($honeypot !== ''){
+        wp_send_json_error(['message'=>'Could not submit request. Please try again.'], 400);
+    }
 
     $services = ftc_clean_json_text_list($_POST['services'] ?? '[]');
     $company = sanitize_text_field(wp_unslash($_POST['company'] ?? ''));
@@ -1204,6 +1234,21 @@ function ftc_ajax_submit_inquiry(){
     }
 
     $settings = ftc_get_settings();
+    $recaptcha_result = ftc_verify_recaptcha_token(wp_unslash($_POST['recaptcha_token'] ?? ''), $settings);
+    if(is_wp_error($recaptcha_result)){
+        wp_send_json_error(['message'=>$recaptcha_result->get_error_message()], 403);
+    }
+
+    $ip_address = ftc_inquiry_client_ip();
+    $ip_key = ftc_inquiry_rate_limit_key('ip', $ip_address);
+    if(ftc_inquiry_rate_limited($ip_key, 8, 10 * MINUTE_IN_SECONDS)){
+        wp_send_json_error(['message'=>'Please wait a few minutes before submitting again.'], 429);
+    }
+    $identity_key = ftc_inquiry_rate_limit_key('identity', strtolower($email) . '|' . $ip_address);
+    if(ftc_inquiry_rate_limited($identity_key, 3, 30 * MINUTE_IN_SECONDS)){
+        wp_send_json_error(['message'=>'You recently submitted a request. Please wait and try again shortly.'], 429);
+    }
+
     $score = ftc_calculate_lead_score($services, $timeline, $budget);
     $title_name = $company ?: $name;
     $lead_id = wp_insert_post([
@@ -2229,8 +2274,19 @@ function ftc_is_quizzes_assessments_task($task, $prompt = ''){
     return false;
 }
 
+function ftc_render_child_service_examples_section_open($box_class = ''){
+    $box_class = trim((string)$box_class);
+    echo '<section class="ftc-child-service-examples" aria-labelledby="ftc-child-service-examples-title">';
+    echo '<h3 class="ftc-child-service-examples-title" id="ftc-child-service-examples-title">Examples</h3>';
+    echo '<div class="ftc-child-service-examples-box'.($box_class !== '' ? ' '.esc_attr($box_class) : '').'">';
+}
+
+function ftc_render_child_service_examples_section_close(){
+    echo '</div></section>';
+}
+
 function ftc_render_ai_website_assessment_example(){
-    echo '<div class="ftc-ai-assessment-shell" aria-label="AI Website Assessment example">';
+    echo '<div class="ftc-ai-assessment-example" aria-label="AI Website Assessment example">';
     echo '<div class="ft-ai-assessment" data-ft-ai-assessment>';
     echo '<div class="ft-ai-card">';
     echo '<div class="ft-ai-glow" aria-hidden="true"></div>';
@@ -2248,6 +2304,29 @@ function ftc_render_ai_website_assessment_example(){
     echo '<button type="button" class="ft-ai-btn ft-ai-secondary" data-ft-ai-back>Back</button>';
     echo '<button type="button" class="ft-ai-btn" data-ft-ai-next>Continue</button>';
     echo '</div></div></div></div>';
+}
+
+function ftc_render_client_pulse_example(){
+    echo '<div class="ftc-client-pulse-example" aria-label="Client Pulse NPS example">';
+    echo '<div class="ft-pulse" data-ft-client-pulse>';
+    echo '<div class="ft-pulse-shell">';
+    echo '<div class="ft-pulse-left">';
+    echo '<div class="ft-pulse-tag">Client Pulse</div>';
+    echo '<h2>How likely are you to recommend us?</h2>';
+    echo '<p>A simple branded review experience for collecting NPS, feedback, and testimonial-ready comments.</p>';
+    echo '<div class="ft-pulse-stats">';
+    echo '<div><strong data-ft-pulse-score>0</strong><span>NPS Score</span></div>';
+    echo '<div><strong data-ft-pulse-type>Pending</strong><span>Segment</span></div>';
+    echo '</div></div>';
+    echo '<div class="ft-pulse-right"><div data-ft-pulse-content></div></div>';
+    echo '</div></div></div>';
+}
+
+function ftc_render_quizzes_examples_row(){
+    echo '<div class="ftc-quizzes-examples-row">';
+    ftc_render_ai_website_assessment_example();
+    ftc_render_client_pulse_example();
+    echo '</div>';
 }
 
 function ftc_dashboard_design_gallery_items(){
@@ -2269,9 +2348,37 @@ function ftc_render_dashboard_design_gallery(){
         $images .= '<figure class="ftc-dashboard-design-gallery-item"><img src="'.esc_url($url).'" alt="'.esc_attr($item['alt']).'" loading="lazy" decoding="async" /></figure>';
     }
     if($images === '') return;
-    echo '<div class="ftc-dashboard-design-gallery-shell" aria-label="Dashboard design examples">';
+    echo '<div class="ftc-dashboard-design-gallery-example" aria-label="Dashboard design examples">';
     echo '<div class="ftc-dashboard-design-gallery">'.$images.'</div>';
     echo '</div>';
+}
+
+function ftc_journey_map_icon($name){
+    $icons = [
+        'energy' => '<path d="M9 1.5 4.5 9h3.5l-1 5.5L11.5 7H8l1-5.5z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>',
+        'aerospace' => '<path d="M1.5 8.5 6 7l8-5.5 2.5 1-2 3.5L8.5 11 6 14.5l-1-3.5-3.5-.5z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>',
+        'manufacturing' => '<path d="M2 13V6l3-2 3 2v2l3-1.5V4l3 2v9H2z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M6 8v5M9 6.5v6.5" stroke="currentColor" stroke-width="1.1"/>',
+        'ceo' => '<circle cx="8" cy="5.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M3.5 13.5c.4-2.4 2.2-3.8 4.5-3.8s4.1 1.4 4.5 3.8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'operations' => '<circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'site-selector' => '<path d="M8 1.5C5.5 1.5 3.5 3.8 3.5 6.5 3.5 10 8 14.5 8 14.5s4.5-4.5 4.5-8C12.5 3.8 10.5 1.5 8 1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="8" cy="6.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/>',
+        'google-ads' => '<circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M10.5 10.5 13.5 13.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'linkedin-ads' => '<rect x="2" y="2" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.5 6.5v5M4.5 4.5v.5M7.5 11.5V8.8c0-1 .8-1.8 1.8-1.8s1.7.8 1.7 1.8v2.7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>',
+        'display-ads' => '<rect x="2" y="3" width="12" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 11.5h5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'email-marketing' => '<rect x="2" y="4" width="12" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="m2 4.5 6 4.5 6-4.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>',
+        'globe' => '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M2.5 8h11M8 2.5c1.8 1.6 2.8 3.6 2.8 5.5S9.8 11.9 8 13.5c-1.8-1.6-2.8-3.6-2.8-5.5S6.2 4.1 8 2.5z" fill="none" stroke="currentColor" stroke-width="1.1"/>',
+        'users' => '<circle cx="6" cy="5.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M2.5 13c.3-2 1.7-3.2 3.5-3.2s3.2 1.2 3.5 3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="11.5" cy="6" r="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M9.5 13c.4-1.6 1.4-2.5 2.8-2.5" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'lead-capture' => '<rect x="3.5" y="2.5" width="9" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>',
+        'crm' => '<ellipse cx="8" cy="4.5" rx="4.5" ry="1.8" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M3.5 4.5v3c0 1 2 1.8 4.5 1.8s4.5-.8 4.5-1.8v-3M3.5 7.5v3c0 1 2 1.8 4.5 1.8s4.5-.8 4.5-1.8v-3" fill="none" stroke="currentColor" stroke-width="1.1"/>',
+        'email' => '<rect x="2" y="4.5" width="12" height="7.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="m2 5 6 4 6-4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>',
+        'retarget' => '<path d="M11.5 2.5A5.5 5.5 0 0 0 4 8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M4.5 2.5H4v4h4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 13.5A5.5 5.5 0 0 0 12 8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M11.5 13.5h.5v-4h-4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>',
+        'analytics' => '<path d="M2.5 13.5V8M6 13.5V5.5M9.5 13.5V7.5M13 13.5V3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+    ];
+    if(!isset($icons[$name])) return '';
+    return '<svg class="ftc-journey-map-icon" viewBox="0 0 16 16" aria-hidden="true">'.$icons[$name].'</svg>';
+}
+
+function ftc_journey_map_node($icon, $label){
+    return '<span class="ftc-journey-map-node">'.ftc_journey_map_icon($icon).'<span class="ftc-journey-map-label">'.$label.'</span></span>';
 }
 
 function ftc_render_customer_journey_map(){
@@ -2279,42 +2386,42 @@ function ftc_render_customer_journey_map(){
     echo '<div class="ftc-journey-map-scaler"><div class="ftc-journey-map">';
     echo '<h3 class="ftc-journey-map-title">Demand Generation Journey</h3>';
 
-    echo '<div class="ftc-journey-map-section" style="left:37px;top:49px;">INDUSTRIES</div>';
-    echo '<div class="ftc-journey-map-section" style="left:185px;top:49px;">PERSONAS</div>';
-    echo '<div class="ftc-journey-map-section" style="left:334px;top:49px;">MARKETING</div>';
-    echo '<div class="ftc-journey-map-section" style="left:468px;top:49px;">WEBSITE EXPERIENCE</div>';
-    echo '<div class="ftc-journey-map-section" style="left:683px;top:49px;">NURTURE</div>';
+    echo '<div class="ftc-journey-map-section" style="left:37px;top:49px;">Industries</div>';
+    echo '<div class="ftc-journey-map-section" style="left:185px;top:49px;">Personas</div>';
+    echo '<div class="ftc-journey-map-section" style="left:334px;top:49px;">Marketing</div>';
+    echo '<div class="ftc-journey-map-section" style="left:468px;top:49px;">Website Experience</div>';
+    echo '<div class="ftc-journey-map-section" style="left:683px;top:49px;">Nurture</div>';
 
-    echo '<div class="ftc-journey-map-circle" style="left:30px;top:89px;">Energy</div>';
-    echo '<div class="ftc-journey-map-circle" style="left:30px;top:200px;">Aerospace</div>';
-    echo '<div class="ftc-journey-map-circle" style="left:30px;top:312px;">Manufacturing</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:89px;">'.ftc_journey_map_node('energy', 'Energy').'</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:200px;">'.ftc_journey_map_node('aerospace', 'Aerospace').'</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:312px;">'.ftc_journey_map_node('manufacturing', 'Manufacturing').'</div>';
 
-    echo '<div class="ftc-journey-map-circle" style="left:178px;top:89px;">CEO</div>';
-    echo '<div class="ftc-journey-map-circle" style="left:178px;top:200px;">Operations</div>';
-    echo '<div class="ftc-journey-map-circle" style="left:178px;top:312px;">Site Selector</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:89px;">'.ftc_journey_map_node('ceo', 'CEO').'</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:200px;">'.ftc_journey_map_node('operations', 'Operations').'</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:312px;">'.ftc_journey_map_node('site-selector', 'Site Selector').'</div>';
 
-    echo '<div class="ftc-journey-map-box" style="left:327px;top:89px;width:115px;">Google Ads</div>';
-    echo '<div class="ftc-journey-map-box" style="left:327px;top:178px;width:115px;">LinkedIn Ads</div>';
-    echo '<div class="ftc-journey-map-box" style="left:327px;top:267px;width:115px;">Display Ads</div>';
-    echo '<div class="ftc-journey-map-box" style="left:327px;top:356px;width:115px;">Email Marketing</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:89px;width:115px;">'.ftc_journey_map_node('google-ads', 'Google Ads').'</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:178px;width:115px;">'.ftc_journey_map_node('linkedin-ads', 'LinkedIn Ads').'</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:267px;width:115px;">'.ftc_journey_map_node('display-ads', 'Display Ads').'</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:356px;width:115px;">'.ftc_journey_map_node('email-marketing', 'Email Marketing').'</div>';
 
     echo '<div class="ftc-journey-map-browser-wrap" style="left:468px;top:89px;">';
     echo '<div class="ftc-journey-map-browser">';
-    echo '<div class="ftc-journey-map-browser-bar"></div><div class="ftc-journey-map-browser-hero"></div>';
+    echo '<div class="ftc-journey-map-browser-bar">'.ftc_journey_map_icon('globe').'</div><div class="ftc-journey-map-browser-hero"></div>';
     echo '<div class="ftc-journey-map-browser-cards"><div></div><div></div><div></div></div>';
-    echo '</div><div class="ftc-journey-map-browser-label">Homepage</div></div>';
+    echo '</div><div class="ftc-journey-map-browser-label">'.ftc_journey_map_icon('globe').'<span>Homepage</span></div></div>';
 
     echo '<div class="ftc-journey-map-browser-wrap" style="left:468px;top:230px;">';
     echo '<div class="ftc-journey-map-browser">';
-    echo '<div class="ftc-journey-map-browser-bar"></div><div class="ftc-journey-map-browser-hero is-compact"></div>';
+    echo '<div class="ftc-journey-map-browser-bar">'.ftc_journey_map_icon('users').'</div><div class="ftc-journey-map-browser-hero is-compact"></div>';
     echo '<div class="ftc-journey-map-browser-cards"><div></div><div></div></div>';
-    echo '</div><div class="ftc-journey-map-browser-label">Persona Pages</div></div>';
+    echo '</div><div class="ftc-journey-map-browser-label">'.ftc_journey_map_icon('users').'<span>Persona Pages</span></div></div>';
 
-    echo '<div class="ftc-journey-map-circle is-lead" style="left:690px;top:208px;">Lead<br>Capture</div>';
-    echo '<div class="ftc-journey-map-box is-crm" style="left:809px;top:212px;">CRM</div>';
-    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:683px;top:82px;">Email</div>';
-    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:764px;top:82px;">Retarget</div>';
-    echo '<div class="ftc-journey-map-analytics" style="left:720px;top:371px;"><span>Analytics</span><span>&amp; Optimize</span></div>';
+    echo '<div class="ftc-journey-map-circle is-lead" style="left:690px;top:208px;">'.ftc_journey_map_node('lead-capture', 'Lead<br>Capture').'</div>';
+    echo '<div class="ftc-journey-map-box is-crm" style="left:809px;top:212px;">'.ftc_journey_map_node('crm', 'CRM').'</div>';
+    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:683px;top:82px;">'.ftc_journey_map_node('email', 'Email').'</div>';
+    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:764px;top:82px;">'.ftc_journey_map_node('retarget', 'Retarget').'</div>';
+    echo '<div class="ftc-journey-map-analytics" style="left:720px;top:371px;">'.ftc_journey_map_icon('analytics').'<span class="ftc-journey-map-label">Analytics</span><span class="ftc-journey-map-label">&amp; Optimize</span></div>';
 
     echo '<svg class="ftc-journey-map-svg" viewBox="0 0 920 540" aria-hidden="true">';
     echo '<defs><marker id="ftc-journey-arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="currentColor"/></marker></defs>';
@@ -2354,14 +2461,11 @@ function ftc_render_child_service_response($match, $settings=[], $prompt = ''){
     $show_journey_map = ftc_is_customer_journey_mapping_task($task, $prompt);
     $show_dashboard_gallery = ftc_is_dashboard_design_task($task);
     $show_ai_assessment = ftc_is_quizzes_assessments_task($task, $prompt);
+    $show_examples = $show_journey_map || $show_dashboard_gallery || $show_ai_assessment;
     $shell_classes = 'ftc-response-shell ftc-response-layout-child-service';
-    if($show_journey_map) $shell_classes .= ' ftc-response-has-journey-map';
-    if($show_dashboard_gallery) $shell_classes .= ' ftc-response-has-dashboard-gallery';
-    if($show_ai_assessment) $shell_classes .= ' ftc-response-has-ai-assessment';
+    if($show_examples) $shell_classes .= ' ftc-response-has-examples';
     echo '<div class="'.esc_attr($shell_classes).'" data-response-title="'.esc_attr($heading).'" data-ftc-response-prompt="'.esc_attr($task).'">';
     echo '<header class="ftc-response-header"><div class="ftc-kicker">'.esc_html($description).'</div><h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr($heading).'">'.esc_html($heading).'</h2></header>';
-    if($show_journey_map) ftc_render_customer_journey_map();
-    if($show_dashboard_gallery) ftc_render_dashboard_design_gallery();
     echo '<section class="ftc-response-content">';
     echo '<div class="ftc-child-service-response">';
     echo '<div class="ftc-child-service-answer"><span>'.esc_html($description).'</span>';
@@ -2379,7 +2483,13 @@ function ftc_render_child_service_response($match, $settings=[], $prompt = ''){
         echo '</div></aside>';
     }
     echo '</div>';
-    if($show_ai_assessment) ftc_render_ai_website_assessment_example();
+    if($show_examples){
+        ftc_render_child_service_examples_section_open($show_ai_assessment ? 'ftc-child-service-examples-box--quiz' : '');
+        if($show_journey_map) ftc_render_customer_journey_map();
+        if($show_dashboard_gallery) ftc_render_dashboard_design_gallery();
+        if($show_ai_assessment) ftc_render_quizzes_examples_row();
+        ftc_render_child_service_examples_section_close();
+    }
     echo '<div class="ftc-response-actions ftc-child-service-actions"><div class="ftc-response-actions-left">';
     ftc_render_revert_action_button();
     echo '<button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button>';
@@ -2741,7 +2851,7 @@ function ftc_render_contact_panel($settings, $opts = []){
     ftc_contact_card_buttons(['Email','Phone','Text Message'], 'Email');
     echo '</div><button type="button" class="ftc-quiz-next" data-ftc-next>Review</button></section>';
 
-    echo '<section class="ftc-quiz-step ftc-quiz-complete" data-ftc-quiz-step><h4>Review your request.</h4><p>Here is what Field Theory will receive.</p><div class="ftc-quiz-summary" data-ftc-submission-summary></div><div class="ftc-quiz-actions"><button type="button" class="ftc-quiz-submit" data-ftc-submit-inquiry>Submit Proposal Request</button></div><div class="ftc-quiz-submit-status" data-ftc-submit-status aria-live="polite"></div></section>';
+    echo '<section class="ftc-quiz-step ftc-quiz-complete" data-ftc-quiz-step><h4>Review your request.</h4><p>Here is what Field Theory will receive.</p><div class="ftc-quiz-summary" data-ftc-submission-summary></div><input type="text" data-ftc-hp tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;pointer-events:none" /><div class="ftc-quiz-actions"><button type="button" class="ftc-quiz-submit" data-ftc-submit-inquiry>Submit Proposal Request</button></div><div class="ftc-quiz-submit-status" data-ftc-submit-status aria-live="polite"></div><p class="ftc-quiz-privacy-note">By submitting, you agree that Field Theory Lab may store this inquiry to follow up on your request. <button type="button" data-prompt="Privacy Policy">View Privacy Policy</button></p></section>';
     echo '</div>';
     if(!$quiz_only) echo '</div>';
 }

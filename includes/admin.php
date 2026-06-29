@@ -93,9 +93,9 @@ function ftc_contact_page(){
     <?php foreach (['contact_email'=>'Email for proposal requests','contact_phone'=>'Call / Text phone number'] as $key=>$label): ?>
         <p><label><strong><?php echo esc_html($label); ?></strong></label><br><input type="text" name="<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($s[$key] ?? ''); ?>"></p>
     <?php endforeach; ?>
-        <p><label><strong>Google reCAPTCHA Site Key</strong></label><br><input type="text" name="recaptcha_site_key" value="<?php echo esc_attr($s['recaptcha_site_key'] ?? ''); ?>"></p>
-        <p><label><strong>Google reCAPTCHA Secret Key</strong></label><br><input type="password" name="recaptcha_secret_key" value="<?php echo esc_attr($s['recaptcha_secret_key'] ?? ''); ?>" autocomplete="new-password"></p>
-        <p><label><strong>reCAPTCHA Score Threshold</strong></label><br><input type="number" step="0.1" min="0" max="1" name="recaptcha_threshold" value="<?php echo esc_attr($s['recaptcha_threshold'] ?? '0.5'); ?>"><span class="ftc-help"> reCAPTCHA v3 runs silently on Submit Inquiry when both keys are present. 0.5 is a typical starting point.</span></p>
+        <p><label><strong>Google reCAPTCHA v3 Site Key</strong></label><br><input type="text" name="recaptcha_site_key" value="<?php echo esc_attr($s['recaptcha_site_key'] ?? ''); ?>" class="large-text"><span class="ftc-help"> Public site key from <a href="https://www.google.com/recaptcha/admin/create" target="_blank" rel="noopener">Google reCAPTCHA admin</a>. Choose reCAPTCHA v3 (not Enterprise).</span></p>
+        <p><label><strong>Google reCAPTCHA v3 Secret Key</strong></label><br><input type="password" name="recaptcha_secret_key" value="<?php echo esc_attr($s['recaptcha_secret_key'] ?? ''); ?>" autocomplete="new-password" class="large-text"><span class="ftc-help"> Secret key paired with the site key above. Server verification uses Google’s standard siteverify endpoint.</span></p>
+        <p><label><strong>reCAPTCHA Score Threshold</strong></label><br><input type="number" step="0.1" min="0" max="1" name="recaptcha_threshold" value="<?php echo esc_attr($s['recaptcha_threshold'] ?? '0.5'); ?>"><span class="ftc-help"> Minimum score (0–1) required to accept Submit Inquiry. 0.5 is a typical starting point; higher values are stricter.</span></p>
     </div><p><button class="button button-primary" name="ftc_save_contact" value="1">Save Contact</button></p></div></form></div>
     <?php
 }

@@ -81,7 +81,7 @@
       var w = rect.width, h = rect.height;
       if(w < 4 || h < 4){ counterFrame = requestAnimationFrame(tickCounters); return; }
       var cx = rect.left + w * 0.5, cy = rect.top + h * 0.5;
-      var orbitR = Math.min(w, h) * (isDetail ? 0.44 : 0.56);
+      var orbitR = Math.min(w, h) * (isDetail ? 0.30 : 0.38);
       for(var i = liveLabels.length - 1; i >= 0; i--){
         var lbl = liveLabels[i];
         if(lbl.dead){ liveLabels.splice(i, 1); continue; }
@@ -150,6 +150,7 @@
     let aiScrollMotionBound = false;
     let aiScrollMotionRaf = 0;
     let threeLoadPromise = null;
+    let goTimeRuntimePromise = null;
     let pageHidden = typeof document !== 'undefined' && document.hidden;
     if(typeof document !== 'undefined'){
       document.addEventListener('visibilitychange', function(){
@@ -251,15 +252,72 @@
 
     const servicesParticleHosts = new WeakSet();
 
+    function loadScriptOnce(url){
+      if(!url) return Promise.reject(new Error('missing script url'));
+      var existing = document.querySelector('script[src="' + url + '"]');
+      if(existing){
+        if(existing.dataset.ftcLoaded === '1') return Promise.resolve();
+        return new Promise(function(resolve, reject){
+          existing.addEventListener('load', function(){
+            existing.dataset.ftcLoaded = '1';
+            resolve();
+          }, { once: true });
+          existing.addEventListener('error', function(){
+            reject(new Error('script load failed'));
+          }, { once: true });
+        });
+      }
+      return new Promise(function(resolve, reject){
+        var script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onload = function(){
+          script.dataset.ftcLoaded = '1';
+          resolve();
+        };
+        script.onerror = function(){
+          reject(new Error('script load failed'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function ensureGoTimeRuntime(){
+      if(window.FTCGoTimeSpline && window.FTCGoTimeSpline.scan) return Promise.resolve();
+      if(goTimeRuntimePromise) return goTimeRuntimePromise;
+      var data = window.ftcData || {};
+      var screensUrl = data.goTimeScreensScriptUrl || '';
+      var splineUrl = data.goTimeSplineScriptUrl || '';
+      goTimeRuntimePromise = loadScriptOnce(screensUrl)
+        .then(function(){ return loadScriptOnce(splineUrl); })
+        .then(function(){ return true; })
+        .catch(function(err){
+          goTimeRuntimePromise = null;
+          throw err;
+        });
+      return goTimeRuntimePromise;
+    }
+
     function initGoTimeSpline(root){
-      if(!window.FTCGoTimeSpline || !window.FTCGoTimeSpline.scan) return;
-      window.FTCGoTimeSpline.scan(root || document);
       var scope = root || document;
-      var pending = scope.querySelector('[data-ftc-go-time-spline]:not(.is-ready)');
-      if(pending) app.classList.add('ftc-app-go-time-loading');
-      scope.querySelectorAll('[data-ftc-go-time-spline].is-ready').forEach(function(rail){
-        if(window.FTCGoTimeSpline.markGoTimeAppMode) window.FTCGoTimeSpline.markGoTimeAppMode(rail);
-        initGoTimeSplineTypewriters(rail);
+      if(!scope.querySelector || !scope.querySelector('[data-ftc-go-time-spline]')) return;
+      var hydrate = function(){
+        if(!window.FTCGoTimeSpline || !window.FTCGoTimeSpline.scan) return;
+        window.FTCGoTimeSpline.scan(scope);
+        var pending = scope.querySelector('[data-ftc-go-time-spline]:not(.is-ready)');
+        if(pending) app.classList.add('ftc-app-go-time-loading');
+        scope.querySelectorAll('[data-ftc-go-time-spline].is-ready').forEach(function(rail){
+          if(window.FTCGoTimeSpline.markGoTimeAppMode) window.FTCGoTimeSpline.markGoTimeAppMode(rail);
+          initGoTimeSplineTypewriters(rail);
+        });
+      };
+      if(window.FTCGoTimeSpline && window.FTCGoTimeSpline.scan){
+        hydrate();
+        return;
+      }
+      app.classList.add('ftc-app-go-time-loading');
+      ensureGoTimeRuntime().then(hydrate).catch(function(){
+        app.classList.remove('ftc-app-go-time-loading');
       });
     }
 
@@ -1151,6 +1209,7 @@
         });
         el.querySelectorAll('[data-ftc-contact-quiz]').forEach(initContactQuiz);
         el.querySelectorAll('[data-ft-ai-assessment]').forEach(initAiAssessment);
+        el.querySelectorAll('[data-ft-client-pulse]').forEach(initClientPulse);
         initServiceVisuals(el);
         initServiceCardAnimations(el);
         initServicesHeroParticles(el);
@@ -1188,6 +1247,7 @@
       });
       el.querySelectorAll('[data-ftc-contact-quiz]').forEach(initContactQuiz);
       el.querySelectorAll('[data-ft-ai-assessment]').forEach(initAiAssessment);
+      el.querySelectorAll('[data-ft-client-pulse]').forEach(initClientPulse);
       initServiceVisuals(el);
       initServiceCardAnimations(el);
       initServicesHeroParticles(el);
@@ -2168,7 +2228,7 @@
       group.add(lineSegments);
       if(isPreview) addSelectiveDataLabels(state, THREE, radius);
 
-      state.visualScale = state.el && state.el.closest('.ftc-service-detail-webgl') ? 2.35 : 1.78;
+      state.visualScale = state.el && state.el.closest('.ftc-service-detail-webgl') ? 2.65 : 2.05;
       state.dataSelective = {
         visible: visible,
         attribute: visibleAttribute,
@@ -3112,9 +3172,9 @@
 
       buildServiceScene(state, THREE);
       function dataVisualScale(width) {
-        if (width < 420) return 1.75;
-        if (width < 760) return 2.35;
-        return 3.35;
+        if (width < 420) return 2.05;
+        if (width < 760) return 2.75;
+        return 3.95;
       }
       state.visualScale = dataVisualScale(W);
 
@@ -3455,6 +3515,10 @@
       if(typeof window.ftcInitAiAssessment === 'function') window.ftcInitAiAssessment(root);
     }
 
+    function initClientPulse(root){
+      if(typeof window.ftcInitClientPulse === 'function') window.ftcInitClientPulse(root);
+    }
+
     function initContactQuiz(quiz){
       if(!quiz || quiz.dataset.initialized) return;
       quiz.dataset.initialized='true';
@@ -3608,30 +3672,58 @@
         return {score: score, priority: score > 70 ? 'High' : (score > 40 ? 'Medium' : 'Low')};
       }
 
+      function getRecaptchaToken(){
+        var data = window.ftcData || {};
+        var siteKey = data.recaptchaSiteKey || '';
+        var action = data.recaptchaAction || 'ftc_submit_inquiry';
+        if(!siteKey || !window.grecaptcha || typeof window.grecaptcha.execute !== 'function'){
+          return Promise.resolve('');
+        }
+        return new Promise(function(resolve){
+          try {
+            window.grecaptcha.ready(function(){
+              window.grecaptcha.execute(siteKey, { action: action })
+                .then(function(token){ resolve(token || ''); })
+                .catch(function(){ resolve(''); });
+            });
+          } catch(err){
+            resolve('');
+          }
+        });
+      }
+
       function submitInquiry(){
         if(submit.disabled) return;
         const score = calculateLeadScore();
         submit.disabled = true;
         if(status) status.textContent = 'Sending your proposal request...';
-        const body = new URLSearchParams({
-          action:'ftc_submit_inquiry',
-          nonce:nonce,
-          services:JSON.stringify(answers.services),
-          company:answers.company,
-          website:answers.website,
-          org_type:answers.orgType,
-          challenge:answers.challenge,
-          timeline:answers.timeline,
-          budget:answers.budget,
-          notes:answers.notes,
-          name:answers.name,
-          email:answers.email,
-          phone:answers.phone,
-          contact_method:answers.contactMethod,
-          lead_score:String(score.score)
-        }).toString();
-        fetch(ajaxUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
-          .then(function(r){return r.json();})
+        getRecaptchaToken()
+          .then(function(recaptchaToken){
+            const honeypot = (quiz.querySelector('[data-ftc-hp]') || {}).value || '';
+            return new URLSearchParams({
+              action:'ftc_submit_inquiry',
+              nonce:nonce,
+              services:JSON.stringify(answers.services),
+              company:answers.company,
+              website:answers.website,
+              org_type:answers.orgType,
+              challenge:answers.challenge,
+              timeline:answers.timeline,
+              budget:answers.budget,
+              notes:answers.notes,
+              name:answers.name,
+              email:answers.email,
+              phone:answers.phone,
+              contact_method:answers.contactMethod,
+              lead_score:String(score.score),
+              recaptcha_token:recaptchaToken,
+              ftc_hp:honeypot
+            }).toString();
+          })
+          .then(function(body){
+            return fetch(ajaxUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});
+          })
+          .then(function(r){ return r.json(); })
           .then(function(data){
             if(data && data.success){
               if(status) status.textContent = 'Thanks. Your proposal request has been sent to Field Theory.';

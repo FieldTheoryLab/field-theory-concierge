@@ -341,11 +341,40 @@ function ftc_mobile_theme_color(){
 }
 add_action('wp_head', 'ftc_mobile_theme_color', 1);
 
+function ftc_page_has_concierge_shortcode(){
+    if(!is_singular()) return false;
+    $post = get_post();
+    if(!$post || empty($post->post_content)) return false;
+    return has_shortcode($post->post_content, 'ft_concierge') || has_shortcode($post->post_content, 'field_theory_concierge');
+}
+
+function ftc_should_enqueue_assets(){
+    if(is_admin()) return false;
+    $route_vars = ftc_current_route_vars();
+    if(!empty($route_vars['route'])) return true;
+    if(ftc_page_has_concierge_shortcode()) return true;
+    return false;
+}
+
 function ftc_enqueue_assets(){
+    if(!ftc_should_enqueue_assets()) return;
+
     $settings = ftc_get_settings();
+    $recaptcha_site_key = trim((string)($settings['recaptcha_site_key'] ?? ''));
+    if($recaptcha_site_key !== ''){
+        wp_enqueue_script(
+            'google-recaptcha-v3',
+            'https://www.google.com/recaptcha/api.js?render=' . rawurlencode($recaptcha_site_key),
+            [],
+            null,
+            true
+        );
+    }
+
     wp_enqueue_style('ftc-app', FTC_URL . 'assets/css/app.css', [], FTC_VERSION);
     wp_enqueue_script('ftc-app', FTC_URL . 'assets/js/app.js', [], FTC_VERSION, true);
     wp_enqueue_script('ftc-ai-assessment', FTC_URL . 'assets/js/ft-ai-assessment.js', ['ftc-app'], FTC_VERSION, true);
+    wp_enqueue_script('ftc-client-pulse', FTC_URL . 'assets/js/ft-client-pulse.js', ['ftc-app'], FTC_VERSION, true);
     wp_localize_script('ftc-app', 'ftcData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('ftc_nonce'),
@@ -357,10 +386,19 @@ function ftc_enqueue_assets(){
         'goTimeSplinePreviewUrl' => ftc_go_time_spline_community_preview(),
         'goTimeSplineDesktopPreviewUrl' => 'https://prod.spline.design/XRICJt1eQGpipdNw/scene.splinecode',
         'splineRuntimeUrl' => 'https://cdn.jsdelivr.net/npm/@splinetool/runtime@1.12.97/build/runtime.js',
+        'sceneScriptUrl' => FTC_URL . 'assets/js/scene-get-started.js',
+        'goTimeScreensScriptUrl' => FTC_URL . 'assets/js/scene-go-time-screens.js',
+        'goTimeSplineScriptUrl' => FTC_URL . 'assets/js/scene-go-time-spline.js',
+        'recaptchaSiteKey' => $recaptcha_site_key,
+        'recaptchaAction' => function_exists('ftc_recaptcha_action') ? ftc_recaptcha_action() : 'ftc_submit_inquiry',
     ]);
     wp_enqueue_script('ftc-scene', FTC_URL . 'assets/js/scene-get-started.js', ['ftc-app'], FTC_VERSION, true);
-    wp_enqueue_script('ftc-go-time-screens', FTC_URL . 'assets/js/scene-go-time-screens.js', ['ftc-app'], FTC_VERSION, true);
-    wp_enqueue_script('ftc-go-time-spline', FTC_URL . 'assets/js/scene-go-time-spline.js', ['ftc-app', 'ftc-scene', 'ftc-go-time-screens'], FTC_VERSION, true);
+    $route_vars = ftc_current_route_vars();
+    $is_go_time_route = (($route_vars['route'] ?? '') === 'go-time');
+    if($is_go_time_route){
+        wp_enqueue_script('ftc-go-time-screens', FTC_URL . 'assets/js/scene-go-time-screens.js', ['ftc-app'], FTC_VERSION, true);
+        wp_enqueue_script('ftc-go-time-spline', FTC_URL . 'assets/js/scene-go-time-spline.js', ['ftc-app', 'ftc-scene', 'ftc-go-time-screens'], FTC_VERSION, true);
+    }
 }
 add_action('wp_enqueue_scripts', 'ftc_enqueue_assets');
 

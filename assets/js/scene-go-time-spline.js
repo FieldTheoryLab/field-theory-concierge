@@ -1208,10 +1208,23 @@
   function startLoop(rail) {
     if (rail._ftcSplineLoopStarted) return;
     rail._ftcSplineLoopStarted = true;
+    rail._ftcSplineActive = true;
+    if (typeof IntersectionObserver !== 'undefined') {
+      var visObserver = new IntersectionObserver(function (entries) {
+        if (!entries || !entries.length) return;
+        rail._ftcSplineActive = !!entries[0].isIntersecting;
+      }, { threshold: 0.04 });
+      visObserver.observe(rail);
+      rail._ftcSplineVisObserver = visObserver;
+    }
     var last = performance.now();
     (function loop() {
       requestAnimationFrame(loop);
       if (!rail._ftcSplineTick) return;
+      if (document.hidden || rail._ftcSplineActive === false) {
+        last = performance.now();
+        return;
+      }
       var now = performance.now();
       rail._ftcSplineTick(Math.min((now - last) / 1000, 0.05));
       last = now;
