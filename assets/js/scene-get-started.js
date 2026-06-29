@@ -2668,8 +2668,11 @@
     return t * t * (3.0 - 2.0 * t); /* smoothstep */
   }
 
+  /* Vertical lift during phone click spin — peaks at mid-rotation, returns to rest */
+  var SPIN_LIFT_Y = 0.14;
+
   function getSpinType(device) {
-    if (device === 'phone')                                          return 'z-flip';
+    if (device === 'phone')                                          return 'y-lift';
     if (device === 'ipad' || device === 'ipad-landscape')           return 'y-flip';
     if (device === 'monitor')                                        return 'y-flip';
     if (device === 'dataviz')                                        return 'y-flip';
@@ -2711,9 +2714,9 @@
         var sdPrev = (sd.prevT !== undefined) ? sd.prevT : 0;
         var sdDelta = sdT - sdPrev;
         sd.prevT = sdT;
-        if (sd.type === 'z-flip') {
-          sd.mesh.rotation.z += sdDelta * Math.PI * 2;
-          sd.mesh.rotation.y = sd.baseRY;
+        if (sd.type === 'y-lift') {
+          sd.mesh.rotation.y += sdDelta * Math.PI * 2;
+          sd.mesh.position.y = sd.basePY + Math.sin(sdP * Math.PI) * SPIN_LIFT_Y;
         } else if (sd.type === 'y-flip') {
           sd.mesh.rotation.y += sdDelta * Math.PI * 2;
         } else { /* y-peek */
@@ -2725,8 +2728,8 @@
         }
         if (sdP >= 1.0) {
           /* Snap to pre-spin rest so idle animation has no distance to travel */
-          if (sd.type === 'y-flip') sd.mesh.rotation.y = sd.baseRY;
-          else if (sd.type === 'z-flip') sd.mesh.rotation.z = sd.baseRZ;
+          if (sd.type === 'y-flip' || sd.type === 'y-lift') sd.mesh.rotation.y = sd.baseRY;
+          if (sd.type === 'y-lift') sd.mesh.position.y = sd.basePY;
           sd.done = true;
         } else {
           spAllDone = false;
@@ -2746,8 +2749,9 @@
       var spPrev = (state.spinPrevT !== undefined) ? state.spinPrevT : 0;
       var spDelta = spT - spPrev;
       state.spinPrevT = spT;
-      if (state.spinType === 'z-flip') {
-        body.rotation.z += spDelta * Math.PI * 2;
+      if (state.spinType === 'y-lift') {
+        body.rotation.y += spDelta * Math.PI * 2;
+        body.position.y = state.spinBasePY + Math.sin(spP * Math.PI) * SPIN_LIFT_Y;
       } else if (state.spinType === 'y-flip') {
         body.rotation.y += spDelta * Math.PI * 2;
       } else if (state.spinType === 'y-peek') {
@@ -2761,8 +2765,8 @@
       }
       if (spP >= 1.0) {
         /* Snap to pre-spin rest to prevent idle-animation snap-back */
-        if (state.spinType === 'y-flip') body.rotation.y = state.spinBaseRY;
-        else if (state.spinType === 'z-flip') body.rotation.z = state.spinBaseRZ;
+        if (state.spinType === 'y-flip' || state.spinType === 'y-lift') body.rotation.y = state.spinBaseRY;
+        if (state.spinType === 'y-lift') body.position.y = state.spinBasePY;
         if (state.spinBaseScale != null) body.scale.setScalar(state.spinBaseScale);
         state.spinning = false;
         if (window.location.pathname !== state.spinUrl) { window.location.href = state.spinUrl; }
@@ -2790,18 +2794,20 @@
     state.spinDuration = getSpinDuration(data.device);
     state.spinBaseRY  = body.rotation.y;
     state.spinBaseRZ  = body.rotation.z;
+    state.spinBasePY  = body.position.y;
     state.spinPrevT   = 0;
     state.spinSubDevices = [];
     state.spinScaleMul = (state.spinType === 'multi') ? 1.0 : 0.86;
     if (state.spinType === 'multi' && body._multiDevices) {
       var subConfigs = (data.device === 'multidevice' || data.device === 'multidevice-search')
-        ? [['y-flip', 1.0], ['y-flip', 0.7], ['z-flip', 0.6]]
-        : [['y-flip', 0.7], ['z-flip', 0.6]];
+        ? [['y-flip', 1.0], ['y-flip', 0.7], ['y-lift', 0.6]]
+        : [['y-flip', 0.7], ['y-lift', 0.6]];
       state.spinSubDevices = body._multiDevices.map(function (d, i) {
         var cfg = subConfigs[i] || ['y-flip', 0.7];
         return { mesh: d.mesh, type: cfg[0], delay: i * 0.10,
                  duration: cfg[1], baseRY: d.mesh.rotation.y,
-                 baseRZ: d.mesh.rotation.z, prevT: 0, done: false };
+                 baseRZ: d.mesh.rotation.z, basePY: d.mesh.position.y,
+                 prevT: 0, done: false };
       });
     }
   }
@@ -2913,7 +2919,7 @@
     var visW = visH * (W / H);
     /* Data-viz sphere has equal extent on all axes — scale by the smaller
        screen dimension so it fits inside both width and height with margin. */
-    var target = isDataViz ? (Math.min(visH, visW) * 0.65) : (visH * 0.76);
+    var target = isDataViz ? (Math.min(visH, visW) * 0.78) : (visH * 0.76);
     var scale  = target / bSize.y;
     body.scale.setScalar(scale);
     body.position.set(-bCenter.x * scale, -bCenter.y * scale, 0);
@@ -2930,7 +2936,8 @@
     /* Hover listeners on parent card */
     var cardEl = canvasEl.closest('.ftc-grid-card');
     var spinState = { spinning: false, spinStart: 0, spinUrl: '', spinType: '',
-                      spinDuration: 0.7, spinBaseRY: 0, spinBaseRZ: 0, spinSubDevices: [] };
+                      spinDuration: 0.7, spinBaseRY: 0, spinBaseRZ: 0, spinBasePY: 0,
+                      spinSubDevices: [] };
     if (cardEl) {
       cardEl.addEventListener('mouseenter', function () { hovered = true; });
       cardEl.addEventListener('mouseleave', function () { hovered = false; });
@@ -3284,7 +3291,7 @@
        bounds union per sub-device for multi-device clusters. ── */
     var SVC_CARD_PAD = 0.94;
     var SVC_FIT_PAD = 0.96;
-    var SVC_FIT_PAD_DATA = 0.93;
+    var SVC_FIT_PAD_DATA = 0.98;
     var SVC_FIT_PAD_NEURAL_DETAIL = 0.88;
     var SVC_FIT_PAD_ANGLED = 0.86;
     var bSize  = new THREE.Vector3(1, 1, 1);
@@ -3297,6 +3304,7 @@
     var isDetailNeural = isDetailCanvas && isNeuralNet;
     function getSvcFitPad() {
       if (isCategoryCard) {
+        if (isSvcDataViz) return SVC_FIT_PAD_DATA;
         if (isMultiDev) return SVC_CARD_PAD * 1.03;
         if (isSingleDevice && !isNeuralNet && !isSvcDataViz) return SVC_CARD_PAD * 0.96;
         return SVC_CARD_PAD;
@@ -3688,8 +3696,8 @@
     /* Hover on the closest service card or detail ancestor */
     var cardEl = canvasEl.closest('.ftc-service-category-card, .ftc-service-card, .ftc-service-detail-webgl, .ftc-service-detail-visual');
     var spinState = { spinning: false, spinStart: 0, spinUrl: '', spinType: '',
-                      spinDuration: 0.7, spinBaseRY: 0, spinBaseRZ: 0, spinSubDevices: [],
-                      spinBaseScale: 1, spinScaleMul: 1 };
+                      spinDuration: 0.7, spinBaseRY: 0, spinBaseRZ: 0, spinBasePY: 0,
+                      spinSubDevices: [], spinBaseScale: 1, spinScaleMul: 1 };
     if (cardEl) {
       if (isDetailCanvas) {
         cardEl.addEventListener('mouseenter', function () { hovered = true;  });
