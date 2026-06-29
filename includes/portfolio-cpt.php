@@ -226,6 +226,7 @@ function ftc_save_portfolio_meta($post_id){
     update_post_meta($post_id,'_ftc_gallery_urls',sanitize_textarea_field(wp_unslash($_POST['ftc_gallery_urls'] ?? '')));
     $gallery_ids = array_filter(array_map('absint',explode(',',sanitize_text_field(wp_unslash($_POST['ftc_gallery_ids'] ?? '')))));
     update_post_meta($post_id,'_ftc_gallery_ids',implode(',',array_unique($gallery_ids)));
+    update_post_meta($post_id,'_ftc_gallery_manual','1');
     update_post_meta($post_id,'_ftc_featured',isset($_POST['ftc_featured'])?'1':'0');
     update_post_meta($post_id,'_ftc_elementor_template_id',absint($_POST['ftc_elementor_template_id']??0));
 }
@@ -361,7 +362,6 @@ function ftc_seed_default_services(){
         ['Digital Marketing & Growth Strategy','GROWTH','SEO, content strategy, campaigns, conversion planning, AI visibility, and better customer journeys.','https://placehold.co/960x540/242424/ffd94d?text=Digital+Marketing',['Campaign Strategy','Content Strategy','Conversion Planning','Local Search','Paid Media Planning','Marketing Operations','Email Journeys','Reporting']],
         ['Search & Discovery Optimization (SEO / AEO)','SEO','Search visibility, answer engine optimization, content architecture, technical SEO, and useful search-ready websites.',FTC_URL.'assets/images/service-seo.svg',['Technical SEO','AI Search Visibility','Structured Data','Content Architecture','Local SEO','Editorial Planning','Search Audits','Optimization Roadmaps']],
         ['Ecommerce & Conversion Rate Optimization (CRO)','CRO','Ecommerce, product journeys, checkout experience, testing, conversion funnels, and measurable growth improvements.',FTC_URL.'assets/images/service-cro.svg',['Shop UX','Product Pages','Checkout Optimization','Conversion Funnels','A/B Test Planning','Memberships','Subscriptions','Analytics Events']],
-        ['Data, Analysis & Visualization','DATA','GA4, dashboards, reporting, campaign measurement, and decision-ready insights.','https://placehold.co/960x540/242424/ffd94d?text=Data+%26+Analytics',['GA4 Configuration','Looker Studio Dashboards','KPI Planning','Campaign Reporting','Data Storytelling','Tag Management','Executive Summaries','Tracking Audits']],
         ['Technology, Innovation and A.I.','AI','Practical AI workflows, internal assistants, automation, and experimental digital tools.','https://placehold.co/960x540/242424/ffd94d?text=AI+%26+Innovation',['AI Assistants','Workflow Automation','Internal Knowledge Tools','Lead Support','Prototype Development','Creative Experiments','Prompt Systems','Team Adoption']],
     ];
     $i=0; foreach($services as $svc){
@@ -548,11 +548,12 @@ function ftc_service_catalog_2621(){
             'excerpt'=>'Analytics strategy, dashboards, reporting, business intelligence, attribution, visualization, and decision-ready insights.',
             'content'=>'<p>Data should drive decisions, not create confusion. We help organizations collect, organize, visualize, and activate their data to uncover opportunities and improve performance.</p><p>Our proprietary analytics platform, ANNA, combines business intelligence, marketing analytics, CRO insights, and executive reporting into custom dashboards focused on what matters most.</p><p><strong>Outcome:</strong> We help organizations move from reporting activity to measuring outcomes.</p>',
             'tasks'=>[
-                'Analytics Strategy: Analytics Strategy, Data Collection & Governance, KPI Development, North Star Metric Identification, Attribution Modeling',
-                'Dashboards & Reporting: Dashboard Design, Business Intelligence, Executive Reporting, Custom Reporting Solutions, Automated Reporting, Business Intelligence Visualizations',
+                'Analytics Strategy: Analytics Strategy, Data Collection & Governance, KPI Development, North Star Metric Identification, Attribution Modeling, Google Tag Manager',
+                'Dashboards & Reporting: Dashboard Design, Business Intelligence, Executive Reporting, Custom Reporting Solutions, Automated Reporting, Business Intelligence Visualizations, Looker Studio, Tableau, BigQuery',
                 'Marketing & Behavior: Marketing Analytics, Conversion Analytics, Performance Marketing Reporting, Behavioral Analytics, User Journey Analysis, Funnel Analysis, Predictive Insights',
+                'Heatmapping & Session Analytics: Heatmaps, Session Recordings, Microsoft Clarity, Kissmetrics, Scroll Analysis, Click Tracking',
                 'ANNA Analytics Platform: Executive Dashboards, Marketing Performance Tracking, Lead Generation Reporting, CRO Monitoring, Customer Journey Analysis, Cross-Channel Attribution',
-                'Data Sources: Google Analytics, Google Search Console, CRM Platforms, Ecommerce Platforms, Advertising Platforms, Custom APIs, Internal Databases'
+                'Data Sources: Google Analytics, Google Search Console, CRM Platforms, Ecommerce Platforms, Advertising Platforms, Custom APIs, Internal Databases, BigQuery'
             ]
         ],
         [
@@ -576,7 +577,7 @@ function ftc_service_catalog_2621(){
                 'Demand & Conversion: Marketing Automation, Lead Generation, Demand Generation, Performance Marketing, Marketing Attribution, Funnel Optimization, Retention Marketing, Customer Experience Strategy',
                 'Paid Media: Google Ads, Google Display Network, YouTube Advertising, Meta Advertising, Facebook Advertising, Instagram Advertising, LinkedIn Advertising, Retargeting Campaigns',
                 'Certifications & Expertise: Google Ads Certified, Google Analytics, Meta Advertising, Performance Marketing',
-                'Managed Growth: Campaign planning, reporting, optimization, content management, and ongoing advisory support'
+                'Managed Growth: Campaign Planning, Reporting, Optimization, Content Management, Ongoing Advisory Support'
             ]
         ],
         [
@@ -594,7 +595,7 @@ function ftc_service_catalog_2621(){
     ];
 }
 function ftc_sync_service_catalog_2621(){
-    if (get_option('ftc_services_synced_2623')) return;
+    if (get_option('ftc_services_synced_2624')) return;
     foreach(ftc_service_catalog_2621() as $i=>$svc){
         $existing = get_page_by_path($svc['slug'], OBJECT, 'ftc_service');
         if(!$existing) $existing = get_page_by_title($svc['title'], OBJECT, 'ftc_service');
@@ -610,7 +611,7 @@ function ftc_sync_service_catalog_2621(){
             update_post_meta($id,'_ftc_featured','1');
         }
     }
-    update_option('ftc_services_synced_2623',1);
+    update_option('ftc_services_synced_2624',1);
 }
 add_action('admin_init','ftc_sync_service_catalog_2621', 8);
 
@@ -1236,3 +1237,1162 @@ function ftc_migrate_2819_service_naming_cleanup(){
 }
 add_action('init','ftc_migrate_2819_service_naming_cleanup',62);
 add_action('admin_init','ftc_migrate_2819_service_naming_cleanup',62);
+
+function ftc_migrate_2842_education_plan_video(){
+    if(get_option('ftc_education_plan_video_2842')) return;
+
+    $posts = get_posts(['post_type'=>'ftc_portfolio','name'=>'the-education-plan','posts_per_page'=>1,'post_status'=>'any']);
+    if(!$posts){
+        $posts = get_posts(['post_type'=>'ftc_portfolio','s'=>'Education Plan','posts_per_page'=>1,'post_status'=>'any']);
+    }
+    if(!$posts){ update_option('ftc_education_plan_video_2842', 1); return; }
+
+    $id = $posts[0]->ID;
+
+    // Set the YouTube embed URL
+    update_post_meta($id, '_ftc_video_url', 'https://www.youtube.com/embed/pIED_Upg75s?si=QzQdxKOG6n-T7gp4');
+
+    // Import and set the desktop homepage screenshot as the featured/first gallery image
+    $desktop_attachment_id = ftc_import_plugin_image_attachment(
+        'assets/images/portfolio/TheEducaationPlan_desktop.png',
+        'The Education Plan homepage desktop',
+        '_ftc_portfolio_asset_2842',
+        'the-education-plan-desktop-2842'
+    );
+
+    if($desktop_attachment_id){
+        // Set as the post thumbnail (featured image)
+        set_post_thumbnail($id, $desktop_attachment_id);
+
+        // Prepend to gallery_ids so it appears first
+        $existing_ids = array_filter(array_map('absint', explode(',', (string)get_post_meta($id, '_ftc_gallery_ids', true))));
+        array_unshift($existing_ids, $desktop_attachment_id);
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', array_values(array_unique($existing_ids))));
+    }
+
+    // Update gallery_urls to include desktop screenshot first
+    $desktop_url = FTC_URL . 'assets/images/portfolio/TheEducaationPlan_desktop.png';
+    $mobile_url1 = FTC_URL . 'assets/images/portfolio/TheEducaationPlan_mobile.jpg';
+    $mobile_url2 = FTC_URL . 'assets/images/portfolio/TheEducaationPlan_mobile2.jpg';
+    update_post_meta($id, '_ftc_gallery_urls', implode("\n", [$desktop_url, $mobile_url1, $mobile_url2]));
+
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+
+    update_option('ftc_education_plan_video_2842', 1);
+}
+add_action('init', 'ftc_migrate_2842_education_plan_video', 65);
+add_action('admin_init', 'ftc_migrate_2842_education_plan_video', 65);
+
+function ftc_migrate_2843_education_plan_gallery(){
+    if(get_option('ftc_education_plan_gallery_2843')) return;
+
+    $posts = get_posts(['post_type'=>'ftc_portfolio','name'=>'the-education-plan','posts_per_page'=>1,'post_status'=>'any']);
+    if(!$posts){
+        $posts = get_posts(['post_type'=>'ftc_portfolio','s'=>'Education Plan','posts_per_page'=>1,'post_status'=>'any']);
+    }
+    if(!$posts){ update_option('ftc_education_plan_gallery_2843', 1); return; }
+
+    $id = $posts[0]->ID;
+
+    // Clear existing gallery meta
+    delete_post_meta($id, '_ftc_gallery_urls');
+    delete_post_meta($id, '_ftc_gallery_ids');
+
+    // Set gallery URLs (extra screenshots shown below the hero; desktop thumbnail handled by migration 2842)
+    $gallery_urls = [
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_home.png',
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_splash.png',
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_splash2.png',
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_menu.png',
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_faqs.png',
+        FTC_URL . 'assets/images/portfolio/TEP_mobile_content.png',
+        FTC_URL . 'assets/images/portfolio/TEP_glidepath.png',
+        FTC_URL . 'assets/images/portfolio/TEP_learning_center_desktop.png',
+        FTC_URL . 'assets/images/portfolio/TEP_learning_center_mobile.png',
+    ];
+    update_post_meta($id, '_ftc_gallery_urls', implode("\n", $gallery_urls));
+
+    // Re-confirm video, featured flag, remove placeholder
+    update_post_meta($id, '_ftc_video_url', 'https://www.youtube.com/embed/pIED_Upg75s?si=QzQdxKOG6n-T7gp4');
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+
+    update_option('ftc_education_plan_gallery_2843', 1);
+}
+add_action('init', 'ftc_migrate_2843_education_plan_gallery', 66);
+add_action('admin_init', 'ftc_migrate_2843_education_plan_gallery', 66);
+
+function ftc_migrate_2844_bewell_gallery(){
+    if(get_option('ftc_bewell_gallery_2844')) return;
+
+    $post = get_page_by_path('bewell-new-mexico', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('BeWell New Mexico', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts(['post_type'=>'ftc_portfolio','s'=>'BeWell','posts_per_page'=>1,'post_status'=>'any']);
+        if($found) $post = $found[0];
+    }
+    if(!$post){ update_option('ftc_bewell_gallery_2844', 1); return; }
+
+    $id = $post->ID;
+
+    wp_update_post([
+        'ID' => $id,
+        'post_content' => '<p>Field Theory helped translate complex healthcare information into a more approachable digital experience, with attention to mobile access, content clarity, and user confidence.</p>
+<ul>
+<li>119K Enrollments in 2023 and 2024</li>
+<li>47K Enrollments in 2023</li>
+<li>72K Enrollments in 2024</li>
+<li>110% Increase in Total Keywords (+10K New Keywords)</li>
+<li>30% Increase in Direct Traffic</li>
+<li>142% Increase in Branded Keywords</li>
+<li>5 Point Increase in Domain Authority Score (DAS)</li>
+</ul>',
+    ]);
+
+    $images = [
+        ['assets/images/portfolio/BeWell_laptop_system.png',      'BeWell NM laptop system view',        'bewell-laptop-system-2844'],
+        ['assets/images/portfolio/BeWell_laptop_desk.png',        'BeWell NM laptop desk view',          'bewell-desktop-2844'],
+        ['assets/images/portfolio/BeWell_mobile_home.png',        'BeWell NM mobile home screen',        'bewell-mobile-home-2844'],
+        ['assets/images/portfolio/BeWell_mobile_where_to_start.png','BeWell NM mobile where to start',  'bewell-mobile-where-2844'],
+        ['assets/images/portfolio/BeWell_mobile_schedule.png',    'BeWell NM mobile schedule screen',    'bewell-mobile-schedule-2844'],
+        ['assets/images/portfolio/BeWell_mobile_menu.png',        'BeWell NM mobile menu screen',        'bewell-mobile-menu-2844'],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2844', $asset_key);
+        if($att_id) $attachment_ids[] = $att_id;
+    }
+
+    if($attachment_ids){
+        set_post_thumbnail($id, $attachment_ids[0]);
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    }
+
+    update_post_meta($id, '_ftc_results', "119K Enrollments in 2023 and 2024 (47K in 2023, 72K in 2024)\n110% Increase in Total Keywords (+10K New Keywords)\n30% Increase in Direct Traffic\n142% Increase in Branded Keywords\n5 Point Increase in Domain Authority Score (DAS)");
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_bewell_gallery_2844', 1);
+}
+add_action('init', 'ftc_migrate_2844_bewell_gallery', 67);
+add_action('admin_init', 'ftc_migrate_2844_bewell_gallery', 67);
+
+function ftc_migrate_2844b_bewell_hero(){
+    if(get_option('ftc_bewell_hero_2844b')) return;
+
+    $post = get_page_by_path('bewell-new-mexico', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('BeWell New Mexico', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts(['post_type'=>'ftc_portfolio','s'=>'BeWell','posts_per_page'=>1,'post_status'=>'any']);
+        if($found) $post = $found[0];
+    }
+    if(!$post){ update_option('ftc_bewell_hero_2844b', 1); return; }
+
+    $id = $post->ID;
+
+    $existing = get_posts([
+        'post_type'      => 'attachment',
+        'post_status'    => 'inherit',
+        'posts_per_page' => 1,
+        'fields'         => 'ids',
+        'meta_key'       => '_ftc_portfolio_asset_2844',
+        'meta_value'     => 'bewell-laptop-system-2844',
+    ]);
+
+    if($existing){
+        $att_id = absint($existing[0]);
+    } else {
+        $att_id = ftc_import_plugin_image_attachment(
+            'assets/images/portfolio/BeWell_laptop_system.png',
+            'BeWell NM laptop system view',
+            '_ftc_portfolio_asset_2844',
+            'bewell-laptop-system-2844'
+        );
+    }
+
+    if($att_id){
+        set_post_thumbnail($id, $att_id);
+        $gallery_ids = array_values(array_filter(array_map('absint', explode(',', (string)get_post_meta($id, '_ftc_gallery_ids', true)))));
+        $gallery_ids = array_diff($gallery_ids, [$att_id]);
+        array_unshift($gallery_ids, $att_id);
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', array_values(array_unique($gallery_ids))));
+    }
+
+    update_option('ftc_bewell_hero_2844b', 1);
+}
+add_action('init', 'ftc_migrate_2844b_bewell_hero', 67);
+add_action('admin_init', 'ftc_migrate_2844b_bewell_hero', 67);
+
+function ftc_migrate_2845_bioaffinity_gallery(){
+    if(get_option('ftc_bioaffinity_gallery_2845')) return;
+
+    $post = get_page_by_path('bioaffinity-technologies', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('BioAffinity Technologies', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts(['post_type'=>'ftc_portfolio','s'=>'BioAffinity','posts_per_page'=>1,'post_status'=>'any']);
+        if($found) $post = $found[0];
+    }
+
+    if(!$post){
+        $id = wp_insert_post([
+            'post_type'    => 'ftc_portfolio',
+            'post_status'  => 'publish',
+            'post_title'   => 'BioAffinity Technologies',
+            'post_name'    => 'bioaffinity-technologies',
+            'post_excerpt' => 'Science-driven digital presence for lung cancer detection technology.',
+            'post_content' => '<p>Field Theory supported BioAffinity Technologies with digital presence, content strategy, and web development focused on communicating complex science to multiple audiences — from clinicians and researchers to investors and the public.</p>',
+            'menu_order'   => 15,
+        ]);
+    } else {
+        $id = $post->ID;
+    }
+
+    if(!$id){ update_option('ftc_bioaffinity_gallery_2845', 1); return; }
+
+    $images = [
+        ['assets/images/portfolio/BioAffinity_home.png',        'BioAffinity Technologies homepage',          'bioaffinity-home-2845'],
+        ['assets/images/portfolio/BioAffinity_about.png',       'BioAffinity Technologies about page',        'bioaffinity-about-2845'],
+        ['assets/images/portfolio/BioAffinity_news.png',        'BioAffinity Technologies news and results',  'bioaffinity-news-2845'],
+        ['assets/images/portfolio/BioAffinity_mobile_menu.png', 'BioAffinity Technologies mobile menu',       'bioaffinity-mobile-2845'],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2845', $asset_key);
+        if($att_id) $attachment_ids[] = $att_id;
+    }
+
+    if($attachment_ids){
+        set_post_thumbnail($id, $attachment_ids[0]);
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    }
+
+    update_post_meta($id, '_ftc_industry', 'Healthcare / Biotechnology');
+    update_post_meta($id, '_ftc_results', 'Science-driven web presence, multi-audience content strategy, and digital communications for a lung cancer detection biotech.');
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_bioaffinity_gallery_2845', 1);
+}
+add_action('init', 'ftc_migrate_2845_bioaffinity_gallery', 68);
+add_action('admin_init', 'ftc_migrate_2845_bioaffinity_gallery', 68);
+
+function ftc_migrate_2846_pnm_gallery(){
+    if(get_option('ftc_pnm_gallery_2846')) return;
+
+    $post = get_page_by_path('pnm', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('PNM', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts(['post_type'=>'ftc_portfolio','s'=>'PNM','posts_per_page'=>1,'post_status'=>'any']);
+        if($found) $post = $found[0];
+    }
+
+    if(!$post){ update_option('ftc_pnm_gallery_2846', 1); return; }
+
+    $id = $post->ID;
+
+    $images = [
+        ['assets/images/portfolio/PNM_thumbnail.png',     'PNM iMac mockup thumbnail',          'pnm-thumbnail-2846'],
+        ['assets/images/portfolio/PNM_desktop_dark.png',  'PNM website desktop dark view',      'pnm-desktop-dark-2846'],
+        ['assets/images/portfolio/PNM_desktop_laptop.png','PNM website desktop laptop view',    'pnm-desktop-laptop-2846'],
+        ['assets/images/portfolio/PNM_desktop_imac.png',  'PNM website desktop iMac view',      'pnm-desktop-imac-2846'],
+        ['assets/images/portfolio/PNM_homepage_full.png', 'PNM homepage full-page screenshot',  'pnm-homepage-full-2846'],
+        ['assets/images/portfolio/PNM_about_full.png',    'PNM about page full-page screenshot', 'pnm-about-full-2846'],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2846', $asset_key);
+        if($att_id) $attachment_ids[] = $att_id;
+    }
+
+    if($attachment_ids){
+        set_post_thumbnail($id, $attachment_ids[0]);
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    }
+
+    update_post_meta($id, '_ftc_results', 'Improved customer-facing digital experience, clearer service journeys, and stronger energy information presentation for New Mexico\'s largest utility.');
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_pnm_gallery_2846', 1);
+}
+add_action('init', 'ftc_migrate_2846_pnm_gallery', 69);
+add_action('admin_init', 'ftc_migrate_2846_pnm_gallery', 69);
+
+function ftc_migrate_2847_doctorwise(){
+    if(get_option('ftc_doctorwise_2847')) return;
+
+    $post = get_page_by_path('doctor-wise-by-hylands', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title("Doctor Wise by Hyland's", OBJECT, 'ftc_portfolio');
+
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => "Doctor Wise by Hyland's",
+        'post_name'    => 'doctor-wise-by-hylands',
+        'post_excerpt' => 'Custom ecommerce, Shopify, CRO, digital marketing, and analytics for a natural menopause wellness brand.',
+        'post_content' => '<p>Field Theory partnered with Hyland\'s to launch Doctor Wise — a natural homeopathic menopause wellness brand — with a fully custom Shopify ecommerce experience built for conversion, clarity, and growth.</p><p>Our work spanned the full digital stack: custom Shopify implementation, ecommerce UX and conversion rate optimization, digital marketing strategy and execution, fulfillment integration, and a complete analytics foundation to measure performance and guide decisions.</p><ul><li>Custom Shopify Ecommerce Development</li><li>Conversion Rate Optimization (CRO)</li><li>Digital Marketing Strategy &amp; Execution</li><li>Fulfillment Integration</li><li>Analytics &amp; Performance Measurement</li></ul>',
+        'menu_order'   => 5,
+    ];
+
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+
+    if(!$id || is_wp_error($id)){ update_option('ftc_doctorwise_2847', 1); return; }
+
+    $images = [
+        ['assets/images/portfolio/DrWise_featured.png',    'Doctor Wise by Hyland\'s featured hero image',   'drwise-featured-2847',    true],
+        ['assets/images/portfolio/DrWise_testimonial.png', 'Doctor Wise by Hyland\'s testimonial screenshot','drwise-testimonial-2847', false],
+        ['assets/images/portfolio/DrWise_articles.png',    'Doctor Wise by Hyland\'s articles screenshot',   'drwise-articles-2847',    false],
+        ['assets/images/portfolio/DrWise_products.png',    'Doctor Wise by Hyland\'s products screenshot',   'drwise-products-2847',    false],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2847', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) set_post_thumbnail($id, $att_id);
+        }
+    }
+
+    update_post_meta($id, '_ftc_industry', 'Ecommerce / Health & Wellness');
+    update_post_meta($id, '_ftc_results', 'Full-stack Shopify launch, conversion-optimized ecommerce, digital marketing, fulfillment integration, and analytics for a national wellness brand available at CVS, Amazon, and Pharmaca.');
+    if($attachment_ids) update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_doctorwise_2847', 1);
+}
+add_action('init', 'ftc_migrate_2847_doctorwise', 70);
+add_action('admin_init', 'ftc_migrate_2847_doctorwise', 70);
+
+// ── Enhanced Wellness ─────────────────────────────────────────────────────────
+function ftc_migrate_2848_enhanced_wellness(){
+    if(get_option('ftc_enhanced_wellness_2848')) return;
+
+    $post = get_page_by_path('enhanced-wellness', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Enhanced Wellness', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts(['post_type'=>'ftc_portfolio','s'=>'Enhanced Wellness','posts_per_page'=>1,'post_status'=>'any']);
+        if($found) $post = $found[0];
+    }
+
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => 'Enhanced Wellness',
+        'post_name'    => 'enhanced-wellness',
+        'post_excerpt' => 'Health, vitality, longevity and performance — a full-service wellness website tailored to patient needs.',
+        'post_content' => '<p>Field Theory built a comprehensive digital presence for Enhanced Wellness, a personalized integrative medicine and wellness clinic in Albuquerque, NM. The site combines bold visual storytelling with clear service navigation across regenerative therapies, functional medicine, bio-optimization, IV nutrition, and aesthetic services.</p><ul><li>Website Design &amp; Development</li><li>Mobile-First UX</li><li>Service Content Architecture</li><li>Patient Journey Optimization</li><li>Digital Marketing</li></ul>',
+        'menu_order'   => 6,
+    ];
+
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+
+    if(!$id || is_wp_error($id)){ update_option('ftc_enhanced_wellness_2848', 1); return; }
+
+    $images = [
+        ['assets/images/portfolio/EnhancedWellness_featured.png',         'Enhanced Wellness featured hero image',         'ew-featured-2848',          true],
+        ['assets/images/portfolio/EnhancedWellness_desktop.png',          'Enhanced Wellness desktop homepage screenshot',  'ew-desktop-2848',           false],
+        ['assets/images/portfolio/EnhancedWellness_mobile_home.png',      'Enhanced Wellness mobile homepage screenshot',   'ew-mobile-home-2848',       false],
+        ['assets/images/portfolio/EnhancedWellness_mobile_services.png',  'Enhanced Wellness mobile services screenshot',   'ew-mobile-services-2848',   false],
+        ['assets/images/portfolio/EnhancedWellness_acupuncture.png',      'Enhanced Wellness acupuncture service page',     'ew-acupuncture-2848',       false],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2848', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) set_post_thumbnail($id, $att_id);
+        }
+    }
+
+    update_post_meta($id, '_ftc_industry', 'Healthcare / Wellness');
+    update_post_meta($id, '_ftc_results', 'A comprehensive integrative wellness website with mobile-first design, clear service architecture, and patient-centered navigation.');
+    if($attachment_ids) update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_enhanced_wellness_2848', 1);
+}
+add_action('init', 'ftc_migrate_2848_enhanced_wellness', 71);
+add_action('admin_init', 'ftc_migrate_2848_enhanced_wellness', 71);
+
+// ── New Mexico Partnership ─────────────────────────────────────────────────────
+function ftc_migrate_2849_nm_partnership(){
+    if(get_option('ftc_nm_partnership_2849')) return;
+
+    $post = get_page_by_path('new-mexico-partnership', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('New Mexico Partnership', OBJECT, 'ftc_portfolio');
+
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => 'New Mexico Partnership',
+        'post_name'    => 'new-mexico-partnership',
+        'post_excerpt' => 'A bold multi-device economic development platform positioning New Mexico as a premier destination for business and innovation.',
+        'post_content' => '<p>Field Theory helped build the digital platform for the New Mexico Partnership — a statewide economic development organization attracting businesses, entrepreneurs, and investment to New Mexico.</p><p>The site combines compelling visual storytelling with data-rich content to help businesses discover why New Mexico is the right place to grow.</p><ul><li>Website Design &amp; Development</li><li>Economic Development Content Strategy</li><li>Multi-Device UX</li><li>News &amp; Media Integration</li></ul>',
+        'menu_order'   => 7,
+    ];
+
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+
+    if(!$id || is_wp_error($id)){ update_option('ftc_nm_partnership_2849', 1); return; }
+
+    $images = [
+        ['assets/images/portfolio/NMPartnership_featured.png', 'New Mexico Partnership multi-device mockup hero', 'nmp-featured-2849', true],
+        ['assets/images/portfolio/NMPartnership_thumb.png',    'New Mexico Partnership thumbnail',                'nmp-thumb-2849',    false],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2849', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) set_post_thumbnail($id, $att_id);
+        }
+    }
+
+    update_post_meta($id, '_ftc_industry', 'Economic Development');
+    update_post_meta($id, '_ftc_results', 'A compelling multi-device platform showcasing New Mexico as a destination for business innovation and economic growth.');
+    if($attachment_ids) update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_nm_partnership_2849', 1);
+}
+add_action('init', 'ftc_migrate_2849_nm_partnership', 72);
+add_action('admin_init', 'ftc_migrate_2849_nm_partnership', 72);
+
+function ftc_migrate_2850_pnm_mobile(){
+    if(get_option('ftc_pnm_mobile_2850')) return;
+
+    $post = get_page_by_path('pnm', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $results = get_posts(['post_type'=>'ftc_portfolio','post_status'=>'publish','posts_per_page'=>1,'s'=>'PNM']);
+        $post = $results[0] ?? null;
+    }
+
+    if(!$post || is_wp_error($post)){ update_option('ftc_pnm_mobile_2850', 1); return; }
+
+    $id = $post->ID;
+
+    $att_id = ftc_import_plugin_image_attachment(
+        'assets/images/portfolio/PNM_mobile_mockup.png',
+        'PNM mobile mockup',
+        '_ftc_portfolio_asset_2850',
+        'pnm-mobile-mockup-2850'
+    );
+
+    $existing = array_filter(array_map('absint', explode(',', (string)get_post_meta($id, '_ftc_gallery_ids', true))));
+    if($att_id && !in_array($att_id, $existing)){
+        $existing[] = $att_id;
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', array_values($existing)));
+    }
+
+    update_option('ftc_pnm_mobile_2850', 1);
+}
+add_action('init', 'ftc_migrate_2850_pnm_mobile', 73);
+add_action('admin_init', 'ftc_migrate_2850_pnm_mobile', 73);
+
+function ftc_migrate_2851_lets_plant(){
+    if(get_option('ftc_lets_plant_2851')) return;
+
+    $post = get_page_by_path('lets-plant-albuquerque', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title("Let's Plant Albuquerque", OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $posts = get_posts(['post_type'=>'ftc_portfolio','s'=>"Let's Plant",'posts_per_page'=>1,'post_status'=>'any']);
+        $post = $posts[0] ?? null;
+    }
+    if(!$post){ update_option('ftc_lets_plant_2851', 1); return; }
+
+    $id = $post->ID;
+    $attachment_ids = [];
+
+    $featured_id = ftc_import_plugin_image_attachment(
+        'assets/images/portfolio/LetsPlant_featured.png',
+        "Let's Plant Albuquerque featured homepage",
+        '_ftc_portfolio_asset_2851',
+        'letsplant-featured-2851'
+    );
+    if($featured_id){
+        $attachment_ids[] = $featured_id;
+        set_post_thumbnail($id, $featured_id);
+    }
+
+    $dashboard_id = ftc_import_plugin_image_attachment(
+        'assets/images/portfolio/LetsPlant_data_dashboard.png',
+        "Let's Plant Albuquerque data dashboard",
+        '_ftc_portfolio_asset_2851',
+        'letsplant-dashboard-2851'
+    );
+    if($dashboard_id) $attachment_ids[] = $dashboard_id;
+
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    if($attachment_ids){
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', array_values(array_unique(array_map('absint', $attachment_ids)))));
+    }
+
+    update_post_meta($id, '_ftc_featured', '1');
+    update_option('ftc_lets_plant_2851', 1);
+}
+add_action('init', 'ftc_migrate_2851_lets_plant', 74);
+add_action('admin_init', 'ftc_migrate_2851_lets_plant', 74);
+
+function ftc_migrate_2852_rodgers_co(){
+    if(get_option('ftc_rodgers_co_2852')) return;
+
+    $post = get_page_by_path('rodgers-co', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Rodgers & Co.', OBJECT, 'ftc_portfolio');
+    if(!$post){ update_option('ftc_rodgers_co_2852', 1); return; }
+
+    $id = $post->ID;
+
+    wp_update_post([
+        'ID'           => $id,
+        'post_content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for Rodgers &amp; Co. — from visual design and content architecture through custom functionality, animations, and launch support.</p><p>Our work covered the complete build: responsive website design, interactive timeline storytelling, service navigation, and polished motion and UI details that bring the brand to life online.</p><ul><li>Website Design &amp; Development</li><li>Custom Functionality &amp; Animations</li><li>Interactive Timeline &amp; Storytelling</li><li>Mobile-First UX</li><li>Agency Partnership Delivery</li></ul>',
+    ]);
+
+    $images = [
+        ['assets/images/portfolio/RodgersCo_featured.png', 'Rodgers & Co. featured hero', 'rodgers-featured-2852', true],
+        ['assets/images/portfolio/RodgersCo_our_story.png', 'Rodgers & Co. our story', 'rodgers-story-2852', false],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2852', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) set_post_thumbnail($id, $att_id);
+        }
+    }
+
+    if($attachment_ids) update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_rodgers_co_2852', 1);
+}
+add_action('init', 'ftc_migrate_2852_rodgers_co', 75);
+add_action('admin_init', 'ftc_migrate_2852_rodgers_co', 75);
+
+function ftc_migrate_2853_agency_partnership_copy(){
+    if(get_option('ftc_agency_partnership_copy_2853')) return;
+
+    $projects = [
+        'amy-biehl-high-school' => [
+            'title'   => 'Amy Biehl High School',
+            'content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for Amy Biehl High School — including custom functionality, animations, and polished interactive details.</p><p>Our work produced a bold, mobile-first school website with strong visual storytelling, fast navigation, and clearer access to academic information, resources, and enrollment pathways.</p>',
+        ],
+        'the-education-plan' => [
+            'title'   => 'The Education Plan',
+            'content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for The Education Plan — including custom functionality, animations, and polished interactive details.</p><p>Our work supported education-focused digital communication with cleaner mobile presentation, clearer program messaging, and easier pathways for families to understand next steps.</p>',
+        ],
+        'pnm' => [
+            'title'   => 'PNM',
+            'content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for PNM — including custom functionality, animations, and polished interactive details.</p><p>Our work improved customer-facing digital presentation, clearer service journeys, and stronger energy information pathways for New Mexico\'s largest utility.</p>',
+        ],
+        'aztec-mechanical' => [
+            'title'   => 'Aztec Mechanical',
+            'content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for Aztec Mechanical — including custom functionality, animations, and polished interactive details.</p><p>Our work focused on service clarity, credibility, and a more polished digital presence that makes the company easier to understand online.</p>',
+        ],
+        'myschoolsabq' => [
+            'title'   => 'MySchoolsABQ',
+            'content' => '<p>Field Theory partnered with a local agency to design, develop, implement, and deliver the full digital experience for MySchoolsABQ — including custom functionality, animations, and polished interactive details.</p><p>Our work created a school discovery experience focused on clarity, trust, and easier public navigation, making education options easier for families to compare and understand.</p>',
+        ],
+    ];
+
+    foreach($projects as $slug => $project){
+        $post = get_page_by_path($slug, OBJECT, 'ftc_portfolio');
+        if(!$post) $post = get_page_by_title($project['title'], OBJECT, 'ftc_portfolio');
+        if(!$post) continue;
+
+        wp_update_post(['ID' => $post->ID, 'post_content' => $project['content']]);
+    }
+
+    update_option('ftc_agency_partnership_copy_2853', 1);
+}
+add_action('init', 'ftc_migrate_2853_agency_partnership_copy', 75);
+add_action('admin_init', 'ftc_migrate_2853_agency_partnership_copy', 75);
+
+function ftc_migrate_2854_data_service_image(){
+    /* Retired: catalog SVGs belong on service cards only; detail pages use WebGL visuals. */
+    if(!get_option('ftc_data_service_image_2854')){
+        update_option('ftc_data_service_image_2854', 1);
+    }
+}
+add_action('init', 'ftc_migrate_2854_data_service_image', 76);
+add_action('admin_init', 'ftc_migrate_2854_data_service_image', 76);
+
+function ftc_migrate_2856_five_service_categories(){
+    if(get_option('ftc_five_service_categories_2856')) return;
+
+    $data_posts = get_posts([
+        'post_type' => 'ftc_service',
+        'name' => 'data-analysis-visualization',
+        'posts_per_page' => 1,
+        'post_status' => 'any',
+    ]);
+    if($data_posts){
+        wp_update_post(['ID' => $data_posts[0]->ID, 'post_status' => 'draft']);
+    }
+
+    $order = [
+        'website-development-core-tech' => 0,
+        'ecommerce-conversion-rate-optimization-cro' => 1,
+        'search-discovery-optimization-seo-aeo' => 2,
+        'digital-marketing-growth-strategy' => 3,
+        'creative-technology-innovation' => 4,
+    ];
+    foreach($order as $slug => $menu_order){
+        $posts = get_posts([
+            'post_type' => 'ftc_service',
+            'name' => $slug,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+        if($posts){
+            wp_update_post([
+                'ID' => $posts[0]->ID,
+                'menu_order' => $menu_order,
+                'post_status' => 'publish',
+            ]);
+        }
+    }
+
+    update_option('ftc_five_service_categories_2856', 1);
+}
+add_action('init', 'ftc_migrate_2856_five_service_categories', 77);
+add_action('admin_init', 'ftc_migrate_2856_five_service_categories', 77);
+
+function ftc_migrate_2857_restore_six_service_categories(){
+    if(get_option('ftc_six_service_categories_2857')) return;
+
+    $order = [
+        'website-development-core-tech' => 0,
+        'ecommerce-conversion-rate-optimization-cro' => 1,
+        'search-discovery-optimization-seo-aeo' => 2,
+        'digital-marketing-growth-strategy' => 3,
+        'creative-technology-innovation' => 4,
+        'data-analysis-visualization' => 5,
+    ];
+    foreach($order as $slug => $menu_order){
+        $posts = get_posts([
+            'post_type' => 'ftc_service',
+            'name' => $slug,
+            'posts_per_page' => 1,
+            'post_status' => 'any',
+        ]);
+        if($posts){
+            wp_update_post([
+                'ID' => $posts[0]->ID,
+                'menu_order' => $menu_order,
+                'post_status' => 'publish',
+            ]);
+        }
+    }
+
+    $data_live = get_posts([
+        'post_type' => 'ftc_service',
+        'name' => 'data-analysis-visualization',
+        'posts_per_page' => 1,
+        'post_status' => 'publish',
+    ]);
+    if($data_live){
+        update_option('ftc_six_service_categories_2857', 1);
+    }
+}
+add_action('init', 'ftc_migrate_2857_restore_six_service_categories', 78);
+add_action('admin_init', 'ftc_migrate_2857_restore_six_service_categories', 78);
+
+function ftc_migrate_2858_ensure_data_service_catalog(){
+    if(get_option('ftc_data_service_catalog_2858')) return;
+
+    $canonical = get_page_by_path('data-analysis-visualization', OBJECT, 'ftc_service');
+    if(!$canonical){
+        $matches = get_posts([
+            'post_type' => 'ftc_service',
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+            's' => 'Data, Analysis & Visualization',
+        ]);
+        foreach($matches as $candidate){
+            if(strpos($candidate->post_name, 'data-analysis-visualization') === 0){
+                $canonical = $candidate;
+                break;
+            }
+        }
+    }
+
+    if(!$canonical){
+        foreach(ftc_service_catalog_2621() as $svc){
+            if($svc['slug'] !== 'data-analysis-visualization') continue;
+            $id = wp_insert_post([
+                'post_type' => 'ftc_service',
+                'post_status' => 'publish',
+                'post_title' => $svc['title'],
+                'post_name' => $svc['slug'],
+                'post_excerpt' => $svc['excerpt'],
+                'post_content' => $svc['content'],
+                'menu_order' => 5,
+            ]);
+            if($id && !is_wp_error($id)){
+                update_post_meta($id, '_ftc_service_eyebrow', $svc['eyebrow']);
+                update_post_meta($id, '_ftc_service_image', $svc['image']);
+                update_post_meta($id, '_ftc_service_tasks', implode("\n", $svc['tasks']));
+                update_post_meta($id, '_ftc_featured', '1');
+                $canonical = get_post($id);
+            }
+            break;
+        }
+    } elseif(get_post_status($canonical->ID) !== 'publish'){
+        wp_update_post([
+            'ID' => $canonical->ID,
+            'post_status' => 'publish',
+            'post_name' => 'data-analysis-visualization',
+            'menu_order' => 5,
+        ]);
+    }
+
+    if($canonical){
+        $dupes = get_posts([
+            'post_type' => 'ftc_service',
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+        ]);
+        foreach($dupes as $post){
+            if((int)$post->ID === (int)$canonical->ID) continue;
+            if(strpos($post->post_name, 'data-analysis-visualization') === 0
+                || stripos($post->post_title, 'Data, Analysis & Visualization') !== false){
+                wp_trash_post($post->ID);
+            }
+        }
+    }
+
+    $order = [
+        'website-development-core-tech' => 0,
+        'ecommerce-conversion-rate-optimization-cro' => 1,
+        'search-discovery-optimization-seo-aeo' => 2,
+        'digital-marketing-growth-strategy' => 3,
+        'creative-technology-innovation' => 4,
+        'data-analysis-visualization' => 5,
+    ];
+    foreach($order as $slug => $menu_order){
+        $post = get_page_by_path($slug, OBJECT, 'ftc_service');
+        if(!$post) continue;
+        $update = [
+            'ID' => $post->ID,
+            'menu_order' => $menu_order,
+        ];
+        if($slug === 'data-analysis-visualization' && get_post_status($post->ID) !== 'publish'){
+            $update['post_status'] = 'publish';
+        }
+        wp_update_post($update);
+    }
+
+    $data_live = get_page_by_path('data-analysis-visualization', OBJECT, 'ftc_service');
+    if($data_live && $data_live->post_status === 'publish'){
+        update_option('ftc_data_service_catalog_2858', 1);
+    }
+}
+add_action('init', 'ftc_migrate_2858_ensure_data_service_catalog', 79);
+add_action('admin_init', 'ftc_migrate_2858_ensure_data_service_catalog', 79);
+
+function ftc_migrate_2855_lynn_scholarship(){
+    if(get_option('ftc_lynn_scholarship_2855')) return;
+
+    $post = get_page_by_path('lt-col-cecil-lynn-jr-memorial-scholarship', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_path('lynn-scholarship', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Lt. Col. Cecil Lynn Jr. Memorial Scholarship', OBJECT, 'ftc_portfolio');
+
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => 'Lt. Col. Cecil Lynn Jr. Memorial Scholarship',
+        'post_name'    => 'lt-col-cecil-lynn-jr-memorial-scholarship',
+        'post_excerpt' => 'A memorial scholarship website honoring a New Mexico legacy — empowering student-athletes through academics, athletics, and community support.',
+        'post_content' => '<p>Field Theory designed and built the digital home for the Lt. Col. Cecil Lynn Jr. Memorial Scholarship — a tribute site that celebrates grit, leadership, and the next generation of New Mexico student-athletes.</p><p>The experience combines bold hero storytelling, family legacy photography, and clear pathways to learn about Cecil Lynn Jr.\'s impact, explore scholarship criteria, and donate to support students pursuing excellence in academics and athletics.</p><ul><li>Memorial Scholarship Brand &amp; Storytelling</li><li>Responsive Website Design &amp; Development</li><li>Donation &amp; Support Pathways</li><li>Mobile-First Hero Experience</li><li>Legacy Photography Integration</li></ul><p><a href="https://lynnscholarship.com/" target="_blank" rel="noopener noreferrer">Visit lynnscholarship.com</a></p>',
+        'menu_order'   => 12,
+    ];
+
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+
+    if(!$id || is_wp_error($id)){ update_option('ftc_lynn_scholarship_2855', 1); return; }
+
+    $images = [
+        ['assets/images/portfolio/LynnScholarship_featured.png', 'Lt. Col. Cecil Lynn Jr. Memorial Scholarship featured hero', 'lynn-featured-2855', true],
+        ['assets/images/portfolio/LynnScholarship_mobile.png',   'Lynn Scholarship mobile hero — Empower Dreams. Celebrate Grit.', 'lynn-mobile-2855', false],
+        ['assets/images/portfolio/LynnScholarship_desktop.png',  'Lynn Scholarship desktop with Polaroid legacy photo', 'lynn-desktop-2855', false],
+    ];
+
+    $attachment_ids = [];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2855', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) set_post_thumbnail($id, $att_id);
+        }
+    }
+
+    update_post_meta($id, '_ftc_industry', 'Education / Memorial Scholarship');
+    update_post_meta($id, '_ftc_project_url', 'https://lynnscholarship.com/');
+    update_post_meta($id, '_ftc_results', 'A heartfelt memorial scholarship platform that honors legacy, inspires student-athletes, and makes donating easy.');
+    if($attachment_ids) update_post_meta($id, '_ftc_gallery_ids', implode(',', $attachment_ids));
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_lynn_scholarship_2855', 1);
+}
+add_action('init', 'ftc_migrate_2855_lynn_scholarship', 77);
+add_action('admin_init', 'ftc_migrate_2855_lynn_scholarship', 77);
+
+function ftc_migrate_2854_sky_ute_casino(){
+    if(get_option('ftc_sky_ute_casino_2854')) return;
+
+    $post = get_page_by_path('sky-ute-casino-and-resort', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Sky Ute Casino and Resort', OBJECT, 'ftc_portfolio');
+
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => 'Sky Ute Casino and Resort',
+        'post_name'    => 'sky-ute-casino-and-resort',
+        'post_excerpt' => 'A full-service casino and resort website with gaming, dining, entertainment, and hospitality content.',
+        'post_content' => '<p>Field Theory designed and developed the digital presence for Sky Ute Casino and Resort — a premier gaming and hospitality destination in Ignacio, Colorado.</p><p>The website brings together gaming, dining, entertainment, events, and resort amenities into a clear, engaging experience that helps guests discover what the property offers and plan their visit.</p><ul><li>Website Design &amp; Development</li><li>Resort &amp; Casino Content Architecture</li><li>Events &amp; Entertainment Integration</li><li>Mobile-First UX</li><li>Hospitality &amp; Gaming Navigation</li></ul>',
+        'menu_order'   => 8,
+    ];
+
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+
+    if(!$id || is_wp_error($id)){ update_option('ftc_sky_ute_casino_2854', 1); return; }
+
+    update_post_meta($id, '_ftc_industry', 'Gaming / Hospitality');
+    update_post_meta($id, '_ftc_project_url', 'http://skyutecasino.com/');
+    update_post_meta($id, '_ftc_results', 'A polished casino and resort website with clearer guest pathways, stronger hospitality storytelling, and easier access to gaming, dining, and entertainment information.');
+    update_post_meta($id, '_ftc_featured', '1');
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+
+    update_option('ftc_sky_ute_casino_2854', 1);
+}
+add_action('init', 'ftc_migrate_2854_sky_ute_casino', 76);
+add_action('admin_init', 'ftc_migrate_2854_sky_ute_casino', 76);
+
+function ftc_get_sky_ute_portfolio_post(){
+    $post = get_page_by_path('sky-ute-casino-and-resort', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Sky Ute Casino and Resort', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts([
+            'post_type'      => 'ftc_portfolio',
+            'posts_per_page' => 1,
+            'post_status'    => 'any',
+            's'              => 'Sky Ute Casino',
+        ]);
+        if($found) $post = $found[0];
+    }
+    return $post;
+}
+
+function ftc_sky_ute_portfolio_image_defs(){
+    return [
+        ['assets/images/portfolio/SkyUte_featured.jpg', 'Sky Ute Casino and Resort — Where the Winning is Easy', 'skyute-featured-2026', true],
+        ['assets/images/portfolio/SkyUte_hotel.png',      'Sky Ute Casino and Resort — Hotel & Resort',          'skyute-hotel-2026',  false],
+        ['assets/images/portfolio/SkyUte_dining.jpg',     'Sky Ute Casino and Resort — Relax and Play',          'skyute-dining-2026', false],
+        ['assets/images/portfolio/SkyUte_events.jpg',     'Sky Ute Casino and Resort — Weddings & Events',       'skyute-events-2026', false],
+    ];
+}
+
+function ftc_url_is_sky_ute_portfolio_asset($url){
+    return stripos((string)$url, 'skyute') !== false;
+}
+
+function ftc_attachment_is_sky_ute_portfolio_asset($attachment_id){
+    $attachment_id = absint($attachment_id);
+    if(!$attachment_id) return false;
+
+    $asset_key = get_post_meta($attachment_id, '_ftc_portfolio_asset_2854', true);
+    if(is_string($asset_key) && strpos($asset_key, 'skyute-') === 0) return true;
+
+    $url = wp_get_attachment_url($attachment_id);
+    return $url && ftc_url_is_sky_ute_portfolio_asset($url);
+}
+
+function ftc_sky_ute_portfolio_gallery_is_current($post_id){
+    $post_id = absint($post_id);
+    if(!$post_id) return false;
+
+    $expected = count(ftc_sky_ute_portfolio_image_defs());
+    if($expected < 1) return false;
+
+    $gallery_urls = ftc_portfolio_gallery_image_urls($post_id, 'large', false);
+    if(count($gallery_urls) < $expected) return false;
+
+    $skyute_count = 0;
+    foreach($gallery_urls as $url){
+        if(ftc_is_placeholder_image_url($url)) return false;
+        if(ftc_url_is_sky_ute_portfolio_asset($url)) $skyute_count++;
+        else return false;
+    }
+    if($skyute_count < $expected) return false;
+
+    if(has_post_thumbnail($post_id)){
+        $thumb_id = get_post_thumbnail_id($post_id);
+        $thumb_url = get_the_post_thumbnail_url($post_id, 'large');
+        if(ftc_is_placeholder_image_url($thumb_url)) return false;
+        if($thumb_id && !ftc_attachment_is_sky_ute_portfolio_asset($thumb_id) && !ftc_url_is_sky_ute_portfolio_asset($thumb_url)) return false;
+    }
+
+    return true;
+}
+
+function ftc_sky_ute_portfolio_has_gallery($post_id){
+    $post_id = absint($post_id);
+    if(!$post_id) return false;
+
+    $ids = array_filter(array_map('absint', explode(',', (string)get_post_meta($post_id, '_ftc_gallery_ids', true))));
+    foreach($ids as $attachment_id){
+        if(wp_get_attachment_url($attachment_id)) return true;
+    }
+
+    foreach(array_filter(array_map('trim', explode("\n", (string)get_post_meta($post_id, '_ftc_gallery_urls', true)))) as $url){
+        if($url && !ftc_is_placeholder_image_url($url)) return true;
+    }
+
+    if(has_post_thumbnail($post_id)){
+        $thumb = get_the_post_thumbnail_url($post_id, 'large');
+        if($thumb && !ftc_is_placeholder_image_url($thumb)) return true;
+    }
+
+    return false;
+}
+
+function ftc_sky_ute_portfolio_should_skip_auto_gallery($post_id, $force = false){
+    $post_id = absint($post_id);
+    if(!$post_id || $force) return false;
+
+    if(get_post_meta($post_id, '_ftc_gallery_manual', true)) return true;
+    if(ftc_sky_ute_portfolio_gallery_is_current($post_id)) return true;
+
+    $ids = array_filter(array_map('absint', explode(',', (string)get_post_meta($post_id, '_ftc_gallery_ids', true))));
+    foreach($ids as $attachment_id){
+        $url = wp_get_attachment_url($attachment_id);
+        if(!$url) continue;
+        if(ftc_is_placeholder_image_url($url)) return false;
+        if(!ftc_attachment_is_sky_ute_portfolio_asset($attachment_id)) return true;
+    }
+
+    foreach(array_filter(array_map('trim', explode("\n", (string)get_post_meta($post_id, '_ftc_gallery_urls', true)))) as $url){
+        if(ftc_is_placeholder_image_url($url)) return false;
+        if(!ftc_url_is_sky_ute_portfolio_asset($url)) return true;
+    }
+
+    if(has_post_thumbnail($post_id)){
+        $thumb_id = get_post_thumbnail_id($post_id);
+        $thumb_url = get_the_post_thumbnail_url($post_id, 'large');
+        if($thumb_url && !ftc_is_placeholder_image_url($thumb_url)){
+            if($thumb_id && !ftc_attachment_is_sky_ute_portfolio_asset($thumb_id) && !ftc_url_is_sky_ute_portfolio_asset($thumb_url)) return true;
+        }
+    }
+
+    return false;
+}
+
+function ftc_apply_sky_ute_portfolio_gallery($post_id){
+    $post_id = absint($post_id);
+    if(!$post_id) return false;
+
+    $attachment_ids = [];
+    $gallery_urls = [];
+    $featured_id = 0;
+
+    foreach(ftc_sky_ute_portfolio_image_defs() as [$relative_path, $title, $asset_key, $is_featured]){
+        $att_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_2854', $asset_key);
+        if($att_id){
+            $attachment_ids[] = $att_id;
+            if($is_featured) $featured_id = $att_id;
+            continue;
+        }
+
+        $source = FTC_PATH.ltrim($relative_path, '/');
+        if(file_exists($source)){
+            $gallery_urls[] = FTC_URL.ltrim($relative_path, '/');
+        }
+    }
+
+    delete_post_meta($post_id, '_ftc_allow_placeholder_image');
+
+    if($attachment_ids){
+        update_post_meta($post_id, '_ftc_gallery_ids', implode(',', array_values(array_unique($attachment_ids))));
+    } else {
+        delete_post_meta($post_id, '_ftc_gallery_ids');
+    }
+
+    if($gallery_urls){
+        update_post_meta($post_id, '_ftc_gallery_urls', implode("\n", array_values(array_unique($gallery_urls))));
+    } else {
+        delete_post_meta($post_id, '_ftc_gallery_urls');
+    }
+
+    if(is_int($featured_id) && $featured_id){
+        set_post_thumbnail($post_id, $featured_id);
+    } elseif($attachment_ids){
+        set_post_thumbnail($post_id, $attachment_ids[0]);
+    } elseif($gallery_urls){
+        delete_post_meta($post_id, '_thumbnail_id');
+    } elseif(has_post_thumbnail($post_id)){
+        $thumb = get_the_post_thumbnail_url($post_id, 'large');
+        if(!$thumb || ftc_is_placeholder_image_url($thumb)) delete_post_meta($post_id, '_thumbnail_id');
+    }
+
+    return ftc_sky_ute_portfolio_gallery_is_current($post_id);
+}
+
+function ftc_migrate_2854_sky_ute_casino_images($force = false){
+    $post = ftc_get_sky_ute_portfolio_post();
+    if($post && ftc_sky_ute_portfolio_should_skip_auto_gallery($post->ID, $force)){
+        if(!get_option('ftc_sky_ute_casino_images_2854')) update_option('ftc_sky_ute_casino_images_2854', 1);
+        return;
+    }
+    if(get_option('ftc_sky_ute_casino_images_2854') && $post && ftc_sky_ute_portfolio_gallery_is_current($post->ID)) return;
+    if(!$post) return;
+
+    if(ftc_apply_sky_ute_portfolio_gallery($post->ID)){
+        update_option('ftc_sky_ute_casino_images_2854', 1);
+        delete_post_meta($post->ID, '_ftc_gallery_manual');
+    }
+}
+add_action('init', 'ftc_migrate_2854_sky_ute_casino_images', 78);
+add_action('admin_init', 'ftc_migrate_2854_sky_ute_casino_images', 78);
+
+function ftc_repair_sky_ute_gallery($force = false){
+    $post = ftc_get_sky_ute_portfolio_post();
+    if(!$post) return;
+    if(ftc_sky_ute_portfolio_should_skip_auto_gallery($post->ID, $force)){
+        if(!get_option('ftc_sky_ute_casino_images_2854')) update_option('ftc_sky_ute_casino_images_2854', 1);
+        return;
+    }
+    if(get_option('ftc_sky_ute_casino_images_2854') && ftc_sky_ute_portfolio_gallery_is_current($post->ID)) return;
+
+    delete_option('ftc_sky_ute_casino_images_2854');
+    ftc_migrate_2854_sky_ute_casino_images($force);
+}
+add_action('init', 'ftc_repair_sky_ute_gallery', 77);
+add_action('admin_init', 'ftc_repair_sky_ute_gallery', 77);
+
+function ftc_migrate_sky_ute_casino_images_refresh_2026(){
+    if(get_option('ftc_sky_ute_casino_images_2026')) return;
+    $post = ftc_get_sky_ute_portfolio_post();
+    if(!$post) return;
+    delete_option('ftc_sky_ute_casino_images_2854');
+    if(ftc_apply_sky_ute_portfolio_gallery($post->ID)){
+        update_option('ftc_sky_ute_casino_images_2854', 1);
+        update_option('ftc_sky_ute_casino_images_2026', 1);
+    }
+}
+add_action('init', 'ftc_migrate_sky_ute_casino_images_refresh_2026', 79);
+add_action('admin_init', 'ftc_migrate_sky_ute_casino_images_refresh_2026', 79);
+
+function ftc_get_mountain_west_sales_portfolio_post(){
+    $post = get_page_by_path('mountain-west-sales', OBJECT, 'ftc_portfolio');
+    if(!$post) $post = get_page_by_title('Mountain West Sales', OBJECT, 'ftc_portfolio');
+    if(!$post){
+        $found = get_posts([
+            'post_type'      => 'ftc_portfolio',
+            's'              => 'Mountain West Sales',
+            'posts_per_page' => 1,
+            'post_status'    => 'any',
+        ]);
+        $post = $found[0] ?? null;
+    }
+    return $post;
+}
+
+function ftc_migrate_mountain_west_sales_2026(){
+    if(get_option('ftc_mountain_west_sales_2026')) return;
+
+    $post = ftc_get_mountain_west_sales_portfolio_post();
+    $postarr = [
+        'post_type'    => 'ftc_portfolio',
+        'post_status'  => 'publish',
+        'post_title'   => 'Mountain West Sales',
+        'post_name'    => 'mountain-west-sales',
+        'post_excerpt' => 'Custom Shopify ecommerce with inventory discovery, conversion tracking, and sales-team training.',
+        'post_content' => '<p>Field Theory built a custom Shopify experience for Mountain West Sales — a regional hearth and home retailer — focused on product discovery, inventory clarity, and conversion.</p><p>The site combines a tailored storefront, category browsing, and measurable conversion events so the team can understand what shoppers explore, request, and buy.</p><ul><li>Custom Shopify Theme &amp; Storefront</li><li>Inventory &amp; Product Discovery UX</li><li>Conversion Event Tracking</li><li>Category &amp; Collection Architecture</li><li>Sales Team Training &amp; Handoff</li></ul>',
+        'menu_order'   => 2,
+    ];
+    if($post){
+        $postarr['ID'] = $post->ID;
+        $id = wp_update_post($postarr);
+    } else {
+        $id = wp_insert_post($postarr);
+    }
+    if(!$id || is_wp_error($id)){
+        update_option('ftc_mountain_west_sales_2026', 1);
+        return;
+    }
+
+    $attachment_ids = [];
+    $images = [
+        ['assets/images/portfolio/MountainWestSales_home.png', 'Mountain West Sales homepage', 'mws-home-2026', true],
+        ['assets/images/portfolio/MountainWestSales_shop.png', 'Mountain West Sales shop collection', 'mws-shop-2026', false],
+    ];
+    foreach($images as [$relative_path, $title, $asset_key, $is_featured]){
+        if(!file_exists(FTC_PATH.$relative_path)) continue;
+        $attachment_id = ftc_import_plugin_image_attachment($relative_path, $title, '_ftc_portfolio_asset_mws', $asset_key);
+        if(!$attachment_id) continue;
+        $attachment_ids[] = $attachment_id;
+        if($is_featured) set_post_thumbnail($id, $attachment_id);
+    }
+
+    delete_post_meta($id, '_ftc_allow_placeholder_image');
+    delete_post_meta($id, '_ftc_gallery_urls');
+    if($attachment_ids){
+        update_post_meta($id, '_ftc_gallery_ids', implode(',', array_values(array_unique(array_map('absint', $attachment_ids)))));
+    }
+    update_post_meta($id, '_ftc_industry', 'Ecommerce / Retail');
+    update_post_meta($id, '_ftc_results', 'Custom Shopify storefront, improved product discovery, inventory-focused browsing, conversion event tracking, and team training.');
+    update_post_meta($id, '_ftc_featured', '1');
+
+    update_option('ftc_mountain_west_sales_2026', 1);
+}
+add_action('init', 'ftc_migrate_mountain_west_sales_2026', 80);
+add_action('admin_init', 'ftc_migrate_mountain_west_sales_2026', 80);

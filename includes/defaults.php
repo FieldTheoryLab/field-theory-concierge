@@ -7,20 +7,35 @@ function ftc_default_settings(){
         'light_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColors.svg',
         'icon_logo' => FTC_URL . 'assets/images/FieldTheory_2026_BrighterColorsIcon.svg',
         'background_image' => FTC_URL . 'assets/images/FieldTheoryBackground.jpg',
-        'tagline' => 'Better technology. Smarter marketing. Clearer growth.',
+        'tagline' => 'TURN DATA INTO GROWTH.',
+        'intro_body' => 'We combine websites, data, marketing, and AI to create measurable business results.',
         'descriptor' => 'Web Design and Digital Marketing',
         'name_prompt' => 'How may we help you today?',
         'input_placeholder' => 'Ask Field Theory Lab...',
-        'demo_video_url' => FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
+        'demo_video_url' => FTC_URL . 'assets/video/App_Promo_Preview_1.mp4',
         'contact_email' => 'jamie@fieldtheory.ai',
         'contact_phone' => '(505) 456-3193',
         'contact_url' => '',
         'calendly_url' => '',
-        'recaptcha_site_key' => '',
-        'recaptcha_secret_key' => '',
+        'recaptcha_site_key' => '6LcKeTAtAAAAAKYrDNezHD5aEoXl_eEumyGh3ciS',
+        'recaptcha_secret_key' => '6LcKeTAtAAAAADzUHPm5MTWi16S6idGDloPfXdnb',
         'recaptcha_threshold' => '0.5',
     ];
 }
+
+function ftc_legacy_recaptcha_site_key(){
+    return '6Le7yigtAAAAAKgpwncBIOL_WM0M-2ejvIaPGJ-g';
+}
+
+function ftc_apply_recaptcha_key_defaults($settings, $defaults){
+    $stored_recaptcha_site_key = trim((string)($settings['recaptcha_site_key'] ?? ''));
+    if($stored_recaptcha_site_key === '' || $stored_recaptcha_site_key === ftc_legacy_recaptcha_site_key()){
+        $settings['recaptcha_site_key'] = $defaults['recaptcha_site_key'];
+        $settings['recaptcha_secret_key'] = $defaults['recaptcha_secret_key'];
+    }
+    return $settings;
+}
+
 function ftc_get_settings(){
     $defaults = ftc_default_settings();
     $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
@@ -28,6 +43,7 @@ function ftc_get_settings(){
     if (($settings['contact_email'] ?? '') === 'hello@fieldtheory.ai') {
         $settings['contact_email'] = $defaults['contact_email'];
     }
+    $settings = ftc_apply_recaptcha_key_defaults($settings, $defaults);
     return $settings;
 }
 
@@ -36,7 +52,7 @@ function ftc_default_responses(){
         'get_started' => [
             'title' => 'Get Started.',
             'description' => 'Start here to explore how Field Theory Lab helps organizations grow through websites, marketing, analytics, ecommerce, SEO/AEO, and practical AI systems.',
-            'html' => '<p><strong>Better technology. Smarter marketing. Clearer growth.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>',
+            'html' => '',
             'layout' => 'home',
             'followups' => ['Tell me about your company','Show me your work!','How can you help my company?','UX + Web development?','Help me understand my website and marketing data']
         ],
@@ -59,7 +75,7 @@ function ftc_default_responses(){
             'description' => 'Website development, digital marketing, SEO/AEO, analytics, ecommerce, creative technology, and practical AI systems.',
             'html' => '<p>A sample of Field Theory services across websites, marketing, analytics, AI, ecommerce, and creative technology.</p>',
             'layout' => 'services',
-            'followups' => ['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Data, Analysis & Visualization']
+            'followups' => ['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Data, Analysis & Visualization','Technology, Innovation and A.I.']
         ],
         'analytics' => [
             'title' => 'Data, Analysis & Visualization',
@@ -143,21 +159,29 @@ function ftc_maybe_migrate_design_defaults(){
     $defaults = ftc_default_settings();
     $settings = wp_parse_args((array)get_option('ftc_settings', []), $defaults);
     $legacy_video_url = 'http://ambiguous-elbow.flywheelsites.com/wp-content/uploads/2026/06/App_Promo_Preview_1.mp4';
-    if (($settings['demo_video_url'] ?? '') === $legacy_video_url) {
+    $legacy_plugin_videos = [
+        $legacy_video_url,
+        FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4',
+    ];
+    if (in_array(($settings['demo_video_url'] ?? ''), $legacy_plugin_videos, true)) {
         $settings['demo_video_url'] = $defaults['demo_video_url'];
     }
     if (($settings['contact_email'] ?? '') === 'hello@fieldtheory.ai') {
         $settings['contact_email'] = $defaults['contact_email'];
     }
-    if (($settings['tagline'] ?? '') === 'Creative. Technical. Strategic.') {
+    $settings = ftc_apply_recaptcha_key_defaults($settings, $defaults);
+    if (($settings['tagline'] ?? '') === 'Creative. Technical. Strategic.' || ($settings['tagline'] ?? '') === 'Better technology. Smarter marketing. Clearer growth.' || ($settings['tagline'] ?? '') === 'Turn Data Into Growth' || ($settings['tagline'] ?? '') === 'Turn Data Into Growth.') {
         $settings['tagline'] = $defaults['tagline'];
+    }
+    if (($settings['intro_body'] ?? '') === '' || ($settings['intro_body'] ?? '') === "We're a creative technology agency, helping organizations with website, digital marketing, data analysis and A.I.") {
+        $settings['intro_body'] = $defaults['intro_body'];
     }
 
     update_option('ftc_settings', $settings);
 
     $responses = wp_parse_args((array)get_option('ftc_responses', []), ftc_default_responses());
     if(isset($responses['get_started'])){
-        $responses['get_started']['html'] = '<p><strong>Better technology. Smarter marketing. Clearer growth.</strong></p><p>We help organizations improve websites, search visibility, analytics, conversion, digital marketing, and practical AI systems.</p>';
+        $responses['get_started']['html'] = '';
     }
     if(isset($responses['contact'])){
         $responses['contact']['title'] = 'Work With Us';

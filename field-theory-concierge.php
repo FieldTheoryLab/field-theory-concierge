@@ -3,7 +3,7 @@
  * Plugin Name: Field Theory Concierge
  * Plugin URI: https://fieldtheory.ai
  * Description: A polished conversational concierge experience for Field Theory Lab with portfolio, services, contact, prompt routing, and editable responses.
- * Version: 2.8.43
+ * Version: 5.58.3
  * Author: Jamie Rushad Gros
  * Author URI: https://fieldtheory.ai
  * Text Domain: field-theory-concierge
@@ -11,7 +11,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('FTC_VERSION', '2.8.43');
+define('FTC_VERSION', '5.68.1');
 define('FTC_PATH', plugin_dir_path(__FILE__));
 define('FTC_URL', plugin_dir_url(__FILE__));
 define('FTC_THREE_URL', 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
@@ -41,6 +41,7 @@ register_deactivation_hook(__FILE__, 'ftc_deactivate');
 
 function ftc_register_public_routes(){
     add_rewrite_rule('^get-started/?$', 'index.php?ftc_route=get-started', 'top');
+    add_rewrite_rule('^go-time/?$', 'index.php?ftc_route=go-time', 'top');
     add_rewrite_rule('^portfolio/?$', 'index.php?ftc_route=portfolio', 'top');
     add_rewrite_rule('^portfolio/([^/]+)/?$', 'index.php?ftc_route=portfolio&ftc_item=$matches[1]', 'top');
     add_rewrite_rule('^services/?$', 'index.php?ftc_route=services', 'top');
@@ -82,6 +83,10 @@ function ftc_route_compact_key($value){
     return preg_replace('/\s+/', '', $value);
 }
 
+function ftc_route_compact_key_loose($value){
+    return str_replace('and', '', ftc_route_compact_key($value));
+}
+
 function ftc_public_route_from_path(){
     $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash((string) $_SERVER['REQUEST_URI']) : '';
     $path = wp_parse_url($request_uri, PHP_URL_PATH);
@@ -101,7 +106,7 @@ function ftc_public_route_from_path(){
     $parts = array_values(array_filter(explode('/', $relative), 'strlen'));
     $first = ftc_route_clean_slug($parts[0] ?? '');
 
-    if(in_array($first, ['get-started','about','contact','faq','testimonials','privacy'], true) && count($parts) === 1){
+    if(in_array($first, ['get-started','go-time','about','contact','faq','testimonials','privacy'], true) && count($parts) === 1){
         return ['route'=>$first,'item'=>'','child'=>''];
     }
 
@@ -174,13 +179,16 @@ function ftc_find_service_for_public_route($slug){
         'website-development'=>'website-development-core-tech',
         'core-tech'=>'website-development-core-tech',
         'ecommerce'=>'ecommerce-conversion-rate-optimization-cro',
+        'ecommerce-cro'=>'ecommerce-conversion-rate-optimization-cro',
         'commerce'=>'ecommerce-conversion-rate-optimization-cro',
         'cro'=>'ecommerce-conversion-rate-optimization-cro',
         'conversion'=>'ecommerce-conversion-rate-optimization-cro',
         'data'=>'data-analysis-visualization',
+        'data-analysis'=>'data-analysis-visualization',
         'analytics'=>'data-analysis-visualization',
         'dashboards'=>'data-analysis-visualization',
         'seo'=>'search-discovery-optimization-seo-aeo',
+        'seo-aeo'=>'search-discovery-optimization-seo-aeo',
         'aeo'=>'search-discovery-optimization-seo-aeo',
         'search'=>'search-discovery-optimization-seo-aeo',
         'search-discovery'=>'search-discovery-optimization-seo-aeo',
@@ -188,6 +196,7 @@ function ftc_find_service_for_public_route($slug){
         'growth'=>'digital-marketing-growth-strategy',
         'digital-marketing'=>'digital-marketing-growth-strategy',
         'ai'=>'creative-technology-innovation',
+        'ai-innovation'=>'creative-technology-innovation',
         'automation'=>'creative-technology-innovation',
         'innovation'=>'creative-technology-innovation',
         'technology'=>'creative-technology-innovation',
@@ -197,15 +206,28 @@ function ftc_find_service_for_public_route($slug){
 }
 
 function ftc_route_child_prompt($service_id, $child_slug){
-    $needle = ftc_route_compact_key($child_slug);
-    if(!$service_id || $needle === '' || !function_exists('ftc_service_task_groups')) return '';
-    foreach(ftc_service_task_groups($service_id) as $group=>$tasks){
-        if(ftc_route_compact_key($group) === $needle) return $group;
-        foreach($tasks as $task){
-            if(ftc_route_compact_key($task) === $needle) return $task;
+    $slug = ftc_route_clean_slug($child_slug);
+    if(!$service_id || $slug === '' || !function_exists('ftc_service_task_groups')) return '';
+    if(function_exists('ftc_resolve_service_task_prompt')){
+        $resolved = ftc_resolve_service_task_prompt(str_replace('-', ' ', $slug));
+        if($resolved !== str_replace('-', ' ', $slug)){
+            foreach(ftc_service_task_groups($service_id) as $group=>$tasks){
+                foreach($tasks as $task){
+                    if(ftc_normalize_prompt_text($task) === ftc_normalize_prompt_text($resolved)) return $task;
+                }
+            }
+            return $resolved;
         }
     }
-    return ucwords(str_replace('-', ' ', ftc_route_clean_slug($child_slug)));
+    $needle = ftc_route_compact_key_loose($child_slug);
+    if($needle === '') return '';
+    foreach(ftc_service_task_groups($service_id) as $group=>$tasks){
+        if(ftc_route_compact_key_loose($group) === $needle) return $group;
+        foreach($tasks as $task){
+            if(ftc_route_compact_key_loose($task) === $needle) return $task;
+        }
+    }
+    return ucwords(str_replace('-', ' ', $slug));
 }
 
 function ftc_get_route_data(){
@@ -218,6 +240,8 @@ function ftc_get_route_data(){
     switch($route){
         case 'get-started':
             return ['type'=>'prompt','prompt'=>'Get Started','title'=>'Get Started'];
+        case 'go-time':
+            return ['type'=>'prompt','prompt'=>'Go Time','title'=>'Go Time'];
         case 'portfolio':
             if($item){
                 $project = ftc_find_post_for_public_route('ftc_portfolio', $item);
@@ -319,38 +343,26 @@ add_action('wp_head', 'ftc_mobile_theme_color', 1);
 
 function ftc_enqueue_assets(){
     $settings = ftc_get_settings();
-    $public_settings = $settings;
-    unset($public_settings['recaptcha_secret_key']);
     wp_enqueue_style('ftc-app', FTC_URL . 'assets/css/app.css', [], FTC_VERSION);
-    wp_enqueue_script('ftc-three', FTC_THREE_URL, [], 'r128', true);
-    wp_enqueue_script('ftc-app', FTC_URL . 'assets/js/app.js', ['ftc-three'], FTC_VERSION, true);
-    if(!empty($settings['recaptcha_site_key'])){
-        wp_enqueue_script(
-            'google-recaptcha',
-            'https://www.google.com/recaptcha/api.js?render=' . rawurlencode($settings['recaptcha_site_key']),
-            [],
-            null,
-            true
-        );
-    }
+    wp_enqueue_script('ftc-app', FTC_URL . 'assets/js/app.js', [], FTC_VERSION, true);
+    wp_enqueue_script('ftc-ai-assessment', FTC_URL . 'assets/js/ft-ai-assessment.js', ['ftc-app'], FTC_VERSION, true);
     wp_localize_script('ftc-app', 'ftcData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('ftc_nonce'),
-        'settings' => $public_settings,
-        'responses' => ftc_get_responses(),
-        'portfolio' => ftc_get_demo_portfolio(),
-        'route' => ftc_get_route_data(),
-        'recaptchaSiteKey' => $settings['recaptcha_site_key'] ?? '',
-        'recaptchaAction' => 'ftc_submit_inquiry',
+        'threeUrl' => FTC_THREE_URL,
+        'pluginUrl' => FTC_URL,
+        'splineUrl' => 'https://my.spline.design/widgetscarouselcopycopy-cYoGJHfZX5a4XZqTbYCQ46dk-pBV/',
+        'goTimeSplineUrl' => ftc_go_time_spline_url(),
+        'goTimeSplineFallbacks' => ftc_go_time_spline_fallback_urls(),
+        'goTimeSplinePreviewUrl' => ftc_go_time_spline_community_preview(),
+        'goTimeSplineDesktopPreviewUrl' => 'https://prod.spline.design/XRICJt1eQGpipdNw/scene.splinecode',
+        'splineRuntimeUrl' => 'https://cdn.jsdelivr.net/npm/@splinetool/runtime@1.12.97/build/runtime.js',
     ]);
+    wp_enqueue_script('ftc-scene', FTC_URL . 'assets/js/scene-get-started.js', ['ftc-app'], FTC_VERSION, true);
+    wp_enqueue_script('ftc-go-time-screens', FTC_URL . 'assets/js/scene-go-time-screens.js', ['ftc-app'], FTC_VERSION, true);
+    wp_enqueue_script('ftc-go-time-spline', FTC_URL . 'assets/js/scene-go-time-spline.js', ['ftc-app', 'ftc-scene', 'ftc-go-time-screens'], FTC_VERSION, true);
 }
 add_action('wp_enqueue_scripts', 'ftc_enqueue_assets');
-
-function ftc_preload_scene_assets(){
-    echo '<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>' . "\n";
-    echo '<link rel="preload" href="' . esc_url(FTC_THREE_URL) . '" as="script" crossorigin>' . "\n";
-}
-add_action('wp_head', 'ftc_preload_scene_assets', 0);
 
 function ftc_route_canonical_url(){
     $route_vars = ftc_current_route_vars();
@@ -377,8 +389,13 @@ function ftc_route_meta_description(){
 }
 
 function ftc_render_route_prompt_response($prompt,$settings){
-    $normalized_prompt = function_exists('ftc_normalize_prompt_text') ? ftc_normalize_prompt_text($prompt) : strtolower(trim((string)$prompt));
-    if(in_array($normalized_prompt, ['get started','start','home'], true)){
+    $prompt = ftc_resolve_service_task_prompt($prompt);
+    if(function_exists('ftc_is_go_time_prompt') && ftc_is_go_time_prompt($prompt)){
+        ftc_render_go_time_response($settings);
+        return;
+    }
+
+    if(function_exists('ftc_is_get_started_prompt') && ftc_is_get_started_prompt($prompt)){
         $response = ftc_pick_response('Get Started');
         ftc_render_get_started_sequence($response,$settings,false);
         return;
@@ -403,15 +420,20 @@ function ftc_render_route_prompt_response($prompt,$settings){
         return;
     }
 
+    $child_service = ftc_find_service_child_match($prompt);
+    if($child_service && ftc_is_exact_child_service_prompt($child_service, $prompt)){
+        ftc_render_child_service_response($child_service, $settings, $prompt);
+        return;
+    }
+
     $exact_service_id = ftc_find_exact_service_by_prompt($prompt);
     if($exact_service_id){
         ftc_render_service_detail_response_markup($exact_service_id);
         return;
     }
 
-    $child_service = ftc_find_service_child_match($prompt);
     if($child_service){
-        ftc_render_child_service_response($child_service,$settings);
+        ftc_render_child_service_response($child_service, $settings, $prompt);
         return;
     }
 
@@ -423,7 +445,7 @@ function ftc_render_route_prompt_response($prompt,$settings){
 
     $response = ftc_pick_response($prompt);
     if(($response['layout'] ?? '') === 'home'){
-        ftc_render_get_started_sequence($response,$settings,false);
+        ftc_render_get_started_sequence($response,$settings,true);
         return;
     }
     ftc_render_response_shell($response,$settings,$prompt);
@@ -433,7 +455,9 @@ function ftc_route_project_response($post_id){
     $template_id = get_post_meta($post_id,'_ftc_elementor_template_id',true);
     if($template_id){
         echo '<div class="ftc-response-shell ftc-response-layout-project"><section class="ftc-response-content"><div class="ftc-elementor-template ftc-project-elementor-template">'.ftc_render_elementor_template_by_id($template_id).'</div></section>';
-        echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left"><button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button><button type="button" class="ftc-blue-outline-btn" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
+        echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left">';
+        ftc_render_revert_action_button();
+        echo '<button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button><button type="button" class="ftc-blue-outline-btn" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
         echo '</div>';
         return;
     }
@@ -456,9 +480,14 @@ function ftc_render_route_initial_response($route=null){
 }
 
 function ftc_shortcode($atts = []){
+    static $rendering = false;
+    if ( $rendering ) return '';
+    $rendering = true;
     ob_start();
     include FTC_PATH . 'templates/concierge-app.php';
-    return ob_get_clean();
+    $output = ob_get_clean();
+    $rendering = false;
+    return $output;
 }
 add_shortcode('ft_concierge', 'ftc_shortcode');
 add_shortcode('field_theory_concierge', 'ftc_shortcode');

@@ -1,5 +1,112 @@
 (function(){
   function ready(fn){ if(document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+
+  function attachDataStreamCounters(el, options){
+    if(!el) return function(){};
+    options = options || {};
+    var appRoot = options.appRoot || (el.closest && el.closest('[data-ftc-app]')) || document.body;
+    var isDetail = !!options.isDetail;
+    var metricPool = [
+      '1,247','98.3%','4.2ms','$12.4K','0.847',
+      '3,891','72.1%','8.7ms','$4.2M','0.923',
+      '642','99.1%','1.3ms','$89.5K','0.654',
+      '12,040','84.7%','6.1ms','$2.1M','0.781',
+      '0.912','31.4ms','$7.8K','2,468','95.4%',
+      '8.3K/s','0.038','14ms','3.7σ','99.97%',
+      '$340','1.02ms','77.6%','4,096','0.991',
+      'Δ−2.1%','≈0.003','152Hz','7.4ms','0.502'
+    ];
+    var glowColors = ['#72f6ff','#ffe169','#8fb5ff','#69d85b','#c4ff47'];
+    var overlay = document.createElement('div');
+    overlay.className = 'ftc-data-counters' + (isDetail ? ' ftc-data-counters--detail' : '');
+    overlay.setAttribute('aria-hidden','true');
+    appRoot.appendChild(overlay);
+    var MAX_LIVE = isDetail ? 5 : 3;
+    var liveLabels = [];
+    var lastSpawn = 0;
+    var spawnInterval = isDetail ? 640 : 950;
+    var orbitDrift = Math.random() * Math.PI * 2;
+    var counterDead = false;
+    var counterFrame = null;
+    var metricIdx = Math.floor(Math.random() * metricPool.length);
+    function spawnLabel(now){
+      var alive = 0;
+      for(var k=0; k<liveLabels.length; k++) if(!liveLabels[k].dead) alive++;
+      if(alive >= MAX_LIVE) return;
+      var text = metricPool[metricIdx % metricPool.length];
+      metricIdx++;
+      var glow = glowColors[Math.floor(Math.random() * glowColors.length)];
+      var angle = Math.random() * Math.PI * 2;
+      for(var tries=0; tries<10; tries++){
+        var ok = true;
+        for(var li=0; li<liveLabels.length; li++){
+          if(liveLabels[li].dead) continue;
+          var diff = Math.abs(liveLabels[li].angle - angle);
+          if(diff > Math.PI) diff = Math.PI * 2 - diff;
+          if(diff < 0.72){ ok = false; break; }
+        }
+        if(ok) break;
+        angle = Math.random() * Math.PI * 2;
+      }
+      var div = document.createElement('div');
+      div.className = 'ftc-data-counter';
+      div.setAttribute('aria-hidden','true');
+      div.textContent = text;
+      div.style.color = glow;
+      div.style.setProperty('--ftc-cg', glow);
+      overlay.appendChild(div);
+      liveLabels.push({
+        el: div,
+        angle: angle,
+        drift: (Math.random() - 0.5) * 0.16,
+        born: now,
+        life: 1900 + Math.random() * 1300,
+        dead: false
+      });
+    }
+    function stop(){
+      counterDead = true;
+      if(counterFrame){ cancelAnimationFrame(counterFrame); counterFrame = null; }
+      if(overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    function tickCounters(now){
+      if(counterDead) return;
+      if(!el.isConnected){ stop(); return; }
+      orbitDrift += 0.00088;
+      if(now - lastSpawn > spawnInterval){
+        spawnLabel(now);
+        lastSpawn = now;
+      }
+      var rect = el.getBoundingClientRect();
+      var w = rect.width, h = rect.height;
+      if(w < 4 || h < 4){ counterFrame = requestAnimationFrame(tickCounters); return; }
+      var cx = rect.left + w * 0.5, cy = rect.top + h * 0.5;
+      var orbitR = Math.min(w, h) * (isDetail ? 0.44 : 0.56);
+      for(var i = liveLabels.length - 1; i >= 0; i--){
+        var lbl = liveLabels[i];
+        if(lbl.dead){ liveLabels.splice(i, 1); continue; }
+        var age = now - lbl.born;
+        var tNorm = age / lbl.life;
+        if(tNorm >= 1){ lbl.el.remove(); lbl.dead = true; continue; }
+        var opacity;
+        if(tNorm < 0.12) opacity = tNorm / 0.12;
+        else if(tNorm < 0.80) opacity = 1;
+        else opacity = 1 - (tNorm - 0.80) / 0.20;
+        opacity = Math.max(0, Math.min(1, opacity)) * 0.86;
+        var ang = lbl.angle + orbitDrift + lbl.drift * (age * 0.001);
+        var x = cx + Math.cos(ang) * orbitR;
+        var y = cy + Math.sin(ang) * orbitR;
+        lbl.el.style.opacity = opacity;
+        lbl.el.style.left = x + 'px';
+        lbl.el.style.top = y + 'px';
+      }
+      counterFrame = requestAnimationFrame(tickCounters);
+    }
+    counterFrame = requestAnimationFrame(tickCounters);
+    return stop;
+  }
+  window.FTCDataStreamCounters = { attach: attachDataStreamCounters };
+
   ready(function(){ document.querySelectorAll('[data-ftc-app]').forEach(initFTC); });
 
   function initFTC(app){
@@ -10,10 +117,13 @@
     const chatForm = app.querySelector('[data-ftc-chat-form]');
     const chatInput = app.querySelector('[data-ftc-chat-input]');
     const stream = app.querySelector('[data-ftc-stream]');
-    const menuBtn = app.querySelector('[data-ftc-menu]');
-    const modal = app.querySelector('[data-ftc-modal]');
+    const menuBtn = app.querySelector('header button[data-ftc-menu]');
+    const modal = app.querySelector('#ftc-main-menu');
     const helpBtn = app.querySelector('[data-ftc-help-menu]');
     const helpModal = app.querySelector('[data-ftc-help-modal]');
+    const searchToggle = app.querySelector('[data-ftc-search-toggle]');
+    const searchCloseBtn = app.querySelector('[data-ftc-search-close]');
+    const mobileSearchMq = window.matchMedia('(max-width: 760px)');
     const menuContent = app.querySelector('[data-ftc-menu-content]');
     const resetBtn = app.querySelector('[data-ftc-reset]');
     const clearBtn = app.querySelector('[data-ftc-clear]');
@@ -27,6 +137,8 @@
     let pendingRemoteLoading = false;
     let pendingGeneration = 0;
     let lastUserScrollAt = 0;
+    let scrollAdvanceCooldownUntil = 0;
+    let awaitingScrollAwayFromBottom = false;
     let activeModal = null;
     let lastModalTrigger = null;
     const focusableSelector = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -34,6 +146,22 @@
     let messageMapFrame = 0;
     let serviceVisuals = [];
     let serviceVisualFrame = 0;
+    let aiScrollMotionTargets = [];
+    let aiScrollMotionBound = false;
+    let aiScrollMotionRaf = 0;
+    let threeLoadPromise = null;
+    let pageHidden = typeof document !== 'undefined' && document.hidden;
+    if(typeof document !== 'undefined'){
+      document.addEventListener('visibilitychange', function(){
+        pageHidden = document.hidden;
+        if(pageHidden && serviceVisualFrame){
+          cancelAnimationFrame(serviceVisualFrame);
+          serviceVisualFrame = 0;
+        } else {
+          ensureServiceVisualLoop();
+        }
+      });
+    }
     const typeObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(function(entries){
       entries.forEach(function(entry){
         if(entry.isIntersecting){
@@ -47,73 +175,453 @@
         if(entry.isIntersecting){
           messageRevealObserver.unobserve(entry.target);
           revealAssistantMessage(entry.target);
+          revealServiceCardsAnd3d(entry.target);
         }
       });
     }, {root: stream, rootMargin: '0px 0px -14% 0px', threshold: 0.16}) : null;
+
+    const serviceCardObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){
+          entry.target.classList.add('ftc-card-visible');
+          serviceCardObserver.unobserve(entry.target);
+        }
+      });
+    }, {root: stream || null, rootMargin: '0px 0px -6% 0px', threshold: 0.10}) : null;
+
+    function initServiceCardAnimations(root){
+      var scope = root || app;
+      if(!scope || !scope.querySelectorAll) return;
+      var cards = scope.querySelectorAll(
+        '.ftc-service-grid .ftc-service-card:not(.ftc-card-visible),' +
+        '.ftc-services-category-grid .ftc-service-category-card:not(.ftc-card-visible)'
+      );
+      if(!serviceCardObserver){
+        cards.forEach(function(c){ c.classList.add('ftc-card-visible'); });
+        return;
+      }
+      cards.forEach(function(c){ serviceCardObserver.observe(c); });
+    }
+    function revealServiceCardsAnd3d(el){
+      if(!el) return;
+      var servicesRoot = el.querySelector('.ftc-response-sequence-services') || el.querySelector('.ftc-services-section-one') || el;
+      if(!servicesRoot.querySelector('.ftc-service-3d')) return;
+      var grid = servicesRoot.querySelector('.ftc-services-category-grid, .ftc-service-grid');
+      if(grid){
+        grid.querySelectorAll('.ftc-service-category-card, .ftc-service-card').forEach(function(card){
+          card.classList.add('ftc-card-visible');
+          if(serviceCardObserver) serviceCardObserver.unobserve(card);
+        });
+      }
+      var isGetStartedRoute = app.getAttribute('data-ftc-route') === 'get-started' || !!el.querySelector('.ftc-response-sequence-start');
+      function bootAllService3d(){
+        loadThree().catch(function(){});
+        if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadThree){
+          window.FTCGetStartedScene.preloadThree();
+        }
+        if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadServiceScreenImages){
+          window.FTCGetStartedScene.preloadServiceScreenImages();
+        }
+        if(window.FTCGetStartedScene && window.FTCGetStartedScene.initService3dIn){
+          window.FTCGetStartedScene.initService3dIn(servicesRoot);
+        }
+      }
+      var headingTw = servicesRoot.querySelector('.ftc-response-header .ftc-typewriter');
+      function scheduleLazy3d(){
+        setTimeout(bootAllService3d, isGetStartedRoute ? 0 : 120);
+      }
+      if(isGetStartedRoute || !headingTw || headingTw.classList.contains('is-complete')){
+        scheduleLazy3d();
+        return;
+      }
+      var done = false;
+      function finish(){
+        if(done) return;
+        done = true;
+        if(twObserver) twObserver.disconnect();
+        clearTimeout(fallback);
+        scheduleLazy3d();
+      }
+      var twObserver = new MutationObserver(function(){
+        if(headingTw.classList.contains('is-complete')) finish();
+      });
+      twObserver.observe(headingTw, {attributes:true, attributeFilter:['class']});
+      var fallback = setTimeout(finish, 9000);
+    }
+
+    const servicesParticleHosts = new WeakSet();
+
+    function initGoTimeSpline(root){
+      if(!window.FTCGoTimeSpline || !window.FTCGoTimeSpline.scan) return;
+      window.FTCGoTimeSpline.scan(root || document);
+      var scope = root || document;
+      var pending = scope.querySelector('[data-ftc-go-time-spline]:not(.is-ready)');
+      if(pending) app.classList.add('ftc-app-go-time-loading');
+      scope.querySelectorAll('[data-ftc-go-time-spline].is-ready').forEach(function(rail){
+        if(window.FTCGoTimeSpline.markGoTimeAppMode) window.FTCGoTimeSpline.markGoTimeAppMode(rail);
+        initGoTimeSplineTypewriters(rail);
+      });
+    }
+
+    function isInsideGoTimeSpline(el){
+      if(!el || !el.closest) return false;
+      if(el.closest('[data-ftc-go-time-spline]')) return true;
+      if(el.closest('.ftc-go-time-spline-copy')) return true;
+      if(el.closest('.ftc-go-time-spline-panel')) return true;
+      return false;
+    }
+
+    function initGoTimeSplineTypewriters(rail){
+      if(!rail) return;
+      var roots = [rail];
+      if(rail._ftcSplineCopyEl) roots.push(rail._ftcSplineCopyEl);
+      roots.forEach(function(scope){
+        scope.querySelectorAll('.ftc-typewriter').forEach(function(el){
+          if(typeObserver) typeObserver.unobserve(el);
+          var text = el.dataset.pendingText || el.dataset.text || el.textContent.trim();
+          el.classList.remove('ftc-typewriter');
+          el.textContent = text;
+          el.classList.add('is-complete');
+          el.dataset.initialized = 'true';
+          el.dataset.typed = 'true';
+        });
+      });
+    }
+
+    window.addEventListener('ftc-go-time-spline-ready', function(e){
+      app.classList.remove('ftc-app-go-time-loading');
+      if(e.detail && e.detail.root) initGoTimeSplineTypewriters(e.detail.root);
+    });
+
+    function scrollToGoTimeSpline(messageEl){
+      if(!messageEl || !stream) return;
+      var rail = messageEl.querySelector('[data-ftc-go-time-spline]');
+      var target = rail || messageEl;
+      var offset = window.innerWidth < 760 ? 52 : 88;
+      requestAnimationFrame(function(){
+        var streamRect = stream.getBoundingClientRect();
+        var targetRect = target.getBoundingClientRect();
+        var top = Math.max(0, stream.scrollTop + (targetRect.top - streamRect.top) - offset);
+        if('scrollTo' in stream) stream.scrollTo({ top: top, behavior: 'auto' });
+        else stream.scrollTop = top;
+        requestAnimationFrame(function(){
+          if(window.FTCGoTimeSpline && window.FTCGoTimeSpline.scan) window.FTCGoTimeSpline.scan(messageEl);
+        });
+      });
+    }
+
+    function initServicesHeroParticles(root){
+      var scope = root || app;
+      if(!scope || !scope.querySelectorAll) return;
+      if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      scope.querySelectorAll(
+        '.ftc-response-sequence-services > .ftc-response-header,' +
+        '.ftc-response-layout-services > .ftc-response-header'
+      ).forEach(function(header){
+        if(servicesParticleHosts.has(header)) return;
+        servicesParticleHosts.add(header);
+
+        var wrap = document.createElement('div');
+        wrap.className = 'ftc-services-hero-particles';
+        wrap.setAttribute('aria-hidden', 'true');
+        var canvas = document.createElement('canvas');
+        wrap.appendChild(canvas);
+        header.insertBefore(wrap, header.firstChild);
+
+        var ctx = canvas.getContext('2d');
+        var particles = [];
+        var count = 28;
+        var running = true;
+        var rafId = 0;
+
+        function resize(){
+          var rect = header.getBoundingClientRect();
+          var w = Math.max(1, Math.round(rect.width));
+          var h = Math.max(1, Math.round(rect.height + rect.height * 0.35));
+          canvas.width = w;
+          canvas.height = h;
+          canvas.style.width = w + 'px';
+          canvas.style.height = h + 'px';
+          particles = [];
+          for(var i = 0; i < count; i++){
+            particles.push({
+              x: Math.random() * w,
+              y: h * (0.35 + Math.random() * 0.75),
+              r: 0.6 + Math.random() * 1.4,
+              speed: 0.08 + Math.random() * 0.22,
+              drift: -0.12 + Math.random() * 0.24,
+              alpha: 0.08 + Math.random() * 0.22
+            });
+          }
+        }
+
+        function tick(){
+          if(!running) return;
+          var w = canvas.width;
+          var h = canvas.height;
+          ctx.clearRect(0, 0, w, h);
+          particles.forEach(function(p){
+            p.y -= p.speed;
+            p.x += p.drift;
+            if(p.y < -4){
+              p.y = h + Math.random() * 24;
+              p.x = Math.random() * w;
+            }
+            if(p.x < -4) p.x = w + 2;
+            if(p.x > w + 4) p.x = -2;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(245,242,234,' + p.alpha + ')';
+            ctx.fill();
+          });
+          rafId = requestAnimationFrame(tick);
+        }
+
+        resize();
+        tick();
+
+        if(typeof ResizeObserver !== 'undefined'){
+          new ResizeObserver(resize).observe(header);
+        } else {
+          window.addEventListener('resize', resize);
+        }
+
+        if(typeof IntersectionObserver !== 'undefined'){
+          new IntersectionObserver(function(entries){
+            running = entries[0].isIntersecting;
+            if(running && !rafId) tick();
+            else if(!running && rafId){
+              cancelAnimationFrame(rafId);
+              rafId = 0;
+            }
+          }, { threshold: 0.05 }).observe(header);
+        }
+      });
+    }
+
+    function initServiceDetailAnimations(root){
+      var scope = root || app;
+      if(!scope || !scope.querySelector) return;
+      if(!scope.querySelector('.ftc-response-layout-service-detail')) return;
+      scope.querySelectorAll(
+        '.ftc-service-detail-visual [data-ftc-service-visual],' +
+        '.ftc-service-detail-webgl [data-ftc-service-visual]'
+      ).forEach(function(el){
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ el.classList.add('is-in-view'); });
+        });
+      });
+      var detailHost = scope.querySelector('.ftc-service-detail-webgl .ftc-service-3d, .ftc-service-detail-visual .ftc-service-3d');
+      if(detailHost && window.FTCGetStartedScene && window.FTCGetStartedScene.initService3dIn){
+        var bootRoot = detailHost.closest('.ftc-service-detail') || scope;
+        setTimeout(function(){
+          if(detailHost.isConnected){
+            window.FTCGetStartedScene.initService3dIn(bootRoot);
+          }
+        }, 320);
+      }
+      refreshAiDetailScrollMotion(scope);
+    }
+
+    function bindAiDetailScrollMotion(){
+      if(aiScrollMotionBound) return;
+      aiScrollMotionBound = true;
+      var onScrollOrResize = function(){
+        if(aiScrollMotionRaf) return;
+        aiScrollMotionRaf = requestAnimationFrame(function(){
+          aiScrollMotionRaf = 0;
+          updateAiDetailScrollMotion();
+        });
+      };
+      window.addEventListener('scroll', onScrollOrResize, { passive: true });
+      window.addEventListener('resize', onScrollOrResize);
+    }
+
+    function refreshAiDetailScrollMotion(root){
+      var scope = root || app;
+      if(!scope || !scope.querySelectorAll) return;
+      bindAiDetailScrollMotion();
+      var targets = scope.querySelectorAll(
+        '.ftc-service-detail-webgl .ftc-service-3d[data-service="innovation"], ' +
+        '.ftc-service-detail-visual .ftc-service-3d[data-service="innovation"], ' +
+        '.ftc-service-detail-webgl .ftc-service-3d[data-service="ai"], ' +
+        '.ftc-service-detail-visual .ftc-service-3d[data-service="ai"]'
+      );
+      targets.forEach(function(motionEl){
+        if(motionEl.dataset.ftcAiScrollBound === '1') return;
+        var host = motionEl.closest('.ftc-service-detail-webgl, .ftc-service-detail-visual') || motionEl.parentElement;
+        if(!host) return;
+        motionEl.dataset.ftcAiScrollBound = '1';
+        motionEl.classList.add('ftc-ai-scroll-motion');
+        aiScrollMotionTargets.push({ host: host, motionEl: motionEl });
+      });
+      updateAiDetailScrollMotion();
+    }
+
+    function updateAiDetailScrollMotion(){
+      var reduced = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+      aiScrollMotionTargets = aiScrollMotionTargets.filter(function(item){
+        if(!item || !item.host || !item.motionEl) return false;
+        if(!item.host.isConnected || !item.motionEl.isConnected) return false;
+        if(reduced){
+          item.motionEl.style.transform = '';
+          return true;
+        }
+        var rect = item.host.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight || 1;
+        var raw = (vh - rect.top) / (vh + Math.max(rect.height, 1));
+        var p = Math.max(0, Math.min(1, raw));
+        var slideY = p * 78;
+        var rotX = p * 4.5;
+        var rotY = -p * 3.5;
+        item.motionEl.style.transform = 'translate3d(0,' + slideY.toFixed(2) + 'px,0) rotateX(' + rotX.toFixed(2) + 'deg) rotateY(' + rotY.toFixed(2) + 'deg)';
+        return true;
+      });
+    }
+
+    window.FTCServiceVisual = window.FTCServiceVisual || {};
+    window.FTCServiceVisual.bootGoTimeDataScene = bootGoTimeDataScene;
+    window.FTCServiceVisual.buildSelectiveDrawDataScene = buildSelectiveDrawDataScene;
+    window.FTCServiceVisual.updateSelectiveDrawData = updateSelectiveDrawData;
+    window.dispatchEvent(new CustomEvent('ftc-service-visual-ready'));
 
     try{ localStorage.removeItem('ftcTheme2618'); }catch(e){}
     app.setAttribute('data-theme', 'dark');
     const hasServerRenderedMessages = hydrateServerRenderedMessages();
     initServiceVisuals(app);
+    initServiceCardAnimations(app);
+    initServicesHeroParticles(app);
     if(!hasServerRenderedMessages) typeIntroHeading();
-    setTimeout(function(){ if(chatInput) chatInput.focus(); }, 250);
+    if(chatForm) chatForm.setAttribute('aria-hidden', mobileSearchMq.matches ? 'true' : 'false');
+    if(chatInput && !app.classList.contains('ftc-route-app') && (!mobileSearchMq.matches || app.classList.contains('is-mobile-search-open'))){
+      setTimeout(function(){ chatInput.focus(); }, 250);
+    }
     setTimeout(loadMenuContent, 700);
 
-    chatForm.addEventListener('submit', function(e){ e.preventDefault(); submitPrompt(chatInput.value); });
+    if(chatForm) chatForm.addEventListener('submit', function(e){ e.preventDefault(); submitPrompt(chatInput.value); });
+    document.addEventListener('click', function(e){
+      if(!modal || !modal.classList.contains('is-open')) return;
+      const menuClose = e.target.closest('#ftc-main-menu [data-ftc-close]');
+      if(menuClose){
+        e.preventDefault();
+        closeMenu();
+        return;
+      }
+      const menuPrompt = e.target.closest('#ftc-main-menu .ftc-menu-prompt');
+      if(menuPrompt){
+        e.preventDefault();
+        closeMenu(false);
+        const menuRedirect = menuPrompt.getAttribute('data-redirect');
+        if(menuRedirect){ window.location.href = menuRedirect; return; }
+        const menuPromptText = menuPrompt.getAttribute('data-prompt');
+        if(menuPromptText) submitPrompt(menuPromptText);
+      }
+    });
     app.addEventListener('click', function(e){
+      const menuTrigger = e.target.closest('button[data-ftc-menu]');
+      if(menuTrigger){
+        e.preventDefault();
+        openMenu();
+        return;
+      }
+      const resetHome = e.target.closest('[data-ftc-reset]');
+      if(resetHome){ e.preventDefault(); window.location.href = '/'; return; }
+      const revertAction = e.target.closest('[data-ftc-revert-action]');
+      if(revertAction){ e.preventDefault(); closeAllMenus(); revertLastAction(revertAction); return; }
       const resetPrompt = e.target.closest('[data-ftc-reset-to-prompt]');
       if(resetPrompt){ e.preventDefault(); closeAllMenus(); resetToPrompt(resetPrompt.getAttribute('data-ftc-reset-to-prompt') || resetPrompt.getAttribute('data-prompt')); return; }
-      const scrollMore = e.target.closest('[data-ftc-scroll-more]');
-      if(scrollMore){ e.preventDefault(); scrollToNextResponse(scrollMore); return; }
       const project = e.target.closest('[data-ftc-project]');
       if(project){ e.preventDefault(); closeAllMenus(); openProject(project.getAttribute('data-ftc-project')); return; }
       const service = e.target.closest('[data-ftc-service]');
-      if(service){ e.preventDefault(); closeAllMenus(); openService(service.getAttribute('data-ftc-service'), service.getAttribute('data-ftc-service-label')); return; }
+      if(service){
+        if(e.target.closest('.ftc-rubik-visual')){ e.preventDefault(); e.stopPropagation(); return; }
+        e.preventDefault(); closeAllMenus(); openService(service.getAttribute('data-ftc-service'), service.getAttribute('data-ftc-service-label')); return;
+      }
+      const redirect = e.target.closest('[data-redirect]');
+      if(redirect){ e.preventDefault(); closeAllMenus(); window.location.href = redirect.getAttribute('data-redirect'); return; }
       const prompt = e.target.closest('[data-prompt]');
       if(prompt){ e.preventDefault(); closeAllMenus(); submitPrompt(prompt.getAttribute('data-prompt')); return; }
-      const pNext = e.target.closest('[data-ftc-portfolio-next]');
-      if(pNext){ e.preventDefault(); movePortfolioLatest(pNext, 1); return; }
-      const pPrev = e.target.closest('[data-ftc-portfolio-prev]');
-      if(pPrev){ e.preventDefault(); movePortfolioLatest(pPrev, -1); return; }
       const next = e.target.closest('[data-ftc-carousel-next]');
       if(next){ e.preventDefault(); moveCarousel(next, 1); return; }
       const prev = e.target.closest('[data-ftc-carousel-prev]');
       if(prev){ e.preventDefault(); moveCarousel(prev, -1); return; }
     });
-    clearBtn.addEventListener('click', resetExperience);
-    resetBtn.addEventListener('click', resetExperience);
-    if(menuBtn) menuBtn.addEventListener('click', openMenu);
+    if(clearBtn) clearBtn.addEventListener('click', resetExperience);
+    if(resetBtn) resetBtn.addEventListener('click', function(e){ e.preventDefault(); window.location.href = '/'; });
     if(helpBtn) helpBtn.addEventListener('click', openHelpMenu);
-    if(modal) modal.querySelectorAll('[data-ftc-close]').forEach(function(btn){ btn.addEventListener('click', closeMenu); });
+    if(searchToggle) searchToggle.addEventListener('click', toggleMobileSearch);
+    if(searchCloseBtn) searchCloseBtn.addEventListener('click', closeMobileSearch);
+    if(mobileSearchMq.addEventListener){
+      mobileSearchMq.addEventListener('change', function(e){
+        if(!e.matches) closeMobileSearch(false);
+      });
+    } else if(mobileSearchMq.addListener){
+      mobileSearchMq.addListener(function(e){
+        if(!e.matches) closeMobileSearch(false);
+      });
+    }
     if(helpModal) helpModal.querySelectorAll('[data-ftc-help-close]').forEach(function(btn){ btn.addEventListener('click', closeHelpMenu); });
     app.addEventListener('keydown', handleModalKeydown);
-    stream.addEventListener('scroll', function(){
-      scheduleMessageMapUpdate();
+    if(stream) stream.addEventListener('scroll', function(){
+      releaseAllServiceVisualDrags();
+      if(messageMap && messageMap.querySelector('.ftc-message-map-dot')) scheduleMessageMapUpdate();
+      scheduleBgToneUpdate();
+      if(awaitingScrollAwayFromBottom && !isNearStreamBottom()) awaitingScrollAwayFromBottom = false;
       if(Date.now() - lastUserScrollAt < 900) maybeAppendQueuedFragment(false);
     }, {passive:true});
-    stream.addEventListener('wheel', function(e){
+    if(stream) stream.addEventListener('wheel', function(e){
       if(e.deltaY > 0){
         lastUserScrollAt = Date.now();
-        maybeAppendQueuedFragment(false);
+        if(!streamHasScrollRoom()) maybeAppendQueuedFragment(true);
+        else maybeAppendQueuedFragment(false);
       }
     }, {passive:true});
-    stream.addEventListener('touchstart', function(){ lastUserScrollAt = Date.now(); }, {passive:true});
-    stream.addEventListener('touchmove', function(){
+    if(stream) stream.addEventListener('touchstart', function(){ lastUserScrollAt = Date.now(); }, {passive:true});
+    if(stream) stream.addEventListener('touchmove', function(){
       lastUserScrollAt = Date.now();
       maybeAppendQueuedFragment(false);
     }, {passive:true});
     window.addEventListener('resize', scheduleMessageMapUpdate);
     window.addEventListener('resize', function(){ serviceVisuals.forEach(resizeServiceVisual); });
 
-
-    function movePortfolioLatest(btn, dir){
-      const wrap = btn.closest('.ftc-portfolio-latest-wrap');
-      const track = wrap ? wrap.querySelector('.ftc-portfolio-latest') : null;
-      if(!track) return;
-      const card = track.querySelector('.ftc-work-card');
-      const delta = card ? (card.getBoundingClientRect().width + 28) : track.clientWidth * .85;
-      track.scrollBy({left: dir * delta, behavior:'smooth'});
+    let bgToneFrame = 0;
+    function bgToneForPromptKey(key){
+      if(!key) return 'default';
+      if(key === 'get-started') return 'home';
+      if(key === 'services' || key === 'services-all' || key.indexOf('service-') === 0) return 'services';
+      if(key === 'portfolio' || key === 'portfolio-all') return 'portfolio';
+      if(key === 'testimonials') return 'testimonials';
+      if(key === 'go-time') return 'go-time';
+      if(key === 'contact' || key === 'about' || key === 'faq') return 'neutral';
+      return 'default';
     }
+    function updateBgTone(){
+      bgToneFrame = 0;
+      if(intro && intro.classList.contains('is-visible') && !app.classList.contains('is-chat')){
+        app.setAttribute('data-ftc-bg-tone', 'intro');
+        return;
+      }
+      if(!stream) return;
+      const streamRect = stream.getBoundingClientRect();
+      const focusY = streamRect.top + streamRect.height * 0.42;
+      let best = null;
+      let bestDist = Infinity;
+      stream.querySelectorAll('.ftc-message.ftc-assistant').forEach(function(message){
+        if(message.classList.contains('ftc-thinking-message')) return;
+        const rect = message.getBoundingClientRect();
+        if(rect.bottom < streamRect.top + 40 || rect.top > streamRect.bottom - 40) return;
+        const center = rect.top + rect.height * 0.5;
+        const dist = Math.abs(center - focusY);
+        if(dist < bestDist){ bestDist = dist; best = message; }
+      });
+      const tone = best ? bgToneForPromptKey(best.dataset.ftcPromptKey || '') : 'default';
+      app.setAttribute('data-ftc-bg-tone', tone);
+    }
+    function scheduleBgToneUpdate(){
+      if(bgToneFrame) return;
+      bgToneFrame = requestAnimationFrame(updateBgTone);
+    }
+    scheduleBgToneUpdate();
 
     function moveCarousel(btn, dir){
       const wrap = btn.closest('.ftc-service-carousel-wrap');
@@ -124,48 +632,86 @@
     }
 
     function scrollToNextResponse(btn){
+      scrollAdvanceCooldownUntil = Date.now() + 1200;
       const message = btn.closest('.ftc-message');
+      const sectionOne = btn.closest('[data-ftc-section-one]');
+      if(sectionOne){
+        const parent = sectionOne.parentElement;
+        const sections = parent ? Array.prototype.slice.call(parent.children).filter(function(el){
+          return el !== sectionOne && (el.matches('section') || el.hasAttribute('data-ftc-section-one'));
+        }) : [];
+        const idx = parent ? Array.prototype.indexOf.call(parent.children, sectionOne) : -1;
+        if(idx >= 0){
+          for(let i = idx + 1; i < parent.children.length; i++){
+            const candidate = parent.children[i];
+            if(candidate && candidate.matches('section,.ftc-services-all-content,.ftc-portfolio-all-content,[data-ftc-section-one]')){
+              scrollTo(candidate, 18);
+              return;
+            }
+          }
+        }
+        if(sections[0]){ scrollTo(sections[0], 18); return; }
+      }
+      const currentShell = btn.closest('.ftc-response-shell');
+      if(currentShell){
+        let sibling = currentShell.nextElementSibling;
+        while(sibling){
+          if(sibling.classList && sibling.classList.contains('ftc-response-shell')){
+            scrollTo(sibling, 18);
+            return;
+          }
+          sibling = sibling.nextElementSibling;
+        }
+      }
+      if(message && !pendingFragments.length) enqueueDeferredFragments(message);
+      if(appendNextQueuedFragment({shouldScroll:true})) return;
       const next = message ? message.nextElementSibling : null;
       if(next && next.classList && next.classList.contains('ftc-message')){
         revealAssistantMessage(next);
         scrollTo(next, 18);
         return;
       }
-      if(appendNextQueuedFragment()) return;
+      if(appendNextQueuedFragment({shouldScroll:true})) return;
+      if(message){
+        const content = message.querySelector('.ftc-response-content') || message.querySelector('.ftc-card');
+        if(content){ scrollTo(content, 18); return; }
+      }
       if('scrollBy' in stream) stream.scrollBy({top: Math.round(stream.clientHeight * 0.78), behavior:'smooth'});
       else stream.scrollTop += Math.round(stream.clientHeight * 0.78);
     }
 
     function resetExperience(){
+      disposeAllServiceVisuals(null);
       stream.innerHTML = ''; chatInput.value = '';
       clearPendingFragments();
-      messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){ dot.remove(); });
+      if(messageMap) messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){ dot.remove(); });
       scheduleMessageMapUpdate();
       app.classList.remove('is-chat'); chat.classList.remove('is-visible'); intro.classList.add('is-visible');
+      scheduleBgToneUpdate();
       setTimeout(function(){ chatInput.focus(); }, 160);
     }
     function resetToPrompt(prompt){
       const term = (prompt || '').trim();
       if(!term) return;
+      disposeAllServiceVisuals(null);
       stream.innerHTML = '';
       chatInput.value = '';
       lastPrompt = '';
       clearPendingFragments();
-      messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){ dot.remove(); });
+      if(messageMap) messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){ dot.remove(); });
       scheduleMessageMapUpdate();
       beginChat();
       submitPrompt(term);
     }
     function typeIntroHeading(){
-      if(!introHeading) return;
-      const headingText = introHeading.textContent.trim();
-      const bodyText = introBody ? introBody.textContent.trim() : '';
-      introHeading.innerHTML = '<span class="ftc-type-text"></span>';
-      if(introBody) introBody.innerHTML = '<span class="ftc-type-text"></span><span class="ftc-cursor" aria-hidden="true"></span>';
-      else introHeading.innerHTML += '<span class="ftc-cursor" aria-hidden="true"></span>';
-      const headingTarget = introHeading.querySelector('.ftc-type-text');
-      const bodyTarget = introBody ? introBody.querySelector('.ftc-type-text') : null;
-      const cursor = introBody ? introBody.querySelector('.ftc-cursor') : introHeading.querySelector('.ftc-cursor');
+      if(!introBody) {
+        if(introHeading) introHeading.classList.add('is-complete');
+        return;
+      }
+      const bodyText = introBody.textContent.trim();
+      introBody.innerHTML = '<span class="ftc-type-text"></span><span class="ftc-cursor" aria-hidden="true"></span>';
+      const bodyTarget = introBody.querySelector('.ftc-type-text');
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       function typeText(text, target, done){
         let i = 0;
         function tick(){
@@ -183,19 +729,24 @@
             setTimeout(done, 280);
           }
         }
-        setTimeout(tick, 380);
+        setTimeout(tick, prefersReducedMotion ? 0 : 100);
       }
-      typeText(headingText, headingTarget, function(){
-        if(bodyTarget) typeText(bodyText, bodyTarget, function(){ introHeading.classList.add('is-complete'); if(introBody) introBody.classList.add('is-complete'); });
-        else introHeading.classList.add('is-complete');
-      });
+      function startBodyTyping(){
+        typeText(bodyText, bodyTarget, function(){
+          if(introHeading) introHeading.classList.add('is-complete');
+          introBody.classList.add('is-complete');
+        });
+      }
+      setTimeout(startBodyTyping, prefersReducedMotion ? 0 : 260);
     }
     function beginChat(){
       intro.classList.remove('is-visible');
       chat.classList.add('is-visible');
       app.classList.add('is-chat');
+      scheduleBgToneUpdate();
     }
     function beginResponseTransition(){
+      disposeAllServiceVisuals(null);
       clearPendingFragments();
       if(stream) stream.setAttribute('aria-busy','true');
       app.classList.add('is-transitioning-response');
@@ -217,6 +768,7 @@
     }
     function submitPrompt(raw){
       const term = (raw || '').trim(); if(!term) return;
+      closeMobileSearch(false);
       beginChat();
       beginResponseTransition(); addUserMessage(term); chatInput.value = '';
       if(isJokePrompt(term)){ setTimeout(function(){ addAssistantMessage(jokeHTML()); }, 140); return; }
@@ -263,9 +815,15 @@
     function normalizePromptLabel(label){
       return (label || '').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim();
     }
+    function isGoTimePrompt(label){
+      const t = normalizePromptLabel(label);
+      return /^(?:it s |its )?go(?:\s|-)?time$/.test(t);
+    }
     function promptKey(label){
       const t = normalizePromptLabel(label);
       if(!t) return '';
+      if(isGoTimePrompt(label)) return 'go-time';
+      if(/^(get started|start|home|overview)$/.test(t)) return 'get-started';
       if(/(show me )?all portfolio|all project/.test(t)) return 'portfolio-all';
       if(/(show me )?all service/.test(t)) return 'services-all';
       if(/hire|contact|proposal|consultation|work together|call|inquiry|get started with a project/.test(t)) return 'contact';
@@ -275,7 +833,6 @@
       if(/testimonial|review|client/.test(t)) return 'testimonials';
       if(/faq|frequently asked|question|how long|how much|budget|timeline|support|maintenance/.test(t)) return 'faq';
       if(/about|company|team|people|who are you|field theory/.test(t)) return 'about';
-      if(/get started|start|home|overview/.test(t)) return 'get-started';
       return t;
     }
     function findPromptMessages(label){
@@ -289,11 +846,94 @@
       if(!message) return;
       if(messageRevealObserver) messageRevealObserver.unobserve(message);
       if(typeObserver) message.querySelectorAll('.ftc-typewriter').forEach(function(el){ typeObserver.unobserve(el); });
-      messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){
+      if(messageMap) messageMap.querySelectorAll('.ftc-message-map-dot').forEach(function(dot){
         if(dot._ftcTarget === message) dot.remove();
       });
+      disposeAllServiceVisuals(null);
       message.remove();
       scheduleMessageMapUpdate();
+    }
+    function getAssistantMessages(){
+      if(!stream) return [];
+      return Array.prototype.slice.call(stream.querySelectorAll('.ftc-message.ftc-assistant')).filter(function(message){
+        return !message.classList.contains('ftc-thinking-message');
+      });
+    }
+    function getRouteRevertHref(){
+      if(!app.classList.contains('ftc-route-app')) return '';
+      const parts = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+      if(parts[0] === 'services' && parts.length >= 3) return '/services/' + parts[1] + '/';
+      if(parts[0] === 'services' && parts.length === 2) return '/services/';
+      if(parts[0] === 'portfolio' && parts.length >= 2) return '/portfolio/';
+      return '';
+    }
+    function syncRevertActionButtons(root){
+      const scope = root || app;
+      if(!scope || !scope.querySelectorAll) return;
+      const messages = getAssistantMessages();
+      const canRevert = messages.length > 1 || !!getRouteRevertHref();
+      scope.querySelectorAll('[data-ftc-revert-action]').forEach(function(btn){
+        btn.disabled = !canRevert;
+        btn.setAttribute('aria-disabled', canRevert ? 'false' : 'true');
+        btn.classList.toggle('is-disabled', !canRevert);
+      });
+    }
+    function ensureRevertActionButtons(root){
+      const scope = root || app;
+      if(!scope || !scope.querySelectorAll) return;
+      scope.querySelectorAll('.ftc-response-actions-left').forEach(function(left){
+        if(left.querySelector('[data-ftc-revert-action]')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ftc-revert-action-btn';
+        btn.setAttribute('data-ftc-revert-action', '');
+        btn.setAttribute('aria-label', 'Go back');
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
+        left.insertBefore(btn, left.firstChild);
+      });
+      syncRevertActionButtons(scope);
+    }
+    function revertLastAction(triggerEl){
+      closeMobileSearch(false);
+      const messages = getAssistantMessages();
+      if(!messages.length) return;
+      const current = triggerEl ? triggerEl.closest('.ftc-message.ftc-assistant') : null;
+      const targetMessage = current && messages.indexOf(current) >= 0 ? current : messages[messages.length - 1];
+      const targetIndex = messages.indexOf(targetMessage);
+      if(messages.length <= 1){
+        const routeHref = getRouteRevertHref();
+        if(routeHref){
+          window.location.href = routeHref;
+          return;
+        }
+        const actionsLeft = triggerEl && triggerEl.closest('.ftc-response-actions-left');
+        const resetBtn = actionsLeft && actionsLeft.querySelector('[data-ftc-reset-to-prompt]');
+        const resetPrompt = resetBtn && (resetBtn.getAttribute('data-ftc-reset-to-prompt') || resetBtn.getAttribute('data-prompt'));
+        if(resetPrompt){
+          resetToPrompt(resetPrompt);
+          return;
+        }
+        if(window.history.length > 1){
+          window.history.back();
+          return;
+        }
+        resetExperience();
+        return;
+      }
+      clearPendingFragments();
+      removeAssistantMessage(targetMessage);
+      const remaining = getAssistantMessages();
+      if(!remaining.length){
+        resetExperience();
+        syncRevertActionButtons(app);
+        return;
+      }
+      const previous = remaining[Math.max(0, targetIndex - 1)];
+      lastPrompt = promptLabelForMessage(previous, '');
+      endResponseTransition();
+      scrollTo(previous, 18);
+      scheduleBgToneUpdate();
+      syncRevertActionButtons(app);
     }
     function removeExistingPromptInstances(label){
       const matches = findPromptMessages(label);
@@ -316,7 +956,22 @@
       const threshold = Math.max(90, stream.clientHeight * 0.16);
       return (stream.scrollTop + stream.clientHeight) >= (stream.scrollHeight - threshold);
     }
-    function appendNextQueuedFragment(){
+    function streamHasScrollRoom(){
+      if(!stream) return false;
+      return stream.scrollHeight > (stream.clientHeight + 12);
+    }
+    function kickDeferredFragmentQueue(){
+      if(!pendingFragments.length || pendingRemoteLoading) return;
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          if(!pendingFragments.length || pendingRemoteLoading) return;
+          if(!streamHasScrollRoom() || isNearStreamBottom()) maybeAppendQueuedFragment(true);
+        });
+      });
+    }
+    function appendNextQueuedFragment(opts){
+      opts = opts || {};
+      const shouldScroll = opts.shouldScroll !== false;
       if(!pendingFragments.length || pendingRemoteLoading) return false;
       const next = pendingFragments.shift();
       if(next && next.remote){
@@ -329,29 +984,58 @@
             thinking.remove();
             if(generation !== pendingGeneration) return;
             pendingRemoteLoading = false;
-            addAssistantMessage(data && data.success ? data.data.html : fallbackHTML());
+            addAssistantMessage(data && data.success ? data.data.html : fallbackHTML(), shouldScroll);
+            markFragmentAppended({skipScrollGate: opts.skipScrollGate});
           })
           .catch(function(){
             thinking.remove();
             if(generation !== pendingGeneration) return;
             pendingRemoteLoading = false;
-            addAssistantMessage(fallbackHTML());
+            addAssistantMessage(fallbackHTML(), shouldScroll);
+            markFragmentAppended({skipScrollGate: opts.skipScrollGate});
           });
         return true;
       }
-      appendAssistantMessage(next.html, next.prompt, true, 0);
+      appendAssistantMessage(next.html, next.prompt, shouldScroll, 0);
+      markFragmentAppended({skipScrollGate: opts.skipScrollGate});
       return true;
     }
     function maybeAppendQueuedFragment(force){
       if(!pendingFragments.length || pendingRemoteLoading) return false;
-      if(!force && !isNearStreamBottom()) return false;
+      if(Date.now() < scrollAdvanceCooldownUntil) return false;
+      const noScrollRoom = !streamHasScrollRoom();
+      if(awaitingScrollAwayFromBottom && isNearStreamBottom() && !noScrollRoom) return false;
+      if(!force && !noScrollRoom && !isNearStreamBottom()) return false;
       if(pendingAppendFrame) return true;
       const shouldForce = !!force;
       pendingAppendFrame = requestAnimationFrame(function(){
         pendingAppendFrame = 0;
-        if(shouldForce || isNearStreamBottom()) appendNextQueuedFragment();
+        if(shouldForce || isNearStreamBottom()) appendNextQueuedFragment({shouldScroll:false});
       });
       return true;
+    }
+    function markFragmentAppended(opts){
+      opts = opts || {};
+      if(opts.skipScrollGate) return;
+      awaitingScrollAwayFromBottom = true;
+      scrollAdvanceCooldownUntil = Date.now() + 1400;
+    }
+    function drainGetStartedFragmentQueue(){
+      function step(){
+        if(!pendingFragments.length){
+          document.querySelectorAll('.ftc-message.ftc-assistant').forEach(revealServiceCardsAnd3d);
+          return;
+        }
+        if(pendingRemoteLoading){
+          setTimeout(step, 120);
+          return;
+        }
+        awaitingScrollAwayFromBottom = false;
+        scrollAdvanceCooldownUntil = 0;
+        appendNextQueuedFragment({shouldScroll:false, skipScrollGate:true});
+        setTimeout(step, pendingRemoteLoading ? 120 : 280);
+      }
+      step();
     }
     function enqueueDeferredFragments(message){
       const marker = message ? message.querySelector('[data-ftc-deferred-sequence]') : null;
@@ -371,27 +1055,47 @@
       }
       marker.remove();
       pendingFragments = queued;
+      if(sequence === 'get-started'){
+        loadThree().catch(function(){});
+        if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadThree){
+          window.FTCGetStartedScene.preloadThree();
+        }
+        if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadServiceScreenImages){
+          window.FTCGetStartedScene.preloadServiceScreenImages();
+        }
+        setTimeout(drainGetStartedFragmentQueue, 400);
+      }
+      kickDeferredFragmentQueue();
     }
-    function addAssistantMessage(html){
+    function addAssistantMessage(html, shouldScroll){
+      const scroll = shouldScroll !== false;
       const fragments = getResponseFragments(html);
       if(fragments.length > 1){
         const queued = [];
         fragments.forEach(function(fragment, index){
           const prompt = fragment.getAttribute('data-ftc-response-prompt') || fragment.getAttribute('data-response-title') || (index === 0 ? (lastPrompt || 'Response') : 'Continue');
           removeExistingPromptInstances(prompt);
-          if(index === 0) appendAssistantMessage(fragment.outerHTML, prompt, true, 0);
+          if(index === 0) appendAssistantMessage(fragment.outerHTML, prompt, scroll, 0);
           else queued.push({html: fragment.outerHTML, prompt: prompt});
         });
         pendingFragments = queued;
+        kickDeferredFragmentQueue();
         return;
       }
       const prompt = getSingleResponsePrompt(html) || lastPrompt || 'Response';
       removeExistingPromptInstances(prompt);
-      appendAssistantMessage(html, prompt, true, 0);
+      appendAssistantMessage(html, prompt, scroll, 0);
     }
     function applyMessageLayoutClasses(el){
       const shell = el ? el.querySelector('.ftc-response-shell') : null;
       if(!shell) return;
+      if(shell.classList.contains('ftc-response-go-time')){
+        el.classList.add('has-layout-go-time');
+        if(window.FTCGoTimeSpline && window.FTCGoTimeSpline.markGoTimeAppMode){
+          var rail = el.querySelector('[data-ftc-go-time-spline]');
+          if(rail) window.FTCGoTimeSpline.markGoTimeAppMode(rail);
+        }
+      }
       ['service-detail','child-service','about','project'].forEach(function(layout){
         if(shell.classList.contains('ftc-response-layout-'+layout)) el.classList.add('has-layout-'+layout);
       });
@@ -412,6 +1116,7 @@
     }
     function ensurePromptChip(el, label){
       if(!el || !label) return;
+      if(el.classList.contains('has-layout-go-time')) return;
       const header = el.querySelector('.ftc-response-header');
       if(!header) return;
       let chip = header.querySelector('.ftc-question-chip');
@@ -440,11 +1145,27 @@
           addMessageMapPoint(el, promptLabel);
           el.dataset.ftcMapAdded = 'true';
         }
-        el.querySelectorAll('.ftc-typewriter').forEach(lazyTypewriterElement);
+        el.querySelectorAll('.ftc-typewriter').forEach(function(tw){
+          if(tw.closest('[data-ftc-go-time-spline]')) return;
+          lazyTypewriterElement(tw);
+        });
         el.querySelectorAll('[data-ftc-contact-quiz]').forEach(initContactQuiz);
+        el.querySelectorAll('[data-ft-ai-assessment]').forEach(initAiAssessment);
         initServiceVisuals(el);
+        initServiceCardAnimations(el);
+        initServicesHeroParticles(el);
+        initGoTimeSpline(el);
+        initServiceDetailAnimations(el);
         enqueueDeferredFragments(el);
+        splitInlineGetStartedShells(el);
+        initGetStartedHeroVideo(el);
+        if(el.querySelector('.ftc-get-started-video-only') && stream && !app.getAttribute('data-ftc-route')){
+          stream.scrollTop = 0;
+        }
+        revealServiceCardsAnd3d(el);
       });
+      ensureRevertActionButtons(app);
+      syncRevertActionButtons(app);
       scheduleMessageMapUpdate();
       return true;
     }
@@ -457,29 +1178,220 @@
       el.dataset.ftcPromptKey = promptKey(resolvedPromptLabel);
       stream.appendChild(el);
       ensurePromptChip(el, resolvedPromptLabel);
+      ensureRevertActionButtons(el);
+      syncRevertActionButtons(el);
       enqueueDeferredFragments(el);
       addMessageMapPoint(el, resolvedPromptLabel || 'Response');
-      el.querySelectorAll('.ftc-typewriter').forEach(lazyTypewriterElement);
+      el.querySelectorAll('.ftc-typewriter').forEach(function(tw){
+        if(tw.closest('[data-ftc-go-time-spline]')) return;
+        lazyTypewriterElement(tw);
+      });
       el.querySelectorAll('[data-ftc-contact-quiz]').forEach(initContactQuiz);
+      el.querySelectorAll('[data-ft-ai-assessment]').forEach(initAiAssessment);
       initServiceVisuals(el);
+      initServiceCardAnimations(el);
+      initServicesHeroParticles(el);
+      initGoTimeSpline(el);
+      initServiceDetailAnimations(el);
+      requestAnimationFrame(function(){
+        initServiceVisuals(el);
+        initServiceCardAnimations(el);
+        initServicesHeroParticles(el);
+        initGoTimeSpline(el);
+        initServiceDetailAnimations(el);
+        initGetStartedHeroVideo(el);
+        serviceVisuals.forEach(resizeServiceVisual);
+        ensureServiceVisualLoop();
+      });
       if(sequenceIndex > 0 && messageRevealObserver){
         el.classList.add('is-waiting-scroll');
         messageRevealObserver.observe(el);
       } else {
         revealAssistantMessage(el);
+        revealServiceCardsAnd3d(el);
       }
       if(stream) stream.setAttribute('aria-busy','false');
-      if(shouldScroll) scrollTo(el, 18);
+      if(shouldScroll){
+        if(el.querySelector('[data-ftc-go-time-spline]')) scrollToGoTimeSpline(el);
+        else scrollTo(el, 18);
+      }
+      scheduleBgToneUpdate();
+    }
+    function disposeServiceVisual(state){
+      if(!state || state.disposed) return;
+      state.disposed = true;
+      if(state.resizeObserver){
+        state.resizeObserver.disconnect();
+        state.resizeObserver = null;
+      }
+      if(state.scene){
+        state.scene.traverse(function(obj){
+          if(obj.geometry) obj.geometry.dispose();
+          if(!obj.material) return;
+          if(Array.isArray(obj.material)) obj.material.forEach(function(m){ if(m && m.dispose) m.dispose(); });
+          else if(obj.material.dispose) obj.material.dispose();
+        });
+      }
+      if(state.renderer){
+        state.renderer.dispose();
+        try {
+          var gl = state.renderer.getContext();
+          var ext = gl && gl.getExtension('WEBGL_lose_context');
+          if(ext) ext.loseContext();
+        } catch(err) {}
+      }
+      if(state.io){
+        state.io.disconnect();
+        state.io = null;
+      }
+      if(state.el && state.el._ftcVisualBootObserver){
+        state.el._ftcVisualBootObserver.disconnect();
+        state.el._ftcVisualBootObserver = null;
+      }
+      if(state._stopDataCounters){ try{ state._stopDataCounters(); }catch(e){} state._stopDataCounters = null; }
+      if(state.el){
+        delete state.el.dataset.ftcVisualInitialized;
+        delete state.el.dataset.ftcVisualPending;
+      }
+    }
+    function disposeAllServiceVisuals(exceptEl){
+      var kept = [];
+      serviceVisuals.forEach(function(state){
+        if(exceptEl && state.el === exceptEl){ kept.push(state); return; }
+        disposeServiceVisual(state);
+      });
+      serviceVisuals = kept;
+      if(!serviceVisuals.length && serviceVisualFrame){
+        cancelAnimationFrame(serviceVisualFrame);
+        serviceVisualFrame = 0;
+      }
+    }
+    function attachServiceVisualObserver(state){
+      if(!state || !state.el) return;
+      const isDetail = !!state.el.closest('.ftc-service-detail-webgl');
+      state.isDetailVisual = isDetail;
+      if(isDetail){
+        state.renderPaused = false;
+        return;
+      }
+      if(!('IntersectionObserver' in window)) return;
+      state.renderPaused = false;
+      state.io = new IntersectionObserver(function(entries){
+        var entry = entries[0];
+        if(!entry) return;
+        state.renderPaused = !entry.isIntersecting;
+        if(!state.renderPaused && !serviceVisualFrame){
+          serviceVisualFrame = requestAnimationFrame(renderServiceVisuals);
+        }
+      }, {root: stream || null, rootMargin: '100px 0px', threshold: 0.04});
+      state.io.observe(state.el);
+    }
+    function ensureServiceVisualLoop(){
+      if(serviceVisualFrame || !serviceVisuals.length) return;
+      var active = serviceVisuals.some(function(s){ return s && !s.disposed && !s.renderPaused; });
+      if(active) serviceVisualFrame = requestAnimationFrame(renderServiceVisuals);
+    }
+    function releaseAllServiceVisualDrags(){
+      serviceVisuals.forEach(function(state){
+        if(!state || !state.el) return;
+        if(!state.dragging && state.capturedPointerId == null) return;
+        state.dragging = false;
+        state.el.classList.remove('is-dragging');
+        if(state.el.releasePointerCapture && state.capturedPointerId != null){
+          try { state.el.releasePointerCapture(state.capturedPointerId); } catch(err) {}
+        }
+        state.capturedPointerId = null;
+      });
     }
     function initServiceVisuals(root){
       const scope = root || app;
       const visuals = Array.prototype.slice.call(scope.querySelectorAll ? scope.querySelectorAll('[data-ftc-service-visual]') : []);
       visuals.forEach(initServiceVisual);
-      if(serviceVisuals.length && !serviceVisualFrame) serviceVisualFrame = requestAnimationFrame(renderServiceVisuals);
+      ensureServiceVisualLoop();
     }
+    function serviceVisualUsesWebGL(key, el){
+      if(!el || !el.closest('.ftc-service-detail-webgl')) return false;
+      return key === 'data';
+    }
+    function loadThree(){
+      if(window.THREE){
+        threeLoadPromise = null;
+        return Promise.resolve(window.THREE);
+      }
+      if(threeLoadPromise){
+        return threeLoadPromise.then(function(){
+          return window.THREE || Promise.reject(new Error('three unavailable'));
+        });
+      }
+      const url = window.ftcData && ftcData.threeUrl ? ftcData.threeUrl : '';
+      if(!url) return Promise.reject(new Error('three unavailable'));
+      threeLoadPromise = new Promise(function(resolve, reject){
+        function finish(){
+          if(window.THREE) resolve(window.THREE);
+          else reject(new Error('three load failed'));
+        }
+        const existing = document.querySelector('script[src="' + url + '"]');
+        if(existing){
+          if(window.THREE){ finish(); return; }
+          existing.addEventListener('load', finish, {once: true});
+          existing.addEventListener('error', function(){
+            threeLoadPromise = null;
+            reject(new Error('three load failed'));
+          }, {once: true});
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = url;
+        script.crossOrigin = 'anonymous';
+        script.onload = finish;
+        script.onerror = function(){
+          threeLoadPromise = null;
+          reject(new Error('three load failed'));
+        };
+        document.head.appendChild(script);
+      });
+      return threeLoadPromise;
+    }
+    function retryStuckServiceVisuals(){
+      if(window.THREE) threeLoadPromise = null;
+      var stuck = document.querySelectorAll('[data-ftc-visual-pending]');
+      if(!stuck.length) return;
+      stuck.forEach(function(el){ delete el.dataset.ftcVisualPending; });
+      initServiceVisuals(app);
+    }
+    window.addEventListener('ftc-three-ready', retryStuckServiceVisuals);
     function initServiceVisual(el){
-      if(!el || el.dataset.ftcVisualInitialized) return;
-      el.dataset.ftcVisualInitialized = 'true';
+      if(!el || el.dataset.ftcVisualInitialized || el.dataset.ftcVisualPending) return;
+      const key = el.getAttribute('data-ftc-service-visual') || 'innovation';
+      if(!serviceVisualUsesWebGL(key, el)){
+        el.dataset.ftcVisualInitialized = 'true';
+        el.classList.add('has-static-fallback');
+        return;
+      }
+      el.dataset.ftcVisualPending = 'true';
+      function bootServiceVisual(){
+        if(!el.isConnected || el.dataset.ftcVisualInitialized){
+          delete el.dataset.ftcVisualPending;
+          return;
+        }
+        function runBoot(){
+          if(!el.isConnected || el.dataset.ftcVisualInitialized){
+            delete el.dataset.ftcVisualPending;
+            return;
+          }
+          loadThree().then(function(){
+          if(!el.isConnected || el.dataset.ftcVisualInitialized){
+            delete el.dataset.ftcVisualPending;
+            return;
+          }
+          delete el.dataset.ftcVisualPending;
+          if(el._ftcVisualBootObserver){
+            el._ftcVisualBootObserver.disconnect();
+            el._ftcVisualBootObserver = null;
+          }
+          el.dataset.ftcVisualInitialized = 'true';
+          el.classList.remove('has-static-fallback');
+          disposeAllServiceVisuals(el);
       const canvas = el.querySelector('canvas') || document.createElement('canvas');
       if(!canvas.parentNode) el.appendChild(canvas);
       if(!window.THREE){
@@ -487,38 +1399,54 @@
         return;
       }
       const THREE = window.THREE;
-      const renderer = new THREE.WebGLRenderer({canvas: canvas, alpha: true, antialias: true, powerPreference: 'high-performance'});
-      renderer.setClearColor(0x000000, 0);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
-      if(renderer.shadowMap){
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      const isPreview = !el.closest('.ftc-service-detail-webgl');
+      const isDetailDataLike = !isPreview && key === 'data';
+      function createServiceRenderer(antialias){
+        return new THREE.WebGLRenderer({
+          canvas: canvas,
+          alpha: true,
+          antialias: antialias,
+          powerPreference: 'high-performance'
+        });
       }
+      var renderer = createServiceRenderer(isDetailDataLike);
+      if(!renderer.getContext()){
+        renderer.dispose();
+        renderer = createServiceRenderer(false);
+      }
+      if(!renderer.getContext()){
+        el.classList.add('has-static-fallback');
+        return;
+      }
+      renderer.setClearColor(0x000000, 0);
+      var pixelCap = isPreview ? 0.85 : (key === 'data' ? 1.05 : (key === 'innovation' ? 1.08 : 1.1));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelCap));
+      if(renderer.shadowMap) renderer.shadowMap.enabled = false;
       if('outputEncoding' in renderer && THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
       camera.position.set(0, 0, 8);
       const group = new THREE.Group();
       scene.add(group);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.52));
-      const lightA = new THREE.PointLight(0x5f94ff, 1.4, 30);
-      lightA.position.set(-4, 4, 7);
-      scene.add(lightA);
-      const lightB = new THREE.PointLight(0xffd94d, 0.8, 30);
-      lightB.position.set(4, -3, 6);
-      scene.add(lightB);
-      const key = el.getAttribute('data-ftc-service-visual') || 'innovation';
-      const spot = new THREE.SpotLight(0xffffff, 1.25, 28, Math.PI * 0.18, 0.55, 1.2);
-      spot.position.set(2.7, 5.2, 6.5);
-      spot.castShadow = true;
-      spot.shadow.mapSize.width = 1024;
-      spot.shadow.mapSize.height = 1024;
-      scene.add(spot);
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), new THREE.ShadowMaterial({opacity: key === 'web' ? 0.18 : 0.14}));
+      if(isPreview){
+        scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+        const fill = new THREE.PointLight(0x8fb5ff, 0.55, 24);
+        fill.position.set(2, 3, 6);
+        scene.add(fill);
+      } else {
+        scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+        const lightA = new THREE.PointLight(0x8fb5ff, 0.95, 28);
+        lightA.position.set(-3, 3, 7);
+        scene.add(lightA);
+        const lightB = new THREE.PointLight(0xffe169, 0.5, 24);
+        lightB.position.set(4, -2, 6);
+        scene.add(lightB);
+      }
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), new THREE.ShadowMaterial({opacity: 0.14}));
       floor.position.set(0, -1.65, -0.82);
       floor.rotation.x = -Math.PI / 2;
       floor.receiveShadow = true;
-      floor.visible = key !== 'innovation';
+      floor.visible = false;
       scene.add(floor);
       const state = {
         el: el,
@@ -527,6 +1455,8 @@
         camera: camera,
         group: group,
         key: key,
+        isPreview: isPreview,
+        frameTick: 0,
         mouseX: 0,
         mouseY: 0,
         t: Math.random() * 100,
@@ -539,6 +1469,7 @@
         dragX: 0,
         dragY: 0,
         dragging: false,
+        capturedPointerId: null,
         lastPointerX: 0,
         lastPointerY: 0,
         lastScrollTop: stream ? stream.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0),
@@ -548,25 +1479,38 @@
       };
       buildServiceScene(state, THREE);
       resizeServiceVisual(state);
+      if(!isPreview){
+        state._lastVisible = true;
+        state.renderer.render(state.scene, state.camera);
+      }
       const host = el.closest('button') || el;
       host.addEventListener('mousemove', function(e){
+        var now = Date.now();
+        if(now - (state._mouseAt || 0) < 48) return;
+        state._mouseAt = now;
         const rect = el.getBoundingClientRect();
         if(!rect.width || !rect.height) return;
         state.mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 0.9;
         state.mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * -0.7;
-      });
+      }, {passive: true});
       host.addEventListener('mouseleave', function(){ state.mouseX = 0; state.mouseY = 0; });
+      var coarsePointer = window.matchMedia('(pointer: coarse)').matches;
       el.addEventListener('pointerdown', function(e){
+        if(state.marketingRubik) return;
         if(!el.closest('.ftc-service-detail-webgl')) return;
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
         state.dragging = true;
+        state.capturedPointerId = e.pointerId;
         state.lastPointerX = e.clientX;
         state.lastPointerY = e.clientY;
         el.classList.add('is-dragging');
-        if(el.setPointerCapture) el.setPointerCapture(e.pointerId);
-        e.preventDefault();
+        if(!coarsePointer && el.setPointerCapture){
+          try { el.setPointerCapture(e.pointerId); } catch(err) {}
+        }
       });
       el.addEventListener('pointermove', function(e){
         if(!state.dragging) return;
+        e.preventDefault();
         const dx = e.clientX - state.lastPointerX;
         const dy = e.clientY - state.lastPointerY;
         state.lastPointerX = e.clientX;
@@ -575,20 +1519,64 @@
         state.dragY = Math.max(-0.55, Math.min(0.55, state.dragY + dy * 0.004));
       });
       function releaseDrag(e){
+        if(!state.dragging && state.capturedPointerId == null) return;
         state.dragging = false;
         el.classList.remove('is-dragging');
-        if(e && el.releasePointerCapture) {
-          try { el.releasePointerCapture(e.pointerId); } catch(err) {}
+        var pointerId = e && e.pointerId != null ? e.pointerId : state.capturedPointerId;
+        if(el.releasePointerCapture && pointerId != null){
+          try { el.releasePointerCapture(pointerId); } catch(err) {}
         }
+        state.capturedPointerId = null;
       }
       el.addEventListener('pointerup', releaseDrag);
       el.addEventListener('pointercancel', releaseDrag);
+      el.addEventListener('lostpointercapture', releaseDrag);
       if('ResizeObserver' in window){
         const ro = new ResizeObserver(function(){ resizeServiceVisual(state); });
         ro.observe(el);
         state.resizeObserver = ro;
       }
+      if(!isPreview) el.classList.add('is-in-view');
       serviceVisuals.push(state);
+      attachServiceVisualObserver(state);
+      ensureServiceVisualLoop();
+      }).catch(function(){
+        delete el.dataset.ftcVisualPending;
+        el.classList.add('has-static-fallback');
+      });
+        }
+        if(window.THREE) runBoot();
+        else {
+          window.addEventListener('ftc-three-ready', runBoot, {once: true});
+          var bootPoll = 0;
+          var bootPollId = setInterval(function(){
+            if(window.THREE){
+              clearInterval(bootPollId);
+              runBoot();
+            } else if(++bootPoll > 120){
+              clearInterval(bootPollId);
+              delete el.dataset.ftcVisualPending;
+              el.classList.add('has-static-fallback');
+            }
+          }, 50);
+        }
+      }
+      if('IntersectionObserver' in window){
+        var isDetailHost = !!el.closest('.ftc-service-detail-webgl');
+        var rect = el.getBoundingClientRect();
+        var inView = rect.bottom > -40 && rect.top < (window.innerHeight + 40) && rect.width > 20;
+        if(inView || isDetailHost) bootServiceVisual();
+        else {
+          el._ftcVisualBootObserver = new IntersectionObserver(function(entries){
+            if(entries[0] && entries[0].isIntersecting){
+              bootServiceVisual();
+            }
+          }, {root: stream || null, rootMargin: '80px 0px', threshold: 0.02});
+          el._ftcVisualBootObserver.observe(el);
+        }
+      } else {
+        bootServiceVisual();
+      }
     }
     function resizeServiceVisual(state){
       if(!state || !state.el || !state.renderer) return;
@@ -598,6 +1586,9 @@
       state.renderer.setSize(width, height, false);
       state.camera.aspect = width / height;
       state.camera.updateProjectionMatrix();
+      if(state.marketingRubik && state.rubik && window.FTCRubikCube && window.FTCRubikCube.fitCamera){
+        window.FTCRubikCube.fitCamera(state, state.rubik);
+      }
     }
     function serviceMaterial(THREE, color, opacity, wireframe){
       const Material = THREE.MeshPhysicalMaterial || THREE.MeshStandardMaterial;
@@ -1014,34 +2005,38 @@
     }
     function createDataSchematicLabel(THREE, text, color){
       const canvas = document.createElement('canvas');
-      canvas.width = 128;
-      canvas.height = 64;
+      canvas.width = 256;
+      canvas.height = 128;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.font = '700 22px ui-monospace, SFMono-Regular, Consolas, monospace';
+      ctx.font = '700 44px ui-monospace, SFMono-Regular, Consolas, monospace';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(0,0,0,0.34)';
-      ctx.fillRect(13, 15, 66, 28);
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.fillRect(26, 30, 132, 56);
       ctx.strokeStyle = color;
-      ctx.globalAlpha = 0.72;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.82;
       ctx.beginPath();
-      ctx.moveTo(7, 32);
-      ctx.lineTo(18, 32);
-      ctx.moveTo(78, 32);
-      ctx.lineTo(113, 32);
+      ctx.moveTo(14, 64);
+      ctx.lineTo(36, 64);
+      ctx.moveTo(156, 64);
+      ctx.lineTo(226, 64);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.fillStyle = color;
-      ctx.fillText(text, 20, 31);
-      ctx.fillStyle = 'rgba(255,255,255,0.58)';
-      ctx.fillRect(84, 30, 4, 4);
+      ctx.fillText(text, 40, 62);
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+      ctx.fillRect(168, 60, 8, 8);
       const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = false;
       texture.needsUpdate = true;
       const material = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
         opacity: 0,
-        depthTest: false,
+        depthTest: true,
         depthWrite: false
       });
       const sprite = new THREE.Sprite(material);
@@ -1076,35 +2071,33 @@
       state.dataLabels = {
         group: labelGroup,
         sprites: labelGroup.children,
-        cycle: 3.2
+        cycle: 3.6
       };
       state.group.add(labelGroup);
     }
     function updateSelectiveDataLabels(state, t){
       const labels = state.dataLabels;
       if(!labels || !labels.sprites || !labels.sprites.length) return;
-      const cycle = labels.cycle || 3.2;
+      const cycle = labels.cycle || 3.6;
       const slot = Math.floor(t / cycle) % labels.sprites.length;
       const phase = (t % cycle) / cycle;
-      const fadeA = Math.max(0, Math.min(1, Math.min(phase * 5.2, (1 - phase) * 4.4)));
-      const fadeBWindow = Math.max(0, Math.min(1, Math.min((phase - 0.42) * 7, (0.92 - phase) * 6)));
-      const secondSlot = (slot + 3) % labels.sprites.length;
-      labels.group.rotation.x = t * 0.11;
-      labels.group.rotation.y = t * 0.22;
+      const fadeIn = Math.min(1, phase * 4.8);
+      const fadeOut = Math.min(1, (1 - phase) * 4.2);
+      const fadeA = Math.max(0, Math.min(fadeIn, fadeOut));
       labels.sprites.forEach(function(sprite, index){
-        const isFirst = index === slot;
-        const isSecond = index === secondSlot && phase > 0.42 && phase < 0.92;
-        const opacity = isFirst ? fadeA * 0.78 : (isSecond ? fadeBWindow * 0.56 : 0);
-        sprite.material.opacity += (opacity - sprite.material.opacity) * 0.12;
-        const scale = 0.82 + opacity * 0.26;
+        const opacity = index === slot ? fadeA * 0.82 : 0;
+        sprite.material.opacity = opacity;
+        const scale = 0.88 + opacity * 0.14;
         sprite.scale.set(sprite.userData.baseScaleX * scale, sprite.userData.baseScaleY * scale, 1);
       });
     }
     function buildSelectiveDrawDataScene(state, THREE){
       const group = state.group;
+      const isPreview = state.el && !state.el.closest('.ftc-service-detail-webgl');
+      const isMobileDetail = !isPreview && window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
       const radius = 1.0;
-      const numLat = 100;
-      const numLng = 200;
+      const numLat = isPreview ? 40 : (isMobileDetail ? 40 : 52);
+      const numLng = isPreview ? 72 : (isMobileDetail ? 72 : 96);
       const lineCount = numLat * numLng;
       const linePositions = new Float32Array(lineCount * 3 * 2);
       const lineColors = new Float32Array(lineCount * 3 * 2);
@@ -1173,7 +2166,7 @@
       lineSegments.userData.noOpacityPulse = true;
       lineSegments.frustumCulled = false;
       group.add(lineSegments);
-      addSelectiveDataLabels(state, THREE, radius);
+      if(isPreview) addSelectiveDataLabels(state, THREE, radius);
 
       state.visualScale = state.el && state.el.closest('.ftc-service-detail-webgl') ? 2.35 : 1.78;
       state.dataSelective = {
@@ -1184,6 +2177,15 @@
         lineCount: lineCount
       };
       group.userData.schematic = false;
+      initDataStreamCounters(state);
+    }
+    function initDataStreamCounters(state){
+      if(state._dataCountersInit) return;
+      state._dataCountersInit = true;
+      state._stopDataCounters = attachDataStreamCounters(state.el, {
+        appRoot: app,
+        isDetail: !state.isPreview
+      });
     }
     function updateSelectiveDrawData(state, t, scrollNorm){
       const data = state.dataSelective;
@@ -1491,7 +2493,12 @@
       return new THREE.ShaderMaterial({
         uniforms:{
           uTime:{value:0},
-          uColor:{value:new THREE.Color(0xf6f1df)}
+          uColor:{value:new THREE.Color(0xf6f1df)},
+          uCyan:{value:new THREE.Color(0x72f6ff)},
+          uYellow:{value:new THREE.Color(0xffe169)},
+          uPink:{value:new THREE.Color(0xff72d9)},
+          uLime:{value:new THREE.Color(0xd7ff63)},
+          uSky:{value:new THREE.Color(0x8fb5ff)}
         },
         vertexShader:[
           'attribute vec3 barycentric;',
@@ -1516,6 +2523,11 @@
           '#endif',
           'uniform float uTime;',
           'uniform vec3 uColor;',
+          'uniform vec3 uCyan;',
+          'uniform vec3 uYellow;',
+          'uniform vec3 uPink;',
+          'uniform vec3 uLime;',
+          'uniform vec3 uSky;',
           'varying vec3 vBarycentric;',
           'varying vec3 vNormal;',
           'varying vec3 vViewPosition;',
@@ -1528,8 +2540,13 @@
           '  float line = 1.0 - edgeFactor();',
           '  vec3 n = normalize(vNormal);',
           '  float fresnel = pow(1.0 - abs(dot(n, normalize(vViewPosition))), 2.0);',
-          '  vec3 color = uColor + fresnel * vec3(0.24,0.34,0.48);',
-          '  float alpha = line * (0.72 + fresnel * 0.28);',
+          '  float band = fract(n.y * 0.55 + n.x * 0.42 + n.z * 0.28 + uTime * 0.04);',
+          '  vec3 dataA = mix(uCyan, uSky, smoothstep(0.0, 0.35, band));',
+          '  vec3 dataB = mix(uYellow, uPink, smoothstep(0.35, 0.72, band));',
+          '  vec3 dataC = mix(uLime, uCyan, smoothstep(0.72, 1.0, band));',
+          '  vec3 dataTint = mix(dataA, mix(dataB, dataC, step(0.35, band)), step(0.0, band));',
+          '  vec3 color = mix(uColor, dataTint, 0.72 + fresnel * 0.18);',
+          '  float alpha = line * (0.74 + fresnel * 0.26);',
           '  gl_FragColor = vec4(color, alpha);',
           '}'
         ].join('\n'),
@@ -1540,31 +2557,61 @@
         extensions:{derivatives:true}
       });
     }
+    function colorEdgesFromPalette(THREE, geometry, palette, opacity){
+      var positions = geometry.attributes.position;
+      var colors = new Float32Array(positions.count * 3);
+      var color = new THREE.Color();
+      var i, x, y, z, idx;
+      for(i = 0; i < positions.count; i++){
+        x = positions.getX(i);
+        y = positions.getY(i);
+        z = positions.getZ(i);
+        idx = Math.abs(Math.floor(((Math.atan2(y, x) / Math.PI) + 1) * 2.5 + (z + 1.2) * 1.4)) % palette.length;
+        color.setHex(palette[idx]);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: opacity == null ? 0.78 : opacity,
+        depthWrite: false
+      });
+    }
+    function createPaletteEdgeLines(THREE, baseEdgesGeometry, palette, opacity){
+      var geometry = baseEdgesGeometry.clone();
+      var material = colorEdgesFromPalette(THREE, geometry, palette, opacity);
+      return new THREE.LineSegments(geometry, material);
+    }
     function buildTechnologyCrystalScene(state, THREE){
       const group = state.group;
       const root = new THREE.Group();
       root.rotation.set(-0.12, -0.28, 0.08);
       group.add(root);
 
-      const baseGeometry = new THREE.IcosahedronGeometry(1.24, 1);
+      const dataPalette = [0x72f6ff, 0xffe169, 0xff72d9, 0xd7ff63, 0x8fb5ff, 0x397cf6];
+      const isDetail = state.el && state.el.closest('.ftc-service-detail-webgl');
+      const baseGeometry = new THREE.IcosahedronGeometry(isDetail ? 1.24 : 1.34, 1);
       const coreGeometry = addBarycentricCoordinates(THREE, baseGeometry);
       const coreMaterial = crystalCoreMaterial(THREE);
       const wireMaterial = crystalWireMaterial(THREE);
       const core = new THREE.Mesh(coreGeometry.clone(), coreMaterial);
       const wire = new THREE.Mesh(coreGeometry.clone(), wireMaterial);
-      const edgesGeometry = new THREE.EdgesGeometry(baseGeometry, 1);
-      const edgeWhite = new THREE.LineSegments(edgesGeometry, new THREE.LineBasicMaterial({color:0xf6f1df, transparent:true, opacity:0.82}));
-      const edgeBlue = new THREE.LineSegments(edgesGeometry.clone(), new THREE.LineBasicMaterial({color:0x397cf6, transparent:true, opacity:0.5}));
-      const edgeRed = new THREE.LineSegments(edgesGeometry.clone(), new THREE.LineBasicMaterial({color:0xff5b45, transparent:true, opacity:0.36}));
       core.userData.technologyCrystal = true;
       wire.userData.technologyCrystal = true;
       core.userData.noOpacityPulse = true;
       wire.userData.noOpacityPulse = true;
-      edgeWhite.userData.noOpacityPulse = true;
-      edgeBlue.userData.noOpacityPulse = true;
-      edgeRed.userData.noOpacityPulse = true;
       core.scale.set(1.0, 0.94, 0.98);
       wire.scale.copy(core.scale);
+      const edgesGeometry = new THREE.EdgesGeometry(baseGeometry, 1);
+      const edgeWhite = createPaletteEdgeLines(THREE, edgesGeometry, dataPalette, 0.84);
+      const edgeBlue = createPaletteEdgeLines(THREE, edgesGeometry, dataPalette, 0.52);
+      const edgeRed = createPaletteEdgeLines(THREE, edgesGeometry, dataPalette, 0.38);
+      edgeBlue.userData.noOpacityPulse = true;
+      edgeRed.userData.noOpacityPulse = true;
+      edgeWhite.userData.noOpacityPulse = true;
       edgeWhite.scale.copy(core.scale);
       edgeBlue.scale.copy(core.scale);
       edgeRed.scale.copy(core.scale);
@@ -1576,7 +2623,7 @@
       root.add(edgeRed);
       root.add(edgeWhite);
 
-      state.visualScale = state.el && state.el.closest('.ftc-service-detail-webgl') ? 1.32 : 1.04;
+      state.visualScale = isDetail ? 1.32 : 1.28;
       state.technologyCrystal = {
         root:root,
         core:core,
@@ -1666,6 +2713,7 @@
     }
     function buildAbstractServiceScene(state, THREE, key){
       if(key === 'data') return false;
+      if(key === 'marketing') return false;
       if(key === 'innovation') return buildTechnologyCrystalScene(state, THREE);
       const specs = {
         web: {scaleCard: 1.66, scaleDetail: 2.08, opacity: 0.64, speedX: 0.01, speedY: 0.018},
@@ -1701,15 +2749,16 @@
       return true;
     }
     function buildServiceScene(state, THREE){
-      const blue = 0x397cf6, sky = 0x8fb5ff, yellow = 0xffd94d, red = 0xff5b45, green = 0x69d85b, white = 0xe9f1ff;
       const group = state.group;
       const key = state.key;
       group.userData.schematic = true;
-      if(key === 'data'){
+      if(key === 'data' || key === 'ai'){
         buildSelectiveDrawDataScene(state, THREE);
         return;
       }
+      if(key === 'marketing' && window.FTCRubikCube && window.FTCRubikCube.build(state, THREE)) return;
       if(buildAbstractServiceScene(state, THREE, key)) return;
+      const blue = 0x397cf6, sky = 0x8fb5ff, yellow = 0xffd94d, red = 0xff5b45, green = 0x69d85b, white = 0xe9f1ff;
       blueprintGrid(THREE, group, 5.7, 3.25, 9, 5, -0.68, sky, 0.08);
       blueprintDimension(THREE, group, new THREE.Vector3(-2.6,-1.5,-.34), new THREE.Vector3(2.45,-1.5,-.34), sky, .28);
 
@@ -1839,14 +2888,41 @@
       });
     }
     function renderServiceVisuals(time){
+      if(pageHidden){
+        serviceVisualFrame = 0;
+        return;
+      }
       const now = (time || 0) * 0.001;
-      serviceVisuals = serviceVisuals.filter(function(state){ return state && state.el && state.el.isConnected; });
+      serviceVisuals = serviceVisuals.filter(function(state){ return state && !state.disposed && state.el && state.el.isConnected; });
+      if(!serviceVisuals.length){
+        serviceVisualFrame = 0;
+        return;
+      }
       serviceVisuals.forEach(function(state){
-        const rect = state.el.getBoundingClientRect();
-        const visible = rect.bottom > 0 && rect.top < window.innerHeight && rect.width > 20 && rect.height > 20;
-        state.el.classList.toggle('is-in-view', visible);
-        if(!visible) return;
+        if(state.disposed || state.renderPaused) return;
+        if(state.isPreview && serviceVisuals.length > 1){
+          var hasDetail = serviceVisuals.some(function(s){ return s && !s.disposed && !s.isPreview; });
+          if(hasDetail) return;
+        }
+        state.frameTick = (state.frameTick || 0) + 1;
+        if(state.frameTick % 8 === 0 || state._lastVisible == null){
+          const rect = state.el.getBoundingClientRect();
+          state._lastRect = rect;
+          state._lastVisible = state.isDetailVisual || (rect.bottom > 0 && rect.top < window.innerHeight && rect.width > 20 && rect.height > 20);
+          if(state.isPreview){
+            state.el.classList.toggle('is-in-view', state._lastVisible);
+          } else if(state._lastVisible){
+            state.el.classList.add('is-in-view');
+          }
+        }
+        if(!state._lastVisible) return;
+        var skip = state.isPreview ? 5 : 4;
+        /* Render data scene every 2 frames (~30fps) for smooth rotation */
+        if(state.key === 'data') skip = state.isPreview ? 6 : 2;
+        else if(state.technologyCrystal) skip = state.isPreview ? 6 : 4;
+        if(state.frameTick % skip !== 0) return;
         const t = now + state.t;
+        const rect = state._lastRect || state.el.getBoundingClientRect();
         const viewportCenter = rect.top + rect.height / 2;
         const scrollNorm = ((viewportCenter / Math.max(1, window.innerHeight)) - 0.5) * 2;
         const currentScrollTop = stream ? stream.scrollTop : (window.pageYOffset || document.documentElement.scrollTop || 0);
@@ -1863,44 +2939,82 @@
         }
         state.enter = Math.min(1, state.enter + 0.035);
         const ease = 1 - Math.pow(1 - state.enter, 3);
-        const floatY = Math.sin(t * 0.9) * 0.055;
-        if(!state.dragging){
+        const marketing = !!state.marketingRubik;
+        if(state.isPreview){
+          if(!marketing && !state.technologyCrystal){
+            state.group.rotation.set(0, 0, 0);
+          }
+          if(!marketing){
+            const floatY = Math.sin(t * 0.72) * 0.038;
+            state.group.position.y += (floatY - state.group.position.y) * 0.07;
+          }
+        } else if(!state.dragging && !marketing){
           state.dragX *= 0.94;
           state.dragY *= 0.92;
         }
-        const targetX = state.mouseY * 0.24 + scrollNorm * 0.16 + state.dragY;
-        const targetY = Math.sin(t * 0.22) * 0.2 + state.mouseX * 0.38 + scrollNorm * 0.24 + state.dragX;
-        state.springVX += (targetX - state.springX) * 0.018;
-        state.springVY += (targetY - state.springY) * 0.018;
-        state.springVX *= 0.86;
-        state.springVY *= 0.86;
-        state.springX += state.springVX;
-        state.springY += state.springVY;
-        state.group.rotation.x = state.springX;
-        state.group.rotation.y = state.springY;
-        state.group.rotation.z = Math.sin(t * 0.18) * 0.045 + scrollNorm * 0.035;
-        const viewportDrift = state.key === 'data' ? -scrollNorm * 0.08 : -scrollNorm * 0.18;
-        state.group.position.y += ((floatY + viewportDrift + (state.scrollLift || 0)) - state.group.position.y) * 0.05;
-        state.group.scale.setScalar((0.78 + ease * 0.22) * (state.visualScale || 1));
+        if(!state.isPreview){
+          if(!marketing){
+            var motionScale = state.key === 'data' ? 0.62 : 1;
+            if(state.key === 'data'){
+              /* Direct time-based rotation — smooth and frame-rate independent */
+              state.group.rotation.y = t * 0.3 + state.mouseX * 0.28 + state.dragX;
+              state.group.rotation.x = state.mouseY * 0.18 + state.dragY * 0.6;
+              state.group.rotation.z = 0;
+            } else {
+            const targetX = state.mouseY * 0.24 * motionScale + scrollNorm * 0.12 * motionScale + state.dragY;
+            const targetY = Math.sin(t * 0.22) * 0.2 + state.mouseX * 0.38 * motionScale + scrollNorm * 0.18 * motionScale + state.dragX;
+            state.springVX += (targetX - state.springX) * 0.018;
+            state.springVY += (targetY - state.springY) * 0.018;
+            state.springVX *= 0.88;
+            state.springVY *= 0.88;
+            state.springX += state.springVX;
+            state.springY += state.springVY;
+            state.group.rotation.x = state.springX;
+            state.group.rotation.y = state.springY;
+            state.group.rotation.z = Math.sin(t * 0.18) * 0.045 + scrollNorm * 0.035;
+            }
+          } else {
+            state.group.rotation.set(0, 0, 0);
+          }
+          if(!marketing){
+            const floatY = Math.sin(t * 0.9) * 0.055;
+            const viewportDrift = state.key === 'data' ? -scrollNorm * 0.08 : -scrollNorm * 0.18;
+            state.group.position.y += ((floatY + viewportDrift + (state.scrollLift || 0)) - state.group.position.y) * 0.05;
+          }
+        } else if(marketing){
+          state.group.rotation.set(0, 0, 0);
+        }
+        state.group.scale.setScalar(marketing ? (state.visualScale || 1) : ((0.78 + ease * 0.22) * (state.visualScale || 1)));
         if(state.technologyCrystal && state.technologyCrystal.uniforms){
-          state.technologyCrystal.uniforms.forEach(function(uniforms){
-            if(uniforms && uniforms.uTime) uniforms.uTime.value = t;
-          });
-          if(state.technologyCrystal.root){
-            state.technologyCrystal.root.rotation.x = -0.12 + Math.sin(t * 0.18) * 0.09 + state.mouseY * 0.08;
-            state.technologyCrystal.root.rotation.y = -0.28 + t * 0.12 + state.mouseX * 0.12;
-            state.technologyCrystal.root.rotation.z = 0.08 + Math.sin(t * 0.13) * 0.06;
+          if(!state.isPreview){
+            state.technologyCrystal.uniforms.forEach(function(uniforms){
+              if(uniforms && uniforms.uTime) uniforms.uTime.value = t;
+            });
+            if(state.technologyCrystal.root){
+              state.technologyCrystal.root.rotation.x = -0.12 + Math.sin(t * 0.14) * 0.07 + state.mouseY * 0.08;
+              state.technologyCrystal.root.rotation.y = -0.28 + t * 0.08 + state.mouseX * 0.12;
+              state.technologyCrystal.root.rotation.z = 0.08 + Math.sin(t * 0.1) * 0.045;
+            }
+          } else if(state.technologyCrystal.root){
+            state.technologyCrystal.root.rotation.set(-0.12, -0.28, 0.08);
+            state.technologyCrystal.uniforms.forEach(function(uniforms){
+              if(uniforms && uniforms.uTime) uniforms.uTime.value = 0;
+            });
           }
         }
-        updateSelectiveDrawData(state, t, scrollNorm);
-        updateSelectiveDataLabels(state, t);
+        if(state.rubik && window.FTCRubikCube) window.FTCRubikCube.tick(state.rubik, t, state.isPreview ? 0 : scrollDelta);
         state.group.traverse(function(child){
           if(child === state.group) return;
           if(child.userData && child.userData.selectiveDrawData){
-            child.rotation.x = t * 0.11;
-            child.rotation.y = t * 0.22;
+            if(state.isPreview){
+              child.rotation.x = t * 0.08;
+              child.rotation.y = t * 0.14;
+            } else {
+              child.rotation.set(0, 0, 0);
+            }
           }
           if(child.userData && child.userData.abstractServiceObject){
+            if(state.isPreview) return;
             child.rotation.x = Math.sin(t * 0.18) * 0.08 + t * (child.userData.speedX || 0.05);
             child.rotation.y = t * (child.userData.speedY || 0.12);
             child.rotation.z = Math.sin(t * 0.14) * 0.05;
@@ -1913,24 +3027,226 @@
           if(child.userData && child.userData.float !== undefined){
             child.position.y += Math.sin(t * 1.6 + child.userData.float) * 0.0018;
           }
-          if(child.material && child.material.opacity && child.userData && child.userData.phase !== undefined && !child.userData.noOpacityPulse){
-            child.material.opacity += (Math.sin(t * .9 + child.userData.phase) * 0.0007);
-            child.material.opacity = Math.max(0.035, Math.min(0.95, child.material.opacity));
-          }
         });
         state.renderer.render(state.scene, state.camera);
       });
-      serviceVisualFrame = serviceVisuals.length ? requestAnimationFrame(renderServiceVisuals) : 0;
+      if(serviceVisuals.some(function(s){ return s && !s.disposed && !s.renderPaused; })){
+        serviceVisualFrame = requestAnimationFrame(renderServiceVisuals);
+      } else {
+        serviceVisualFrame = 0;
+      }
+    }
+    function bootGoTimeDataScene(visualEl, canvasHost, options){
+      if(!window.THREE || !visualEl || !canvasHost) return null;
+      options = options || {};
+      var sectionEl = options.sectionEl;
+      var scrollRoot = options.scrollRoot || window;
+      var redMot = !!options.reducedMotion;
+      var getScrollProgress = options.getScrollProgress || function(){ return 0; };
+      var side = sectionEl && parseInt(sectionEl.getAttribute('data-chapter') || '0', 10) % 2 === 1 ? 1 : -1;
+
+      visualEl.classList.add('ftc-service-detail-webgl', 'ftc-go-time-data-visual');
+      canvasHost.classList.add('ftc-service-webgl');
+      canvasHost.setAttribute('data-ftc-service-visual', 'data');
+
+      var W = canvasHost.clientWidth || visualEl.clientWidth || 640;
+      var H = canvasHost.clientHeight || visualEl.clientHeight || 520;
+      if(W < 40 || H < 40) return null;
+
+      var THREE = window.THREE;
+      var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(W, H, false);
+      renderer.setClearColor(0x000000, 0);
+      if(renderer.shadowMap) renderer.shadowMap.enabled = false;
+      var canvas = renderer.domElement;
+      canvas.style.display = 'block';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.background = 'transparent';
+      canvas.style.pointerEvents = 'none';
+      canvasHost.appendChild(canvas);
+
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(34, W / H, 0.1, 80);
+      camera.position.set(0, 0, 7.4);
+
+      var group = new THREE.Group();
+      scene.add(group);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+      var lightA = new THREE.PointLight(0x8fb5ff, 0.95, 28);
+      lightA.position.set(-3, 3, 7);
+      scene.add(lightA);
+      var lightB = new THREE.PointLight(0xffe169, 0.5, 24);
+      lightB.position.set(4, -2, 6);
+      scene.add(lightB);
+
+      var scrollTopNow = scrollRoot === window
+        ? (window.pageYOffset || document.documentElement.scrollTop || 0)
+        : scrollRoot.scrollTop;
+
+      var state = {
+        el: visualEl,
+        renderer: renderer,
+        scene: scene,
+        camera: camera,
+        group: group,
+        key: 'data',
+        isPreview: false,
+        t: Math.random() * 100,
+        mouseX: 0,
+        mouseY: 0,
+        enter: 0,
+        scrollT: 0,
+        clockTime: 0,
+        active: false,
+        scrollLift: 0,
+        scrollLiftTarget: 0,
+        scrollLiftHold: 0,
+        lastScrollTop: scrollTopNow,
+        dragX: 0,
+        dragY: 0,
+        introRotY: side * 0.72,
+        introRotX: 0.22
+      };
+
+      buildServiceScene(state, THREE);
+      function dataVisualScale(width) {
+        if (width < 420) return 1.75;
+        if (width < 760) return 2.35;
+        return 3.35;
+      }
+      state.visualScale = dataVisualScale(W);
+
+      var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
+      visualEl.addEventListener('mousemove', function(e){
+        var r = visualEl.getBoundingClientRect();
+        if(!r.width || !r.height) return;
+        mouse.tx = ((e.clientX - r.left) / r.width - 0.5) * 0.9;
+        mouse.ty = ((e.clientY - r.top) / r.height - 0.5) * -0.7;
+        state.mouseX = mouse.tx;
+        state.mouseY = mouse.ty;
+      }, { passive: true });
+      visualEl.addEventListener('mouseleave', function(){
+        mouse.tx = 0;
+        mouse.ty = 0;
+        state.mouseX = 0;
+        state.mouseY = 0;
+      });
+
+      if(typeof IntersectionObserver !== 'undefined' && sectionEl){
+        var ioRootEl = (scrollRoot && scrollRoot !== window) ? scrollRoot : null;
+        new IntersectionObserver(function(entries){
+          state.active = entries[0].isIntersecting;
+          if(entries[0].isIntersecting) sectionEl.classList.add('is-in-view');
+        }, { threshold: 0.06, root: ioRootEl, rootMargin: '35% 0px' }).observe(sectionEl);
+      } else {
+        state.active = true;
+        if(sectionEl) sectionEl.classList.add('is-in-view');
+      }
+      if(sectionEl && sectionEl.classList.contains('is-in-view')) state.active = true;
+
+      if(typeof ResizeObserver !== 'undefined'){
+        new ResizeObserver(function(){
+          var nW = canvasHost.clientWidth || visualEl.clientWidth;
+          var nH = canvasHost.clientHeight || visualEl.clientHeight;
+          if(!nW || !nH) return;
+          camera.aspect = nW / nH;
+          camera.updateProjectionMatrix();
+          renderer.setSize(nW, nH, false);
+          state.visualScale = dataVisualScale(nW);
+        }).observe(visualEl);
+      }
+
+      function resizeNow(){
+        var nW = canvasHost.clientWidth || visualEl.clientWidth;
+        var nH = canvasHost.clientHeight || visualEl.clientHeight;
+        if(!nW || !nH) return;
+        camera.aspect = nW / nH;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nW, nH, false);
+      }
+      resizeNow();
+
+      return {
+        tick: function(delta){
+          if(document.hidden) return;
+          state.clockTime += delta;
+          var t = state.clockTime + state.t;
+          var targetScroll = getScrollProgress();
+          state.scrollT += (targetScroll - state.scrollT) * (redMot ? 1 : 0.06);
+          state.enter = Math.min(1, state.enter + (redMot ? 1 : delta * 1.05));
+          var ease = 1 - Math.pow(1 - state.enter, 3);
+          var w = state.scrollT;
+
+          mouse.x += (mouse.tx - mouse.x) * (redMot ? 1 : 0.07);
+          mouse.y += (mouse.ty - mouse.y) * (redMot ? 1 : 0.07);
+          state.mouseX = mouse.x;
+          state.mouseY = mouse.y;
+
+          var currentScrollTop = scrollRoot === window
+            ? (window.pageYOffset || document.documentElement.scrollTop || 0)
+            : scrollRoot.scrollTop;
+          var scrollDelta = currentScrollTop - state.lastScrollTop;
+          state.lastScrollTop = currentScrollTop;
+          if(Math.abs(scrollDelta) > 0.4){
+            state.scrollLiftTarget = scrollDelta > 0 ? 0.14 : -0.08;
+            state.scrollLiftHold = 18;
+          }
+          if(state.scrollLiftHold > 0) state.scrollLiftHold--;
+          else state.scrollLiftTarget *= 0.9;
+          state.scrollLift += ((state.scrollLiftTarget || 0) - state.scrollLift) * 0.08;
+
+          var scrollNorm = (w - 0.5) * 2;
+          var restRotY = t * 0.3 + state.mouseX * 0.28;
+          var restRotX = state.mouseY * 0.18;
+          var targetRotY = (state.introRotY || 0) * (1 - ease) + restRotY * ease;
+          var targetRotX = (state.introRotX || 0) * (1 - ease) + restRotX * ease;
+          state.group.rotation.y = targetRotY;
+          state.group.rotation.x = targetRotX;
+          state.group.rotation.z = 0;
+
+          var floatY = redMot ? 0 : Math.sin(state.clockTime * 0.9) * 0.04 * ease;
+          var viewportDrift = -scrollNorm * 0.06;
+          var targetY = floatY + viewportDrift + (state.scrollLift || 0);
+          state.group.position.y += (targetY - state.group.position.y) * 0.05;
+          state.group.position.x += ((state.mouseX * 0.1 * w) - state.group.position.x) * 0.05;
+
+          var padScale = 0.98;
+          state.group.scale.setScalar((0.84 + ease * 0.16) * (state.visualScale || 2.68) * padScale);
+
+          updateSelectiveDrawData(state, t, scrollNorm);
+
+          var dolly = w * 0.42 + ease * 0.28 + state.mouseY * -0.1;
+          camera.position.z += ((7.4 - dolly) - camera.position.z) * (redMot ? 1 : 0.04);
+          camera.position.y += ((state.mouseY * 0.1 * w) - camera.position.y) * (redMot ? 1 : 0.04);
+          camera.lookAt(state.mouseX * 0.06, targetY * 0.3, 0);
+
+          renderer.render(scene, camera);
+        },
+        dispose: function(){
+          if(state._stopDataCounters){ try{ state._stopDataCounters(); }catch(e){} state._stopDataCounters = null; }
+          renderer.dispose();
+          if(renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+          visualEl.classList.remove('ftc-service-detail-webgl', 'ftc-go-time-data-visual');
+          canvasHost.classList.remove('ftc-service-webgl');
+          canvasHost.removeAttribute('data-ftc-service-visual');
+        }
+      };
     }
     function revealAssistantMessage(el){
       if(!el || el.dataset.revealed) return;
       el.dataset.revealed='true';
       el.classList.remove('is-waiting-scroll');
-      requestAnimationFrame(function(){ el.classList.add('is-arriving'); });
+      requestAnimationFrame(function(){
+        el.classList.add('is-arriving');
+        initServiceDetailAnimations(el);
+      });
       setTimeout(function(){ el.classList.add('has-arrived'); endResponseTransition(); }, 820);
     }
-    function typewriterElement(el){ if(el.dataset.initialized) return; el.dataset.initialized='true'; const text=el.dataset.text || el.textContent.trim(); el.innerHTML='<span class="ftc-type-text"></span><span class="ftc-cursor" aria-hidden="true"></span>'; const target=el.querySelector('.ftc-type-text'); let i=0; function tick(){ target.textContent+=text.charAt(i); const ch=text.charAt(i); i++; if(i<text.length){ let delay=24+Math.floor(Math.random()*45); if(ch===','||ch==='.'||ch==='—') delay+=120; setTimeout(tick,delay); } else { el.classList.add('is-complete'); } } setTimeout(tick,80); }
+    function typewriterElement(el){ if(isInsideGoTimeSpline(el)) return; if(el.dataset.initialized) return; el.dataset.initialized='true'; const text=el.dataset.text || el.textContent.trim(); el.innerHTML='<span class="ftc-type-text"></span><span class="ftc-cursor" aria-hidden="true"></span>'; const target=el.querySelector('.ftc-type-text'); let i=0; function tick(){ target.textContent+=text.charAt(i); const ch=text.charAt(i); i++; if(i<text.length){ let delay=24+Math.floor(Math.random()*45); if(ch===','||ch==='.'||ch==='—') delay+=120; setTimeout(tick,delay); } else { el.classList.add('is-complete'); } } setTimeout(tick,80); }
     function lazyTypewriterElement(el){
+      if(isInsideGoTimeSpline(el)) return;
       if(el.dataset.initialized) return;
       el.dataset.initialized='true';
       el.dataset.pendingText = el.dataset.text || el.textContent.trim();
@@ -1962,12 +3278,18 @@
     function addThinking(){ if(stream) stream.setAttribute('aria-busy','true'); const el=document.createElement('div'); el.className='ftc-message ftc-assistant ftc-thinking-message'; el.innerHTML='<div class="ftc-card"><div class="ftc-thinking" role="status" aria-live="polite"><span>Field Theory is thinking</span><i></i><i></i><i></i></div></div>'; stream.appendChild(el); scrollTo(el,16); return el; }
     function scrollTo(el, offset){
       requestAnimationFrame(function(){
-        const top = Math.max(0, el.offsetTop - (offset||0) - (window.innerWidth < 760 ? 52 : 88));
+        const streamRect = stream.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const top = Math.max(0, stream.scrollTop + (elRect.top - streamRect.top) - (offset||0) - (window.innerWidth < 760 ? 52 : 88));
         if('scrollTo' in stream) stream.scrollTo({top: top, behavior:'smooth'});
         else stream.scrollTop = top;
       });
     }
+    function messageMapEnabled(){
+      return window.matchMedia('(min-width: 901px)').matches;
+    }
     function createMessageMap(){
+      if(!messageMapEnabled()) return null;
       const nav = document.createElement('nav');
       nav.className = 'ftc-message-map';
       nav.setAttribute('aria-label', 'Conversation sections');
@@ -1979,7 +3301,7 @@
       return nav;
     }
     function addMessageMapPoint(target, label){
-      if(!messageMap || !target) return;
+      if(!messageMap || !target || !messageMapEnabled()) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'ftc-message-map-dot';
@@ -2000,6 +3322,7 @@
       scheduleMessageMapUpdate();
     }
     function scheduleMessageMapUpdate(){
+      if(!messageMap || !messageMapEnabled()) return;
       if(messageMapFrame) return;
       messageMapFrame = requestAnimationFrame(function(){
         messageMapFrame = 0;
@@ -2007,6 +3330,7 @@
       });
     }
     function updateMessageMap(){
+      if(!messageMap || !messageMapEnabled()) return;
       const dots = Array.prototype.slice.call(messageMap.querySelectorAll('.ftc-message-map-dot'));
       const maxScroll = Math.max(1, stream.scrollHeight - stream.clientHeight);
       const trackHeight = Math.max(1, messageMap.clientHeight || stream.clientHeight);
@@ -2053,6 +3377,84 @@
         dot.classList.toggle('is-muted', !activeAtResponseTop);
       });
     }
+
+    function initGetStartedHeroVideo(root){
+      root = root || document;
+      if(!root || !root.querySelectorAll) return;
+      var wraps = Array.prototype.slice.call(root.querySelectorAll('[data-ftc-hero-video]:not([data-ftc-hero-video-init="1"])'));
+      if(!wraps.length) return;
+      wraps.forEach(function(wrap){
+        wrap.setAttribute('data-ftc-hero-video-init', '1');
+        var video = wrap.querySelector('[data-ftc-hero-video-el]');
+        var toggle = wrap.querySelector('[data-ftc-hero-video-toggle]');
+        if(!video || !toggle) return;
+        var userPaused = false;
+        function setPlaying(playing){
+          toggle.setAttribute('aria-pressed', playing ? 'true' : 'false');
+          toggle.setAttribute('aria-label', playing ? 'Pause video' : 'Play video');
+        }
+        function tryPlay(){
+          if(userPaused) return;
+          var playAttempt = video.play();
+          if(playAttempt && playAttempt.catch) playAttempt.catch(function(){});
+        }
+        video.muted = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.addEventListener('loadeddata', tryPlay);
+        video.addEventListener('play', function(){ setPlaying(true); });
+        video.addEventListener('pause', function(){ setPlaying(false); });
+        tryPlay();
+        toggle.addEventListener('click', function(){
+          if(video.paused){
+            userPaused = false;
+            video.muted = false;
+            tryPlay();
+          } else {
+            userPaused = true;
+            video.pause();
+          }
+        });
+        if('IntersectionObserver' in window){
+          new IntersectionObserver(function(entries){
+            var entry = entries[0];
+            var visible = !!(entry && entry.isIntersecting && entry.intersectionRatio >= 0.35);
+            if(visible && !userPaused) tryPlay();
+            else video.pause();
+          }, { root: stream || null, threshold: [0, 0.25, 0.35, 0.55, 0.75] }).observe(wrap);
+        }
+      });
+    }
+    function splitInlineGetStartedShells(message){
+      if(!message || pendingFragments.length) return;
+      if(app.classList.contains('ftc-route-app') || app.getAttribute('data-ftc-route') === 'get-started') return;
+      var card = message.querySelector('.ftc-card');
+      if(!card) return;
+      var shells = Array.prototype.slice.call(card.children).filter(function(node){
+        return node.classList && node.classList.contains('ftc-response-shell');
+      });
+      if(shells.length < 2) return;
+      if(shells.some(function(shell){
+        return shell.classList.contains('ftc-response-sequence-services')
+          || shell.classList.contains('ftc-response-sequence-portfolio')
+          || shell.classList.contains('ftc-response-sequence-testimonials');
+      })) return;
+      var keep = shells.shift();
+      while(card.firstChild) card.removeChild(card.firstChild);
+      card.appendChild(keep);
+      pendingFragments = shells.map(function(shell){
+        return {
+          html: shell.outerHTML,
+          prompt: shell.getAttribute('data-ftc-response-prompt') || shell.getAttribute('data-response-title') || 'Continue'
+        };
+      });
+      kickDeferredFragmentQueue();
+    }
+
+    function initAiAssessment(root){
+      if(typeof window.ftcInitAiAssessment === 'function') window.ftcInitAiAssessment(root);
+    }
+
     function initContactQuiz(quiz){
       if(!quiz || quiz.dataset.initialized) return;
       quiz.dataset.initialized='true';
@@ -2211,28 +3613,24 @@
         const score = calculateLeadScore();
         submit.disabled = true;
         if(status) status.textContent = 'Sending your proposal request...';
-        getRecaptchaToken()
-          .then(function(token){
-            const body = new URLSearchParams({
-              action:'ftc_submit_inquiry',
-              nonce:nonce,
-              services:JSON.stringify(answers.services),
-              company:answers.company,
-              website:answers.website,
-              org_type:answers.orgType,
-              challenge:answers.challenge,
-              timeline:answers.timeline,
-              budget:answers.budget,
-              notes:answers.notes,
-              name:answers.name,
-              email:answers.email,
-              phone:answers.phone,
-              contact_method:answers.contactMethod,
-              lead_score:String(score.score),
-              recaptcha_token:token
-            }).toString();
-            return fetch(ajaxUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body});
-          })
+        const body = new URLSearchParams({
+          action:'ftc_submit_inquiry',
+          nonce:nonce,
+          services:JSON.stringify(answers.services),
+          company:answers.company,
+          website:answers.website,
+          org_type:answers.orgType,
+          challenge:answers.challenge,
+          timeline:answers.timeline,
+          budget:answers.budget,
+          notes:answers.notes,
+          name:answers.name,
+          email:answers.email,
+          phone:answers.phone,
+          contact_method:answers.contactMethod,
+          lead_score:String(score.score)
+        }).toString();
+        fetch(ajaxUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
           .then(function(r){return r.json();})
           .then(function(data){
             if(data && data.success){
@@ -2246,19 +3644,8 @@
           })
           .catch(function(){
             submit.disabled = false;
-            if(status) status.textContent = 'Captcha could not load. Please refresh and try again, or email jamie@fieldtheory.ai.';
+            if(status) status.textContent = 'Something did not send. Please try again or email jamie@fieldtheory.ai.';
           });
-      }
-
-      function getRecaptchaToken(){
-        const key = window.ftcData ? (ftcData.recaptchaSiteKey || '') : '';
-        if(!key) return Promise.resolve('');
-        if(!window.grecaptcha || !window.grecaptcha.ready || !window.grecaptcha.execute) return Promise.reject(new Error('recaptcha unavailable'));
-        return new Promise(function(resolve, reject){
-          window.grecaptcha.ready(function(){
-            window.grecaptcha.execute(key, {action: (ftcData.recaptchaAction || 'ftc_submit_inquiry')}).then(resolve).catch(reject);
-          });
-        });
       }
 
       function fail(message){
@@ -2273,6 +3660,7 @@
 
     function fallbackHTML(){ return '<div class="ftc-response-shell"><header class="ftc-response-header"><h2 class="ftc-answer-heading ftc-typewriter" data-text="Good question.">Good question.</h2><div class="ftc-answer-description">Try asking about our services, portfolio, analytics, AI, SEO, or requesting a proposal.</div></header></div>'; }
     function loadMenuContent(){
+      if(!menuContent) return;
       if(menuLoaded || menuLoading) return;
       menuLoading = true;
       fetch(ajaxUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'ftc_menu',nonce:nonce}).toString()})
@@ -2282,6 +3670,13 @@
         .then(function(){ menuLoading = false; });
     }
     function handleModalKeydown(e){
+      if(e.key === 'Escape' || e.key === 'Esc'){
+        if(app.classList.contains('is-mobile-search-open') && mobileSearchMq.matches){
+          e.preventDefault();
+          closeMobileSearch();
+          return;
+        }
+      }
       if(!activeModal) return;
       if(e.key === 'Escape' || e.key === 'Esc'){
         e.preventDefault();
@@ -2338,25 +3733,44 @@
       }
     }
 
+    function mountModalToBody(modalEl){
+      if(!modalEl || modalEl.parentNode === document.body) return;
+      modalEl._ftcHomeParent = modalEl.parentNode;
+      document.body.appendChild(modalEl);
+    }
+    function restoreModalHome(modalEl){
+      if(!modalEl || !modalEl._ftcHomeParent || modalEl.parentNode !== document.body) return;
+      modalEl._ftcHomeParent.appendChild(modalEl);
+    }
+
     function openMenu(){
       if(!modal) return;
+      releaseAllServiceVisualDrags();
       rememberModalTrigger();
       closeHelpMenu(false);
+      loadMenuContent();
+      mountModalToBody(modal);
+      document.documentElement.classList.add('ftc-menu-open');
+      app.classList.add('is-menu-open');
       modal.classList.add('is-open');
       modal.setAttribute('aria-hidden','false');
       activeModal = modal;
-      loadMenuContent();
       focusModal(modal);
     }
     function closeMenu(restore){
       if(!modal) return;
+      document.documentElement.classList.remove('ftc-menu-open');
+      app.classList.remove('is-menu-open');
       modal.classList.remove('is-open');
       modal.setAttribute('aria-hidden','true');
+      restoreModalHome(modal);
       if(activeModal === modal) activeModal = null;
       restoreModalFocus(restore);
     }
     function openHelpMenu(){
       if(!helpModal) return;
+      releaseAllServiceVisualDrags();
+      closeMobileSearch(false);
       rememberModalTrigger();
       closeMenu(false);
       helpModal.classList.add('is-open');
@@ -2374,7 +3788,80 @@
     function closeAllMenus(){
       closeMenu(false);
       closeHelpMenu(false);
+      closeMobileSearch(false);
+    }
+
+    function isMobileSearchViewport(){
+      return mobileSearchMq.matches;
+    }
+
+    function openMobileSearch(){
+      if(!isMobileSearchViewport()) return;
+      closeHelpMenu(false);
+      app.classList.add('is-mobile-search-open');
+      if(searchToggle){
+        searchToggle.setAttribute('aria-expanded', 'true');
+        searchToggle.setAttribute('aria-label', 'Close search');
+      }
+      if(chatForm) chatForm.removeAttribute('aria-hidden');
+      setTimeout(function(){
+        if(chatInput){
+          try{ chatInput.focus({preventScroll:true}); }catch(e){ chatInput.focus(); }
+        }
+      }, 320);
+    }
+
+    function closeMobileSearch(restoreFocus){
+      app.classList.remove('is-mobile-search-open');
+      if(searchToggle){
+        searchToggle.setAttribute('aria-expanded', 'false');
+        searchToggle.setAttribute('aria-label', 'Open search');
+      }
+      if(chatForm) chatForm.setAttribute('aria-hidden', 'true');
+      if(restoreFocus !== false && searchToggle && isMobileSearchViewport()){
+        setTimeout(function(){
+          try{ searchToggle.focus({preventScroll:true}); }catch(e){ searchToggle.focus(); }
+        }, 0);
+      }
+    }
+
+    function toggleMobileSearch(){
+      if(!isMobileSearchViewport()) return;
+      if(app.classList.contains('is-mobile-search-open')) closeMobileSearch();
+      else openMobileSearch();
     }
     function escapeHTML(str){ return String(str).replace(/[&<>"']/g, function(s){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]; }); }
+    function bootGetStartedRoute(){
+      if(app.getAttribute('data-ftc-route') !== 'get-started') return;
+      loadThree().catch(function(){});
+      if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadThree){
+        window.FTCGetStartedScene.preloadThree();
+      }
+      if(window.FTCGetStartedScene && window.FTCGetStartedScene.preloadServiceScreenImages){
+        window.FTCGetStartedScene.preloadServiceScreenImages();
+      }
+      document.querySelectorAll('.ftc-message.ftc-assistant').forEach(revealServiceCardsAnd3d);
+      setTimeout(function(){
+        document.querySelectorAll('.ftc-message.ftc-assistant').forEach(revealServiceCardsAnd3d);
+      }, 350);
+      window.addEventListener('ftc-three-ready', function(){
+        document.querySelectorAll('.ftc-message.ftc-assistant').forEach(revealServiceCardsAnd3d);
+      }, {once:true});
+    }
+    bootGetStartedRoute();
+
+    if(window.THREE) retryStuckServiceVisuals();
+    else {
+      window.addEventListener('ftc-three-ready', retryStuckServiceVisuals, {once: true});
+      var retryPoll = 0;
+      var retryPollId = setInterval(function(){
+        if(window.THREE){
+          clearInterval(retryPollId);
+          retryStuckServiceVisuals();
+        } else if(++retryPoll > 120){
+          clearInterval(retryPollId);
+        }
+      }, 50);
+    }
   }
 })();

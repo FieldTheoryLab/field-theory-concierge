@@ -103,6 +103,11 @@ function ftc_find_exact_service_by_prompt($term){
 function ftc_service_child_match_score($needle, $key){
     if($needle === '' || $key === '') return 0;
     if($needle === $key) return 100;
+    if(function_exists('ftc_route_compact_key_loose')){
+        $needle_loose = ftc_route_compact_key_loose($needle);
+        $key_loose = ftc_route_compact_key_loose($key);
+        if($needle_loose !== '' && $needle_loose === $key_loose) return 96;
+    }
     if(strlen($needle) >= 4 && strpos($key, $needle) !== false) return 82;
     $short_allowed = ['ai','api','ux','ui','seo','aeo','cro','ga4'];
     if(in_array($needle, $short_allowed, true) && preg_match('/(^|\s)'.preg_quote($needle,'/').'s?(\s|$)/', $key)) return 78;
@@ -111,6 +116,7 @@ function ftc_service_child_match_score($needle, $key){
 }
 
 function ftc_find_service_child_match($term){
+    $term = ftc_resolve_service_task_prompt($term);
     $needle = ftc_normalize_prompt_text($term);
     if($needle === '') return null;
     $preferred_slug = ftc_service_slug_for_prompt($term);
@@ -259,7 +265,9 @@ function ftc_render_cpt_response_shell($response, $settings=[]){
 }
 
 function ftc_pick_response($term){
-    $q = strtolower(trim((string)$term));
+    if(ftc_is_go_time_prompt($term)) return null;
+    $q = ftc_normalize_prompt_text($term);
+    if($q === '') return null;
     $responses = ftc_get_responses();
     $map = [
         'about field theory'=>'about','about us'=>'about','about'=>'about','who are you'=>'about','team'=>'about','employees'=>'about','people'=>'about','company'=>'about','field theory'=>'about',
@@ -273,9 +281,14 @@ function ftc_pick_response($term){
         'ai'=>'ai','automation'=>'ai','innovation'=>'ai',
         'contact'=>'contact','contact us'=>'contact','hire'=>'contact','hire our team'=>'contact','work together'=>'contact','call'=>'contact',
         'request proposal'=>'contact','request a proposal'=>'contact','proposal'=>'contact','schedule consultation'=>'contact','schedule a consultation'=>'contact','consultation'=>'contact','let us talk'=>'contact',"let's talk"=>'contact','lets talk'=>'contact','get started with a project'=>'contact',
-        'get started'=>'get_started','start'=>'get_started','home'=>'get_started'
+        'get started'=>'get_started','start'=>'get_started','home'=>'get_started','overview'=>'get_started'
     ];
-    foreach($map as $needle=>$key){ if(strpos($q,$needle)!==false && isset($responses[$key])) return $responses[$key]; }
+    foreach($map as $needle=>$key){
+        if($q === $needle || ($needle !== 'start' && strpos($q, $needle) !== false)){
+            if(isset($responses[$key])) return $responses[$key];
+        }
+    }
+    if($q === 'start' && isset($responses['get_started'])) return $responses['get_started'];
     return $responses['get_started'] ?? reset($responses);
 }
 
@@ -321,80 +334,381 @@ function ftc_find_faq_answer_by_search($term){
     return null;
 }
 
+function ftc_response_library_entries(){
+    return [
+        [
+            'id'=>'cluster-a-abq-nm-authority',
+            'title'=>'Albuquerque and New Mexico coverage',
+            'category'=>'local-authority',
+            'cluster'=>'A',
+            'question'=>'Are you based in Albuquerque and do you serve all of New Mexico?',
+            'prompt_variants'=>['Are you based in Albuquerque','Do you work statewide in New Mexico','Do you work in Santa Fe','Do you work in Las Cruces'],
+            'answer'=>'Yes. Field Theory Lab is based in Albuquerque and supports organizations across New Mexico, including Santa Fe, Las Cruces, Rio Rancho, Farmington, Roswell, Clovis, Los Alamos, and nearby communities.',
+            'short_answer'=>'Albuquerque based, statewide service across New Mexico.',
+            'keywords'=>['albuquerque web agency','new mexico digital agency','santa fe website help','las cruces marketing support','nm statewide service'],
+            'intent'=>'location_authority',
+            'services'=>['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization'],
+            'industries'=>['Public Sector','Healthcare','Education','Nonprofit','Utilities'],
+            'locations'=>['Albuquerque','Santa Fe','Las Cruces','Rio Rancho','Farmington','Roswell','Los Alamos','Statewide New Mexico'],
+            'technologies'=>['WordPress','Drupal','GA4','Google Search Console'],
+            'follow_up_prompts'=>['Where in New Mexico do you work?','Industries We Support','Request a Proposal'],
+            'suggested_next_actions'=>['Share your city and goals','Request a proposal scope call'],
+            'related_entries'=>['cluster-j-location-service-clusters','cluster-i-industries'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'Albuquerque web and marketing team for New Mexico',
+            'seo_description'=>'Field Theory Lab is Albuquerque based and supports website, SEO, analytics, AI, and marketing projects across New Mexico.'
+        ],
+        [
+            'id'=>'cluster-b-website-core-tech',
+            'title'=>'Website development and core technology',
+            'category'=>'services',
+            'cluster'=>'B',
+            'question'=>'I need a website',
+            'prompt_variants'=>['I need a website','Can you build a website','Can you improve our current site','Website Development & Core Tech'],
+            'answer'=>'We can help whether you need a new build or a practical upgrade. Our website work covers strategy, UX, WordPress, Drupal, performance, accessibility, content structure, and integrations so your site supports real business goals.',
+            'short_answer'=>'New websites and practical website upgrades built for performance and growth.',
+            'keywords'=>['website development','wordpress development','drupal development','core web vitals','website redesign'],
+            'intent'=>'website_service',
+            'services'=>['Website Development & Core Tech'],
+            'industries'=>['Healthcare','Education','Government','B2B','Nonprofit'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['WordPress','Drupal','PHP','React','Node.js'],
+            'follow_up_prompts'=>['How long does a website take?','What budget should I plan for?','Request a Proposal'],
+            'suggested_next_actions'=>['Send your current site URL','Share top conversion goals'],
+            'related_entries'=>['cluster-k-pricing-process-proposal'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'Website development in Albuquerque and New Mexico',
+            'seo_description'=>'Field Theory Lab plans, builds, and improves websites in Albuquerque and across New Mexico.'
+        ],
+        [
+            'id'=>'cluster-c-ecommerce-cro',
+            'title'=>'Ecommerce and conversion optimization',
+            'category'=>'services',
+            'cluster'=>'C',
+            'question'=>'How can you improve ecommerce conversion?',
+            'prompt_variants'=>['Can you help with ecommerce','Ecommerce & Conversion','My ecommerce conversion is low'],
+            'answer'=>'We improve product pages, navigation, cart flow, checkout, and tracking so more visitors become buyers. We focus on practical changes, measurement, and test plans that improve revenue without guessing.',
+            'short_answer'=>'We improve ecommerce journeys and checkout conversion with analytics-backed fixes.',
+            'keywords'=>['ecommerce cro','shopify optimization','woocommerce conversion','checkout friction','average order value'],
+            'intent'=>'ecommerce_cro',
+            'services'=>['Ecommerce & Conversion Rate Optimization (CRO)'],
+            'industries'=>['Retail','Consumer Brand','B2B Ecommerce'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['Shopify','WooCommerce','GA4','Microsoft Clarity'],
+            'follow_up_prompts'=>['How do you measure marketing?','What budget should I plan for?','Request a Proposal'],
+            'suggested_next_actions'=>['Share platform and conversion rate baseline','Identify your top drop-off page'],
+            'related_entries'=>['cluster-e-data-analytics-viz','cluster-k-pricing-process-proposal'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'Ecommerce CRO services in New Mexico',
+            'seo_description'=>'Field Theory Lab helps ecommerce teams in Albuquerque and New Mexico improve conversion rates and checkout performance.'
+        ],
+        [
+            'id'=>'cluster-d-seo-aeo-geo',
+            'title'=>'SEO, AEO, GEO, and local search',
+            'category'=>'search',
+            'cluster'=>'D',
+            'question'=>'Can you help with AI search and local search?',
+            'prompt_variants'=>['Can you help with AI search','SEO / AEO','Search & Discovery Optimization','Can you help with local SEO'],
+            'answer'=>'Yes. We combine technical SEO, content architecture, schema, local search optimization, and answer-engine strategy so people can find you in Google, map results, and AI-assisted search tools.',
+            'short_answer'=>'We handle SEO, AEO, GEO, and local NM search visibility.',
+            'keywords'=>['seo','aeo','geo','ai search','local search','google business profile','search console'],
+            'intent'=>'search_visibility',
+            'services'=>['Search & Discovery Optimization'],
+            'industries'=>['Professional Services','Healthcare','Education','Government'],
+            'locations'=>['Albuquerque','Santa Fe','Las Cruces','New Mexico'],
+            'technologies'=>['Google Search Console','Schema.org','GA4','Google Business Profile'],
+            'follow_up_prompts'=>['Do you work in Santa Fe','How do you measure marketing?','Request a Proposal'],
+            'suggested_next_actions'=>['Share priority services and target cities','Run technical and content baseline audit'],
+            'related_entries'=>['cluster-a-abq-nm-authority','cluster-e-data-analytics-viz'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'SEO and AI search support in New Mexico',
+            'seo_description'=>'Albuquerque based SEO, AEO, GEO, and local search support for organizations across New Mexico.'
+        ],
+        [
+            'id'=>'cluster-e-data-analytics-viz',
+            'title'=>'Data, analytics, and visualization',
+            'category'=>'analytics',
+            'cluster'=>'E',
+            'question'=>'Help me understand my website and marketing data',
+            'prompt_variants'=>['Help me understand my website and marketing data','Analytics & Dashboards','How do you measure marketing'],
+            'answer'=>'We clean up tracking, define practical KPIs, and build dashboards your team can use for decisions. This usually includes GA4, tag management, funnel analysis, and reporting connected to pipeline or revenue goals.',
+            'short_answer'=>'We make tracking and dashboards decision-ready.',
+            'keywords'=>['ga4 setup','dashboard reporting','kpi framework','tag manager','looker studio'],
+            'intent'=>'analytics_measurement',
+            'services'=>['Data, Analysis & Visualization'],
+            'industries'=>['Healthcare','Education','Public Sector','Ecommerce'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['GA4','Google Tag Manager','Looker Studio','BigQuery','Tableau','Microsoft Clarity'],
+            'follow_up_prompts'=>['My website is not generating leads','Digital Marketing & Growth Strategy','Request a Proposal'],
+            'suggested_next_actions'=>['Share current analytics access','List the top business decisions you need weekly'],
+            'related_entries'=>['cluster-f-digital-marketing-growth','cluster-k-pricing-process-proposal'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'Analytics and dashboard support Albuquerque NM',
+            'seo_description'=>'Field Theory Lab builds measurement systems and dashboards that connect marketing activity to real outcomes.'
+        ],
+        [
+            'id'=>'cluster-f-digital-marketing-growth',
+            'title'=>'Digital marketing and growth strategy',
+            'category'=>'marketing',
+            'cluster'=>'F',
+            'question'=>'My website is not generating leads',
+            'prompt_variants'=>['My website is not generating leads','Digital Marketing & Growth Strategy','Can you help with lead generation'],
+            'answer'=>'We diagnose where lead flow breaks across messaging, traffic quality, landing pages, forms, trust signals, and follow-up systems. Then we prioritize a focused plan so your website and marketing improvements work together instead of in isolation.',
+            'short_answer'=>'We fix lead generation by aligning traffic, messaging, UX, and conversion flow.',
+            'keywords'=>['lead generation','digital marketing strategy','campaign optimization','funnel optimization','conversion strategy'],
+            'intent'=>'marketing_growth',
+            'services'=>['Digital Marketing & Growth Strategy','Search & Discovery Optimization'],
+            'industries'=>['B2B','Healthcare','Education','Professional Services'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['Google Ads','Meta Ads','HubSpot','Salesforce','GA4'],
+            'follow_up_prompts'=>['How do you measure marketing?','Can you improve our current site?','Request a Proposal'],
+            'suggested_next_actions'=>['Share monthly traffic and lead baseline','Identify your highest-value lead action'],
+            'related_entries'=>['cluster-e-data-analytics-viz','cluster-l-comparison-decision'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'Lead generation strategy Albuquerque New Mexico',
+            'seo_description'=>'Practical digital marketing and conversion strategy from an Albuquerque based team serving New Mexico.'
+        ],
+        [
+            'id'=>'cluster-g-ai-automation-creative-tech',
+            'title'=>'AI, automation, and creative technology',
+            'category'=>'ai',
+            'cluster'=>'G',
+            'question'=>'Can you help with AI and automation?',
+            'prompt_variants'=>['Can you help with AI and automation','AI & Automation','Technology, Innovation and A.I.'],
+            'answer'=>'Yes. We build practical AI and automation workflows such as internal assistants, content operations support, and process automation tied to clear business outcomes. We focus on systems your team can use and maintain.',
+            'short_answer'=>'Practical AI and automation tied to real operations.',
+            'keywords'=>['ai automation','workflow automation','internal ai assistant','creative technology','ai implementation'],
+            'intent'=>'ai_automation',
+            'services'=>['Technology, Innovation and A.I.'],
+            'industries'=>['Healthcare','Education','Public Sector','B2B'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['OpenAI','Anthropic','Google Gemini','APIs','RAG'],
+            'follow_up_prompts'=>['Can you help with AI search','How do you measure marketing?','Request a Proposal'],
+            'suggested_next_actions'=>['Define the exact workflow to improve','Identify data sources and owners'],
+            'related_entries'=>['cluster-d-seo-aeo-geo','cluster-k-pricing-process-proposal'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'AI automation services in Albuquerque NM',
+            'seo_description'=>'Field Theory Lab designs practical AI and automation systems for teams across New Mexico.'
+        ],
+        [
+            'id'=>'cluster-h-accessibility-ada',
+            'title'=>'Accessibility and ADA support',
+            'category'=>'accessibility',
+            'cluster'=>'H',
+            'question'=>'Can you help with accessibility and ADA?',
+            'prompt_variants'=>['Can you help with accessibility','ADA Accessibility','Do you handle WCAG'],
+            'answer'=>'Yes. We can audit and remediate accessibility issues in practical phases, then help your team maintain accessible design, content, and development patterns over time.',
+            'short_answer'=>'Accessibility audits, remediation, and ongoing ADA support.',
+            'keywords'=>['ada compliance','wcag audit','website accessibility remediation','accessible content workflows'],
+            'intent'=>'accessibility_support',
+            'services'=>['Website Development & Core Tech'],
+            'industries'=>['Government','Education','Healthcare','Nonprofit'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['WCAG 2.2','Accessibility testing','WordPress','Drupal'],
+            'follow_up_prompts'=>['Can you improve our current site?','What budget should I plan for?','Request a Proposal'],
+            'suggested_next_actions'=>['Run accessibility baseline scan','Prioritize high-impact issues by user risk'],
+            'related_entries'=>['cluster-b-website-core-tech','cluster-k-pricing-process-proposal'],
+            'schema_type'=>'service_response',
+            'seo_title'=>'ADA and website accessibility support New Mexico',
+            'seo_description'=>'Field Theory Lab helps Albuquerque and New Mexico organizations improve ADA and WCAG website accessibility.'
+        ],
+        [
+            'id'=>'cluster-i-industries',
+            'title'=>'Industries we support',
+            'category'=>'industries',
+            'cluster'=>'I',
+            'question'=>'What industries does Field Theory support?',
+            'prompt_variants'=>['Industries We Support','Do you work with nonprofits','Do you work with government'],
+            'answer'=>'We regularly support healthcare, education, public sector and tribal programs, nonprofits, utilities, ecommerce, and B2B service organizations. If your team needs clearer digital performance, we can usually help.',
+            'short_answer'=>'Healthcare, education, public sector, nonprofits, utilities, ecommerce, and B2B.',
+            'keywords'=>['industries','healthcare marketing','government website','nonprofit digital strategy','education web'],
+            'intent'=>'industry_fit',
+            'services'=>['Website Development & Core Tech','Digital Marketing & Growth Strategy','Data, Analysis & Visualization'],
+            'industries'=>['Healthcare','Education','Government','Nonprofit','Utilities','Ecommerce','B2B'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['WordPress','Drupal','GA4'],
+            'follow_up_prompts'=>['Albuquerque and New Mexico coverage','Show me your work!','Request a Proposal'],
+            'suggested_next_actions'=>['Share your organization type and constraints','Review portfolio examples by industry'],
+            'related_entries'=>['cluster-a-abq-nm-authority','cluster-j-location-service-clusters'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'Industry experience across New Mexico organizations',
+            'seo_description'=>'Field Theory Lab supports healthcare, education, government, nonprofits, utilities, ecommerce, and B2B teams.'
+        ],
+        [
+            'id'=>'cluster-j-location-service-clusters',
+            'title'=>'Location service clusters',
+            'category'=>'locations',
+            'cluster'=>'J',
+            'question'=>'What New Mexico areas do you serve and for what services?',
+            'prompt_variants'=>['Where in New Mexico do you work?','Location Service Clusters','Do you work in Santa Fe','Do you work in Las Cruces'],
+            'answer'=>'Albuquerque and Rio Rancho teams often ask for website modernization and analytics cleanup. Santa Fe organizations usually ask for SEO, content, and local visibility strategy. Las Cruces and southern New Mexico teams often focus on ecommerce, lead generation, and practical automation. We support all of these statewide.',
+            'short_answer'=>'Service priorities vary by city, and we support statewide.',
+            'keywords'=>['new mexico cities','santa fe seo','las cruces ecommerce','albuquerque web development'],
+            'intent'=>'location_services',
+            'services'=>['Website Development & Core Tech','Search & Discovery Optimization','Ecommerce & Conversion Rate Optimization (CRO)','Technology, Innovation and A.I.'],
+            'industries'=>['Public Sector','Healthcare','Education','Retail','B2B'],
+            'locations'=>['Albuquerque','Rio Rancho','Santa Fe','Las Cruces','Farmington','Roswell','Statewide New Mexico'],
+            'technologies'=>['WordPress','Drupal','GA4','Shopify'],
+            'follow_up_prompts'=>['Are you based in Albuquerque','I need a website','Request a Proposal'],
+            'suggested_next_actions'=>['Tell us your city and service priority','Request a scoped recommendation'],
+            'related_entries'=>['cluster-a-abq-nm-authority','cluster-b-website-core-tech'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'New Mexico website and marketing service areas',
+            'seo_description'=>'Albuquerque based Field Theory Lab supports Santa Fe, Las Cruces, Rio Rancho, and all New Mexico regions.'
+        ],
+        [
+            'id'=>'cluster-k-pricing-process-proposal',
+            'title'=>'Pricing, process, and proposal',
+            'category'=>'process',
+            'cluster'=>'K',
+            'question'=>'What budget should I plan for and what happens next?',
+            'prompt_variants'=>['What budget should I plan for?','What happens after I request a proposal?','How long does a website take?'],
+            'answer'=>'Most focused projects start in the lower five figures, while larger website, ecommerce, and integration programs require broader scope and timeline. After a proposal request, we review goals, current performance, constraints, and budget range, then recommend a clear next step.',
+            'short_answer'=>'Scoped pricing with a clear discovery-to-proposal process.',
+            'keywords'=>['pricing','budget','proposal process','timeline','project scope'],
+            'intent'=>'pricing_process',
+            'services'=>['All Services'],
+            'industries'=>['All'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['Discovery workshops','Analytics audits'],
+            'follow_up_prompts'=>['Request a Proposal','I need a website','My website is not generating leads'],
+            'suggested_next_actions'=>['Submit proposal form with goals and timeline','Schedule discovery call'],
+            'related_entries'=>['cluster-b-website-core-tech','cluster-f-digital-marketing-growth'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'Website project pricing and proposal process',
+            'seo_description'=>'Learn Field Theory Lab pricing ranges, project timeline expectations, and proposal process.'
+        ],
+        [
+            'id'=>'cluster-l-comparison-decision',
+            'title'=>'Comparison and decision support',
+            'category'=>'decision',
+            'cluster'=>'L',
+            'question'=>'Should we rebuild, optimize, or phase work over time?',
+            'prompt_variants'=>['Should we rebuild or optimize','Can you improve our current site','How can I decide what to do first'],
+            'answer'=>'We usually start with a practical diagnostic to compare three paths: focused fixes, phased modernization, or full rebuild. The right choice depends on current platform health, content complexity, integrations, and how fast results are needed.',
+            'short_answer'=>'We compare rebuild vs optimization and recommend the best path.',
+            'keywords'=>['rebuild vs redesign','website audit','phased roadmap','decision support'],
+            'intent'=>'decision_support',
+            'services'=>['Website Development & Core Tech','Data, Analysis & Visualization'],
+            'industries'=>['Healthcare','Education','Government','B2B'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['Technical audit','Content audit','Analytics baseline'],
+            'follow_up_prompts'=>['Can you improve our current site?','Request a Proposal','Show me your work!'],
+            'suggested_next_actions'=>['Share CMS and hosting details','Prioritize goals by quarter'],
+            'related_entries'=>['cluster-k-pricing-process-proposal','cluster-b-website-core-tech'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'Website decision framework rebuild or optimize',
+            'seo_description'=>'A practical framework for deciding whether to optimize your current site or rebuild.'
+        ],
+        [
+            'id'=>'cluster-m-natural-mobile-prompts',
+            'title'=>'Natural language mobile prompts',
+            'category'=>'mobile-prompts',
+            'cluster'=>'M',
+            'question'=>'Natural prompt coverage',
+            'prompt_variants'=>['I need a website','Do you work in Santa Fe','Can you help with AI search','My website is not generating leads'],
+            'answer'=>'Yes. Those mobile-style prompts map directly to website, local New Mexico service coverage, AI search optimization, and lead generation support so people can ask naturally and still get focused answers.',
+            'short_answer'=>'Natural mobile prompts are fully supported.',
+            'keywords'=>['mobile prompt','natural language query','quick prompt'],
+            'intent'=>'mobile_prompt_support',
+            'services'=>['Website Development & Core Tech','Search & Discovery Optimization','Digital Marketing & Growth Strategy'],
+            'industries'=>['All'],
+            'locations'=>['Albuquerque','New Mexico'],
+            'technologies'=>['Prompt routing'],
+            'follow_up_prompts'=>['I need a website','Do you work in Santa Fe','Can you help with AI search','My website is not generating leads'],
+            'suggested_next_actions'=>['Try any natural question in plain language'],
+            'related_entries'=>['cluster-a-abq-nm-authority','cluster-f-digital-marketing-growth'],
+            'schema_type'=>'faq_response',
+            'seo_title'=>'Natural language prompts for Field Theory concierge',
+            'seo_description'=>'Ask website, SEO, AI search, and local New Mexico service questions in natural language.'
+        ],
+    ];
+}
+
+function ftc_response_library_score($term, $entry){
+    $score = 0;
+    $term = trim((string)$term);
+    if($term === '') return 0;
+    $signals = array_merge(
+        [$entry['question'] ?? '', $entry['title'] ?? ''],
+        (array)($entry['prompt_variants'] ?? []),
+        (array)($entry['keywords'] ?? [])
+    );
+    foreach($signals as $signal){
+        $needle = ftc_normalize_prompt_text($signal);
+        if($needle === '') continue;
+        if($term === $needle) $score += 100;
+        elseif(strpos($term, $needle) !== false) $score += 70;
+        elseif(strlen($term) >= 5 && strpos($needle, $term) !== false) $score += 30;
+    }
+    return $score;
+}
+
+function ftc_find_response_library_entry($term){
+    $normalized = ftc_normalize_prompt_text($term);
+    if($normalized === '') return null;
+    $best = null;
+    $best_score = 0;
+    foreach(ftc_response_library_entries() as $entry){
+        $score = ftc_response_library_score($normalized, $entry);
+        if($score > $best_score){
+            $best = $entry;
+            $best_score = $score;
+        }
+    }
+    return $best_score >= 70 ? $best : null;
+}
+
+function ftc_response_library_to_shell($entry){
+    if(!$entry) return null;
+    $answer = trim((string)($entry['answer'] ?? ''));
+    $short = trim((string)($entry['short_answer'] ?? ''));
+    $location_line = '';
+    if(!empty($entry['locations']) && is_array($entry['locations'])){
+        $location_line = '<p><strong>New Mexico coverage:</strong> '.esc_html(implode(', ', array_slice($entry['locations'], 0, 5))).'.</p>';
+    }
+    $html = '';
+    if($answer !== '') $html .= '<p>'.esc_html($answer).'</p>';
+    if($location_line) $html .= $location_line;
+    return [
+        'title'=>$entry['question'] ?? ($entry['title'] ?? 'Field Theory Response'),
+        'description'=>$short !== '' ? $short : wp_trim_words(wp_strip_all_tags($answer), 20),
+        'html'=>$html,
+        'layout'=>'none',
+        'followups'=>array_values(array_unique(array_filter((array)($entry['follow_up_prompts'] ?? [])))),
+    ];
+}
+
 function ftc_direct_faq_response($term){
     $t = ftc_normalize_prompt_text($term);
     if($t === '') return null;
+
+    $library_entry = ftc_find_response_library_entry($term);
+    if($library_entry){
+        return ftc_response_library_to_shell($library_entry);
+    }
 
     $answers = [
         [
             'match'=>'/(how long|timeline|schedule|timeframe).*(website|site|project)|^(how long does a website take)$/',
             'title'=>'How long does a website take?',
             'description'=>'Most Field Theory website work falls into a few practical timeline ranges.',
-            'html'=>'<p>Small website improvements or focused landing pages can often move in 2 to 6 weeks. A new marketing website usually lands closer to 8 to 14 weeks. Larger ecommerce, Drupal, content migration, accessibility, analytics, or integration-heavy projects can take 12 to 24 weeks or more.</p><p>The real answer depends on scope, content readiness, approvals, integrations, and how much strategy needs to happen before build. Field Theory usually starts by clarifying the goal, mapping the sections and systems, then giving you a practical timeline instead of a vague launch promise.</p>',
+            'html'=>'<p>Small website improvements or focused landing pages can often move in 2 to 6 weeks. A new marketing website usually lands closer to 8 to 14 weeks. Larger ecommerce, Drupal, content migration, accessibility, analytics, or integration-heavy projects can take 12 to 24 weeks or more.</p><p>The real answer depends on scope, content readiness, approvals, integrations, and how much strategy needs to happen before build. Field Theory starts by clarifying goals, mapping content and systems, and giving you a practical timeline.</p>',
             'followups'=>['Request a Proposal','Website Development & Core Tech','What budget should I plan for?'],
         ],
         [
             'match'=>'/(budget|cost|price|pricing|how much|spend|investment)/',
             'title'=>'What budget should I plan for?',
             'description'=>'A useful budget depends on whether you need a focused fix, a rebuild, or an ongoing growth partner.',
-            'html'=>'<p>For a focused website, analytics, SEO, or conversion improvement, many projects start in the lower five figures. Full website redesigns, ecommerce builds, custom integrations, accessibility remediation, or larger digital systems usually require a more substantial project budget. Ongoing support, reporting, SEO, marketing, and optimization can be scoped as a monthly partnership.</p><p>Field Theory is usually most helpful when we can see the current site, understand the business goal, and recommend a scope that matches the impact you want. The proposal quiz is the fastest way to get that conversation pointed in the right direction.</p>',
+            'html'=>'<p>For focused website, analytics, SEO, or conversion improvements, many projects start in the lower five figures. Full redesigns, ecommerce builds, integrations, accessibility remediation, or larger systems require broader scope and budget. Ongoing support can be scoped as a monthly partnership.</p><p>Field Theory Lab is based in Albuquerque and supports teams statewide across New Mexico.</p>',
             'followups'=>['Request a Proposal','Our Services','How long does a website take?'],
         ],
         [
             'match'=>'/(measure|measurement|reporting|analytics|dashboard|kpi|roi|marketing working)/',
             'title'=>'How does Field Theory measure marketing?',
             'description'=>'We connect marketing activity to clearer signals, not just more reports.',
-            'html'=>'<p>Field Theory can help define the right KPIs, clean up GA4 and tag management, connect campaign and conversion events, build dashboards, and turn reporting into a decision tool. The goal is to show what is working, what is not, and what should change next.</p><p>For many teams, that means fewer vanity metrics and better visibility into leads, sales, form quality, search visibility, content performance, ecommerce behavior, and the customer journey.</p>',
+            'html'=>'<p>Field Theory can define practical KPIs, clean up GA4 and tag management, connect campaigns to conversion events, and build dashboards for decisions. The goal is to show what is working, what is not, and what should change next.</p>',
             'followups'=>['Data, Analysis & Visualization','Digital Marketing & Growth Strategy','Request a Proposal'],
-        ],
-        [
-            'match'=>'/(proposal|request|work together|next step|start a project|hire)/',
-            'title'=>'What happens after I request a proposal?',
-            'description'=>'Field Theory uses the request to understand fit, scope, and the most useful next step.',
-            'html'=>'<p>After you submit the proposal request, Field Theory reviews your services, goals, timeline, budget range, and any notes you share. From there, we can recommend a next step: a discovery call, a scoped audit, a phased plan, or a more detailed proposal.</p><p>The quiz is designed to collect the right context without making you write a giant brief from scratch.</p>',
-            'followups'=>['Request a Proposal','Our Services','Show me your work!'],
-        ],
-        [
-            'match'=>'/(hosting|maintenance|support|updates|care plan|managed)/',
-            'title'=>'Can Field Theory help after launch?',
-            'description'=>'Yes. We can support the ongoing technical, content, analytics, and optimization work.',
-            'html'=>'<p>Field Theory can help with hosting guidance, WordPress and Drupal maintenance, updates, backups, performance checks, accessibility improvements, analytics, SEO/AEO, content support, reporting, and continuous improvement after launch.</p><p>Some teams need a launch partner. Others need an ongoing digital team. We can shape the support model around what your organization can manage internally and where you need help.</p>',
-            'followups'=>['Website Development & Core Tech','Request a Proposal','Can you improve our current site?'],
-        ],
-        [
-            'match'=>'/(accessibility|ada|wcag|compliance)/',
-            'title'=>'Can Field Theory help with accessibility?',
-            'description'=>'Yes. We can review, repair, and improve website accessibility in practical phases.',
-            'html'=>'<p>Field Theory can help evaluate accessibility issues, improve content structure, forms, navigation, contrast, templates, components, and PDF or document workflows where needed. We can also help teams understand what should be fixed first and how to keep accessibility from becoming a one-time scramble.</p>',
-            'followups'=>['Website Development & Core Tech','Request a Proposal','Can you improve our current site?'],
-        ],
-        [
-            'match'=>'/(improve|fix|audit|current site|existing site|redesign|better website)/',
-            'title'=>'Can Field Theory improve our current site?',
-            'description'=>'Yes. We can help diagnose what is not working and improve it without forcing a full rebuild when that is not needed.',
-            'html'=>'<p>Field Theory can audit the current experience, clarify messaging, improve UX, strengthen search visibility, clean up analytics, improve performance, address accessibility, modernize templates, and plan phased improvements around your goals.</p><p>Sometimes the right answer is a rebuild. Sometimes it is a smarter sequence of repairs. We help figure that out before jumping into production.</p>',
-            'followups'=>['Website Development & Core Tech','Request a Proposal','Show me your work!'],
-        ],
-        [
-            'match'=>'/(seo|aeo|ai search|search visibility|google|rank|ranking|answer engine)/',
-            'title'=>'How does Field Theory help with SEO and AI search?',
-            'description'=>'We work on the structure, content, and technical signals that help people and answer tools understand you.',
-            'html'=>'<p>Field Theory can help with technical SEO, content architecture, structured data, local search, Search Console review, AI search visibility, answer engine optimization, FAQ structure, and clearer pages that explain what your organization provides.</p><p>The point is not generic SEO busywork. It is making your expertise easier to find, trust, cite, and act on.</p>',
-            'followups'=>['Search & Discovery Optimization','Digital Marketing & Growth Strategy','Request a Proposal'],
-        ],
-        [
-            'match'=>'/(ai|automation|assistant|workflow|internal knowledge|chatbot)/',
-            'title'=>'Can Field Theory help with AI and automation?',
-            'description'=>'Yes. We focus on practical AI systems that support real workflows.',
-            'html'=>'<p>Field Theory can help with internal AI assistants, workflow automation, knowledge tools, reporting support, lead support flows, prototypes, and AI adoption planning. We try to keep AI useful, specific, and connected to the work your team actually does.</p>',
-            'followups'=>['Technology, Innovation and A.I.','Data, Analysis & Visualization','Request a Proposal'],
-        ],
-        [
-            'match'=>'/(ecommerce|conversion|cro|checkout|shopify|woocommerce|online store)/',
-            'title'=>'How does Field Theory help ecommerce convert better?',
-            'description'=>'We look at product journeys, checkout friction, analytics, and the decisions that affect revenue.',
-            'html'=>'<p>Field Theory can help with ecommerce strategy, Shopify, WooCommerce, product pages, checkout optimization, subscriptions, conversion funnels, testing plans, analytics events, customer retention, and revenue-focused customer experience.</p>',
-            'followups'=>['Ecommerce & Conversion Rate Optimization (CRO)','Request a Proposal','How do you measure marketing?'],
         ],
     ];
 
@@ -414,7 +728,7 @@ function ftc_direct_faq_response($term){
 }
 
 function ftc_help_prompt_items(){
-    return [
+    $base = [
         'Get Started',
         'Our Services',
         'Show me your work!',
@@ -424,18 +738,23 @@ function ftc_help_prompt_items(){
         'Data, Analysis & Visualization',
         'Technology, Innovation and A.I.',
         'Ecommerce & Conversion',
+        'SEO / AEO',
+        'AI & Automation',
+        'ADA Accessibility',
+        'Industries We Support',
+        'Where in New Mexico do you work?',
+        'I need a website',
+        'Do you work in Santa Fe',
+        'Can you help with AI search',
+        'My website is not generating leads',
         'Can you improve our current site?',
         'How long does a website take?',
         'What budget should I plan for?',
         'How do you measure marketing?',
-        'Can you help with SEO and AI search?',
-        'Can you help with ecommerce?',
-        'Can you help with hosting and maintenance?',
-        'Can you help with accessibility?',
-        'Can you help with AI and automation?',
         'What happens after I request a proposal?',
         'Request a Proposal',
     ];
+    return array_values(array_unique($base));
 }
 
 function ftc_render_helpful_prompt_response($settings=[]){
@@ -448,13 +767,133 @@ function ftc_render_helpful_prompt_response($settings=[]){
     echo '</div></section></div>';
 }
 
+function ftc_is_go_time_prompt($term){
+    $t = ftc_normalize_prompt_text($term);
+    if($t === '') return false;
+    return (bool) preg_match('/^(?:it s |its )?go(?:\s|-)?time$/', $t);
+}
+
+function ftc_is_get_started_prompt($term){
+    if(ftc_is_go_time_prompt($term)) return false;
+    $t = ftc_normalize_prompt_text($term);
+    return $t !== '' && in_array($t, ['get started','start','home','overview'], true);
+}
+
+function ftc_go_time_spline_url(){
+    return FTC_URL . 'assets/spline/go-time.splinecode';
+}
+
+function ftc_go_time_spline_ajax_url(){
+    return admin_url('admin-ajax.php?action=ftc_go_time_spline');
+}
+
+function ftc_go_time_spline_direct_url(){
+    return FTC_URL . 'assets/spline/go-time.php';
+}
+
+function ftc_serve_go_time_spline(){
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    $path = FTC_PATH . 'assets/spline/go-time.splinecode';
+    if (!is_readable($path)) {
+        status_header(404);
+        exit('Scene not found');
+    }
+    nocache_headers();
+    header('Content-Type: application/octet-stream');
+    header('Content-Length: ' . (string) filesize($path));
+    header('Cache-Control: public, max-age=86400');
+    readfile($path);
+    exit;
+}
+add_action('wp_ajax_nopriv_ftc_go_time_spline', 'ftc_serve_go_time_spline');
+add_action('wp_ajax_ftc_go_time_spline', 'ftc_serve_go_time_spline');
+
+function ftc_go_time_spline_community_preview(){
+    return 'https://app.spline.design/file/240a5bb3-0f6f-4231-b9f7-533d50207489?view=preview';
+}
+
+function ftc_go_time_spline_fallback_urls(){
+    return [
+        ftc_go_time_spline_direct_url(),
+        ftc_go_time_spline_ajax_url(),
+    ];
+}
+
+function ftc_render_go_time_response($settings){
+    $chapters = [
+        [
+            'id' => 'websites',
+            'headline' => 'Websites built to perform.',
+            'copy' => 'Fast, accessible, conversion-ready experiences across every screen — engineered for speed, clarity, and growth.',
+            'accent' => '#10b981',
+        ],
+        [
+            'id' => 'data',
+            'headline' => 'Turn metrics into decisions.',
+            'copy' => 'Dashboards, attribution, and reporting that connect the dots — so your team sees what is working and what to do next.',
+            'accent' => '#8b5cf6',
+        ],
+    ];
+
+    echo '<div class="ftc-response-shell ftc-response-layout-go-time ftc-response-go-time" data-ftc-response-prompt="Go Time" data-response-title="Go Time">';
+    echo '<section class="ftc-response-content">';
+    echo '<div class="ftc-go-time-spline ftc-go-time-spline--boot is-loading" data-ftc-go-time-spline>';
+    echo '<div class="ftc-go-time-spline-viewport" aria-hidden="true">';
+    echo '<canvas class="ftc-go-time-spline-canvas"></canvas>';
+    echo '<iframe class="ftc-go-time-spline-iframe" title="Go Time studio scene" tabindex="-1" loading="eager" allow="fullscreen; autoplay; xr-spatial-tracking"></iframe>';
+    echo '</div>';
+    echo '<div class="ftc-go-time-spline-atmosphere ftc-go-time-atmosphere" aria-hidden="true"></div>';
+    echo '<div class="ftc-go-time-spline-copy">';
+    foreach($chapters as $i => $chapter){
+        $hidden = $i === 0 ? 'false' : 'true';
+        echo '<article class="ftc-go-time-spline-panel'.($i === 0 ? ' is-active' : '').'" data-station="'.(int) $i.'" data-accent="'.esc_attr($chapter['accent']).'" data-card-id="'.esc_attr($chapter['id']).'" aria-hidden="'.$hidden.'">';
+        echo '<h2 class="ftc-go-time-headline">'.esc_html($chapter['headline']).'</h2>';
+        echo '<p class="ftc-go-time-body">'.esc_html($chapter['copy']).'</p>';
+        echo '</article>';
+    }
+    echo '</div>';
+    echo '<div class="ftc-go-time-spline-scroll" aria-hidden="true" style="height:320vh"></div>';
+    echo '<section class="ftc-go-time-spline-closing ftc-go-time-closing">';
+    echo '<div class="ftc-go-time-closing-inner">';
+    echo '<div class="ftc-go-time-closing-grid">';
+    echo '<aside class="ftc-go-time-closing-aside">';
+    echo '<p class="ftc-go-time-closing-kicker">Ready when you are</p>';
+    echo '<h3 class="ftc-go-time-closing-title">Let&rsquo;s build something that moves the needle.</h3>';
+    $email = $settings['contact_email'] ?: 'jamie@fieldtheory.ai';
+    $phone = trim((string)($settings['contact_phone'] ?? ''));
+    if($phone === '') $phone = '(505) 456-3193';
+    $phone_link = ftc_phone_link_value($phone);
+    echo '<div class="ftc-contact-direct-actions ftc-go-time-closing-actions">';
+    if($phone_link){
+        echo '<a class="ftc-contact-direct ftc-contact-call" href="tel:'.esc_attr($phone_link).'">Call '.esc_html($phone).'</a>';
+        echo '<a class="ftc-contact-direct ftc-contact-text" href="sms:'.esc_attr($phone_link).'">Text '.esc_html($phone).'</a>';
+    }
+    echo '<a class="ftc-contact-direct ftc-contact-email-link" href="mailto:'.esc_attr($email).'">Email '.esc_html($email).'</a>';
+    echo '</div></aside>';
+    echo '<div class="ftc-go-time-closing-form">';
+    ftc_render_contact_panel($settings, ['quiz_only' => true]);
+    echo '</div></div></div>';
+    echo '</section>';
+    echo '</div>';
+    echo '</section>';
+    ftc_close_response_shell([]);
+}
+
 function ftc_ajax_answer(){
     check_ajax_referer('ftc_nonce','nonce');
     $term = sanitize_text_field(wp_unslash($_POST['term'] ?? ''));
+    $term = ftc_resolve_service_task_prompt($term);
     $settings = ftc_get_settings();
-    $normalized_term = ftc_normalize_prompt_text($term);
+    if(ftc_is_go_time_prompt($term)){
+        ob_start();
+        ftc_render_go_time_response($settings);
+        $html = ob_get_clean();
+        wp_send_json_success(['html'=>$html]);
+    }
 
-    if(in_array($normalized_term, ['get started','start','home'], true)){
+    if(ftc_is_get_started_prompt($term)){
         $response = ftc_pick_response('Get Started');
         ob_start();
         ftc_render_get_started_sequence($response,$settings,true);
@@ -508,18 +947,18 @@ function ftc_ajax_answer(){
         wp_send_json_success(['html'=>$html]);
     }
 
-    $exact_service_id = ftc_find_exact_service_by_prompt($term);
-    if($exact_service_id){
+    $child_service = ftc_find_service_child_match($term);
+    if(ftc_is_exact_child_service_prompt($child_service, $term)){
         ob_start();
-        ftc_render_service_detail_response_markup($exact_service_id);
+        ftc_render_child_service_response($child_service, $settings, $term);
         $html = ob_get_clean();
         wp_send_json_success(['html'=>$html]);
     }
 
-    $child_service = ftc_find_service_child_match($term);
-    if(ftc_is_exact_child_service_prompt($child_service, $term)){
+    $exact_service_id = ftc_find_exact_service_by_prompt($term);
+    if($exact_service_id){
         ob_start();
-        ftc_render_child_service_response($child_service, $settings);
+        ftc_render_service_detail_response_markup($exact_service_id);
         $html = ob_get_clean();
         wp_send_json_success(['html'=>$html]);
     }
@@ -539,7 +978,7 @@ function ftc_ajax_answer(){
 
     if($child_service){
         ob_start();
-        ftc_render_child_service_response($child_service, $settings);
+        ftc_render_child_service_response($child_service, $settings, $term);
         $html = ob_get_clean();
         wp_send_json_success(['html'=>$html]);
     }
@@ -591,6 +1030,16 @@ function ftc_ajax_answer(){
         wp_send_json_success(['html'=>$html]);
     }
     $response = ftc_pick_response($term);
+    if(!$response && ftc_is_go_time_prompt($term)){
+        ob_start();
+        ftc_render_go_time_response($settings);
+        $html = ob_get_clean();
+        wp_send_json_success(['html'=>$html]);
+    }
+    if(!$response){
+        $responses = ftc_get_responses();
+        $response = $responses['get_started'] ?? reset($responses);
+    }
     ob_start(); ftc_render_response_shell($response,$settings,$term); $html = ob_get_clean();
     wp_send_json_success(['html'=>$html]);
 }
@@ -621,14 +1070,18 @@ function ftc_ajax_menu(){
     ob_start();
     echo '<div class="ftc-explore-list">';
     foreach([
-        ['Get Started with Field Theory','Get Started'],
+        ['Get Started with Field Theory',null,'/get-started/'],
         ['Tell me about your company','Tell me about your company'],
-        ['What services do you provide','Our Services'],
+        ['What services do you provide',null,'/services/'],
         ['Show me your work','Show me your work!'],
         ['Explore FAQs','FAQ'],
         ['Request a Proposal or Contact Us','Request a Proposal']
     ] as $item){
-        echo '<button type="button" class="ftc-menu-prompt" data-prompt="'.esc_attr($item[1]).'"><span>'.esc_html($item[0]).'</span></button>';
+        if(!empty($item[2])){
+            echo '<button type="button" class="ftc-menu-prompt" data-redirect="'.esc_attr($item[2]).'"><span>'.esc_html($item[0]).'</span></button>';
+        } else {
+            echo '<button type="button" class="ftc-menu-prompt" data-prompt="'.esc_attr($item[1]).'"><span>'.esc_html($item[0]).'</span></button>';
+        }
     }
     echo '</div>';
     wp_send_json_success(['html'=>ob_get_clean()]);
@@ -670,12 +1123,30 @@ function ftc_calculate_lead_score($services, $timeline, $budget){
     ];
 }
 
+function ftc_recaptcha_action(){
+    return 'ftc_submit_inquiry';
+}
+
+function ftc_recaptcha_threshold($settings){
+    return max(0, min(1, (float)($settings['recaptcha_threshold'] ?? 0.5)));
+}
+
+function ftc_recaptcha_score_too_low($score, $settings){
+    return $score < ftc_recaptcha_threshold($settings);
+}
+
 function ftc_verify_recaptcha_token($token, $settings){
     $site_key = trim((string)($settings['recaptcha_site_key'] ?? ''));
     $secret_key = trim((string)($settings['recaptcha_secret_key'] ?? ''));
-    if($site_key === '' || $secret_key === '') return true;
+    if($site_key === '' || $secret_key === ''){
+        return true;
+    }
     if(trim((string)$token) === '') return new WP_Error('ftc_recaptcha_missing', 'Please retry the captcha check.');
 
+    return ftc_verify_recaptcha_siteverify_token($token, $secret_key, $settings);
+}
+
+function ftc_verify_recaptcha_siteverify_token($token, $secret_key, $settings){
     $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
         'timeout' => 8,
         'body' => [
@@ -688,15 +1159,24 @@ function ftc_verify_recaptcha_token($token, $settings){
     if(is_wp_error($response)) return new WP_Error('ftc_recaptcha_unavailable', 'Captcha verification is temporarily unavailable.');
 
     $body = json_decode(wp_remote_retrieve_body($response), true);
-    if(empty($body['success'])) return new WP_Error('ftc_recaptcha_failed', 'Captcha verification failed. Please try again.');
+    if(!is_array($body) || empty($body['success'])){
+        $codes = is_array($body['error-codes'] ?? null) ? $body['error-codes'] : [];
+        if(in_array('timeout-or-duplicate', $codes, true)){
+            return new WP_Error('ftc_recaptcha_failed', 'Captcha expired. Please submit again.');
+        }
+        return new WP_Error('ftc_recaptcha_failed', 'Captcha verification failed. Please try again.');
+    }
 
-    if(!empty($body['action']) && $body['action'] !== 'ftc_submit_inquiry'){
+    $expected_action = ftc_recaptcha_action();
+    if(!empty($body['action']) && $body['action'] !== $expected_action){
         return new WP_Error('ftc_recaptcha_action', 'Captcha verification failed. Please refresh and try again.');
     }
 
-    $score = isset($body['score']) ? (float)$body['score'] : 1;
-    $threshold = isset($settings['recaptcha_threshold']) ? (float)$settings['recaptcha_threshold'] : 0.5;
-    if($score < max(0, min(1, $threshold))){
+    if(!isset($body['score'])){
+        return new WP_Error('ftc_recaptcha_score', 'Captcha verification failed. Please try again.');
+    }
+
+    if(ftc_recaptcha_score_too_low((float)$body['score'], $settings)){
         return new WP_Error('ftc_recaptcha_score', 'Captcha verification failed. Please try again.');
     }
 
@@ -718,18 +1198,12 @@ function ftc_ajax_submit_inquiry(){
     $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
     $phone = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
     $contact_method = sanitize_text_field(wp_unslash($_POST['contact_method'] ?? 'Email'));
-    $recaptcha_token = sanitize_text_field(wp_unslash($_POST['recaptcha_token'] ?? ''));
 
     if($name === '' || !is_email($email)){
         wp_send_json_error(['message'=>'Please provide a valid name and email.'], 400);
     }
 
     $settings = ftc_get_settings();
-    $captcha = ftc_verify_recaptcha_token($recaptcha_token, $settings);
-    if(is_wp_error($captcha)){
-        wp_send_json_error(['message'=>$captcha->get_error_message()], 403);
-    }
-
     $score = ftc_calculate_lead_score($services, $timeline, $budget);
     $title_name = $company ?: $name;
     $lead_id = wp_insert_post([
@@ -796,6 +1270,8 @@ add_action('wp_ajax_nopriv_ftc_submit_inquiry','ftc_ajax_submit_inquiry');
 function ftc_render_editable_html($html){
     $html = (string)$html;
     if ($html === '') return '';
+    // Strip the concierge shortcode itself to prevent a nested full-app render.
+    $html = preg_replace('/\[\/?(?:ft_concierge|field_theory_concierge)[^\]]*\]/i', '', $html);
     // Admin-managed concierge content may include shortcodes such as [elementor-template id="123"].
     return do_shortcode(wp_kses_post($html));
 }
@@ -832,8 +1308,13 @@ function ftc_render_scroll_more_button($label='Scroll for more'){
     echo '<button type="button" class="ftc-scroll-more" data-ftc-scroll-more aria-label="'.esc_attr($label).'"><span aria-hidden="true"></span></button>';
 }
 
+function ftc_render_revert_action_button(){
+    echo '<button type="button" class="ftc-revert-action-btn" data-ftc-revert-action aria-label="Go back"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>';
+}
+
 function ftc_render_response_shell($response,$settings=[],$search_term=''){
     $title=$response['title'] ?? 'Get Started.'; $desc=$response['description'] ?? ''; $layout=$response['layout'] ?? 'none';
+    $is_data_analytics_response = (($response['id'] ?? '') === 'cluster-e-data-analytics-viz');
     if($layout === 'home'){
         ftc_render_get_started_sequence($response,$settings,true);
         return;
@@ -846,11 +1327,26 @@ function ftc_render_response_shell($response,$settings=[],$search_term=''){
         ftc_render_services_sequence($response,$settings);
         return;
     }
-    echo '<div class="ftc-response-shell ftc-response-layout-'.esc_attr($layout).'">';
+    if($layout === 'contact'){
+        echo '<div class="ftc-response-shell ftc-response-layout-contact">';
+        echo '<section class="ftc-response-content ftc-contact-response-content">';
+        ftc_render_contact_panel($settings);
+        echo '</section>';
+        ftc_render_followups($response['followups'] ?? []);
+        echo '</div>';
+        return;
+    }
+    $shell_classes = 'ftc-response-shell ftc-response-layout-'.esc_attr($layout);
+    if($is_data_analytics_response) $shell_classes .= ' ftc-response-has-dashboard-gallery';
+    echo '<div class="'.esc_attr($shell_classes).'">';
     $prompt = $search_term ?: ($response['prompt'] ?? $title);
     ftc_render_response_header_markup($title,$desc,$settings,$prompt);
     if(!empty($response['html'])) echo '<section class="ftc-answer-body ftc-editable-content">'.ftc_render_editable_html($response['html']).'</section>';
     echo '<section class="ftc-response-content">';
+    if($is_data_analytics_response){
+        ftc_render_data_vendor_logos_section();
+        ftc_render_dashboard_design_gallery();
+    }
     switch($layout){
         case 'home': ftc_render_home_panel($settings); break;
         case 'about': ftc_render_about_panel($settings); break;
@@ -867,15 +1363,12 @@ function ftc_render_response_shell($response,$settings=[],$search_term=''){
 }
 
 function ftc_render_get_started_sequence($response,$settings,$defer_fragments=false){
-    $title=$response['title'] ?? 'Get Started.'; $desc=$response['description'] ?? '';
-    ftc_open_response_shell('home',$title,$desc,$settings,'Get Started','ftc-response-sequence ftc-response-sequence-start');
-    if(!empty($response['html'])) echo '<section class="ftc-answer-body ftc-editable-content">'.ftc_render_editable_html($response['html']).'</section>';
-    echo '<section class="ftc-response-content">';
+    echo '<div class="ftc-response-shell ftc-response-layout-home ftc-response-sequence ftc-response-sequence-start ftc-get-started-video-only" data-ftc-response-prompt="Get Started" data-response-title="Get Started.">';
+    echo '<section class="ftc-response-content ftc-get-started-video-content">';
     if($defer_fragments){
         echo '<span hidden data-ftc-deferred-sequence="get-started" data-ftc-deferred-next="1" data-ftc-deferred-total="4" data-ftc-deferred-prompts="'.esc_attr('How can you help my company?|Show me your work!|Testimonials').'"></span>';
     }
     ftc_render_home_intro_panel($settings);
-    ftc_render_scroll_more_button('Scroll to services');
     echo '</section>';
     ftc_close_response_shell([]);
 
@@ -889,7 +1382,7 @@ function ftc_render_get_started_sequence($response,$settings,$defer_fragments=fa
 function ftc_render_get_started_sequence_fragment($index,$settings,$response=[]){
     $index = absint($index);
     if($index === 1){
-    ftc_open_response_shell('services','Our Services','Explore the main ways Field Theory helps organizations improve websites, marketing, analytics, automation, ecommerce, and customer experience.',$settings,'How can you help my company?','ftc-response-sequence ftc-response-sequence-services');
+    ftc_open_response_shell('services','Our Services','Explore the main ways Field Theory helps organizations improve websites, marketing, search visibility, ecommerce, automation, and practical AI.',$settings,'How can you help my company?','ftc-response-sequence ftc-response-sequence-services');
     echo '<section class="ftc-response-content">';
     ftc_render_services_section_one();
     echo '</section>';
@@ -923,7 +1416,12 @@ function ftc_render_portfolio_sequence($response,$settings){
     echo '<section class="ftc-response-content">';
     ftc_render_portfolio_section_one();
     echo '</section>';
-    ftc_close_response_shell($response['followups'] ?? []);
+    $followups = array_values(array_filter((array)($response['followups'] ?? [])));
+    $followups = array_values(array_filter($followups, function($prompt){
+        return ftc_normalize_prompt_text($prompt) !== ftc_normalize_prompt_text('Show me your work!');
+    }));
+    array_splice($followups, min(1, count($followups)), 0, ['Show me your work!']);
+    ftc_close_response_shell(array_values(array_unique($followups)));
 }
 
 function ftc_render_services_sequence($response,$settings){
@@ -937,22 +1435,62 @@ function ftc_render_services_sequence($response,$settings){
     ftc_close_response_shell($response['followups'] ?? []);
 }
 
-function ftc_render_home_intro_panel($settings){
-    $video = $settings['demo_video_url'] ?? '';
-    echo '<div class="ftc-home-overview">';
-    echo '<div class="ftc-home-media">';
-    if($video){
-        echo '<video controls autoplay muted loop playsinline preload="metadata"><source src="'.esc_url($video).'"></video>';
-    } else {
-        echo '<img src="'.esc_url(FTC_URL.'assets/images/placeholder-gray-16x9.svg').'" alt="Field Theory overview">';
+function ftc_spline_carousel_url(){
+    return 'https://my.spline.design/widgetscarouselcopycopy-cYoGJHfZX5a4XZqTbYCQ46dk-pBV/';
+}
+
+function ftc_render_spline_carousel($context = 'response'){
+    $aria = 'Field Theory service categories — interactive 3D grid';
+    $cards = [
+        ['id'=>'websites',  'label'=>'Website Development & Core Tech', 'tagline'=>'Performance-first websites built to convert.'],
+        ['id'=>'ecommerce', 'label'=>'Ecommerce & CRO',                  'tagline'=>'Turn browsers into buyers.'],
+        ['id'=>'seo',       'label'=>'Search & SEO / AEO',               'tagline'=>'Rank higher, answer smarter.'],
+        ['id'=>'marketing', 'label'=>'Digital Marketing & Growth',       'tagline'=>'Campaigns that compound over time.'],
+        ['id'=>'ai',        'label'=>'Technology, Innovation and A.I.',  'tagline'=>"Build tomorrow's edge today."],
+        ['id'=>'data',      'label'=>'Data, Analysis & Visualization',   'tagline'=>'Turn metrics into decisions.'],
+    ];
+    echo '<div id="ftc-get-started-grid" class="ftc-services-grid-wrap" role="region" aria-label="'.esc_attr($aria).'">';
+    foreach($cards as $i => $card){
+        echo '<div class="ftc-grid-card" data-card-idx="'.esc_attr($i).'" data-card-id="'.esc_attr($card['id']).'" role="button" tabindex="0" aria-label="'.esc_attr($card['label']).'">';
+        echo '<div class="ftc-grid-canvas"></div>';
+        echo '<div class="ftc-grid-info">';
+        echo '<strong>'.esc_html($card['label']).'</strong>';
+        echo '<p>'.esc_html($card['tagline']).'</p>';
+        echo '</div>';
+        echo '</div>';
     }
     echo '</div>';
-    echo '<div class="ftc-home-copy"><h3>Better technology. Smarter marketing. Clearer growth.</h3><p>Field Theory Lab helps organizations grow through better technology, smarter marketing, deeper insights, and practical AI. We design better web experiences, improve digital performance, and build systems that help teams make smarter decisions.</p><button class="ftc-red-link" type="button" data-prompt="How can you help my company?">How can you help my company?</button></div>';
+}
+
+function ftc_render_home_intro_panel($settings){
+    echo '<div class="ftc-get-started-video-hero ftc-get-started-video-fade" aria-label="Field Theory Lab overview video">';
+    ftc_render_get_started_video($settings);
+    echo '</div>';
+}
+
+function ftc_get_started_video_url($settings){
+    $settings = is_array($settings) ? $settings : [];
+    $video = trim((string)($settings['demo_video_url'] ?? ''));
+    if($video !== '') return $video;
+    $fallback = FTC_PATH . 'assets/video/App_Promo_Preview_1.mp4';
+    if(file_exists($fallback)) return FTC_URL . 'assets/video/App_Promo_Preview_1.mp4';
+    return FTC_URL . 'assets/video/MobileDesign_FTL_2026.mp4';
+}
+
+function ftc_render_get_started_video($settings){
+    $video = esc_url(ftc_get_started_video_url($settings));
+    echo '<div class="ftc-hero-video-wrap" data-ftc-hero-video>';
+    echo '<video class="ftc-hero-video" data-ftc-hero-video-el playsinline muted loop preload="metadata" autoplay disablepictureinpicture controlslist="nodownload noplaybackrate noremoteplayback nofullscreen">';
+    echo '<source src="'.$video.'" type="video/mp4">';
+    echo '</video>';
+    echo '<button type="button" class="ftc-hero-video-toggle" data-ftc-hero-video-toggle aria-label="Pause video" aria-pressed="true"><span class="ftc-hero-video-toggle-icon" aria-hidden="true"></span></button>';
     echo '</div>';
 }
 
 function ftc_render_home_panel($settings){
     $video = $settings['demo_video_url'] ?? '';
+    $tagline = $settings['tagline'] ?? 'TURN DATA INTO GROWTH.';
+    $intro_body = $settings['intro_body'] ?? 'We combine websites, data, marketing, and AI to create measurable business results.';
     echo '<div class="ftc-response-subsection ftc-response-subsection-start" data-response-section="intro">';
     echo '<div class="ftc-home-overview">';
     echo '<div class="ftc-home-media">';
@@ -962,7 +1500,7 @@ function ftc_render_home_panel($settings){
         echo '<img src="'.esc_url(FTC_URL.'assets/images/placeholder-gray-16x9.svg').'" alt="Field Theory overview">';
     }
     echo '</div>';
-    echo '<div class="ftc-home-copy"><h3>Better technology. Smarter marketing. Clearer growth.</h3><p>Field Theory Lab helps organizations grow through better technology, smarter marketing, deeper insights, and practical AI. We design better web experiences, improve digital performance, and build systems that help teams make smarter decisions.</p><button class="ftc-red-link" type="button" data-prompt="How can you help my company?">How can you help my company?</button></div>';
+    echo '<div class="ftc-home-copy"><h3 class="ftc-intro-heading-fade">'.esc_html($tagline).'</h3><p>'.esc_html($intro_body).'</p><button class="ftc-red-link" type="button" data-prompt="How can you help my company?">How can you help my company?</button></div>';
     echo '</div></div>';
 
     echo '<div class="ftc-response-subsection ftc-response-subsection-services" data-response-section="services"><header class="ftc-subresponse-header"><div><span>How can you help my company?</span><h3>Our Services</h3><p>Explore the main ways Field Theory helps organizations improve websites, marketing, analytics, automation, ecommerce, and customer experience.</p></div><button type="button" data-prompt="How can you help my company?">Explore services</button></header>';
@@ -970,9 +1508,8 @@ function ftc_render_home_panel($settings){
     echo '</div>';
 
     echo '<div class="ftc-response-subsection ftc-response-subsection-work" data-response-section="portfolio"><header class="ftc-subresponse-header"><div><span>Show me your work!</span><h3>Our Work</h3><p>A sample of Field Theory projects across education, healthcare, public sector, nonprofits, utilities, and growth-focused brands.</p></div><button type="button" data-prompt="Show me your work!">Show me your work!</button></header>';
-    echo '<div class="ftc-portfolio-latest-wrap"><button type="button" class="ftc-carousel-arrow ftc-carousel-prev ftc-portfolio-prev" data-ftc-portfolio-prev aria-label="Previous projects">‹</button>';
-    ftc_render_portfolio_masonry(9);
-    echo '<button type="button" class="ftc-carousel-arrow ftc-carousel-next ftc-portfolio-next" data-ftc-portfolio-next aria-label="Next projects">›</button></div></div>';
+    ftc_render_portfolio_grid(6);
+    echo '</div>';
 
     echo '<div class="ftc-response-subsection ftc-response-subsection-testimonials" data-response-section="testimonials"><header class="ftc-subresponse-header"><div><span>What do clients say?</span><h3>Testimonials</h3><p>A few notes on what teams value when they work with Field Theory Lab.</p></div><button type="button" data-prompt="Testimonials">Read testimonials</button></header>';
     ftc_render_testimonials_panel();
@@ -992,23 +1529,32 @@ function ftc_render_about_panel($settings){
     echo '</ul>';
     echo '<button class="ftc-green-btn" type="button" data-prompt="Request a Proposal">Request a Proposal</button></section>';
     $team = [
-        ['initials'=>'JG','name'=>'Jamie Rushad Gros','role'=>'CEO / Technology Strategist / Technical Lead','bio'=>'Jamie brings 25 years of experience as a website developer and digital marketer. He works at the intersection of technology, creative, and marketing to help organizations make better digital decisions.'],
-        ['initials'=>'TQ','name'=>'Tyler Quintana','role'=>'Full-Stack Developer','bio'=>'Tyler is a web developer with a business background and a graduate of the CNM Ingenuity Full-Stack Developer bootcamp. He focuses on practical web solutions that connect technical decisions to client needs.'],
-        ['initials'=>'HS','name'=>'Hastimal (Hasti) Shah','role'=>'Website Developer','bio'=>'Hasti has worked on more than 200 WordPress and Drupal websites, with expertise across Elementor, Beaver Builder, Bricks, Gutenberg, DIVI, and major WordPress theme ecosystems.'],
+        ['photo'=>'team-jamie.jpg','initials'=>'JG','name'=>'Jamie Rushad Gros','role'=>'CEO / Technology Strategist / Technical Lead','bio'=>'Jamie brings 25 years of experience as a website developer and digital marketer. He works at the intersection of technology, creative, and marketing to help organizations make better digital decisions.'],
+        ['photo'=>'team-tyler.jpg','initials'=>'TQ','name'=>'Tyler Quintana','role'=>'Full-Stack Developer','bio'=>'Tyler is a web developer with a business background and a graduate of the CNM Ingenuity Full-Stack Developer bootcamp. He focuses on practical web solutions that connect technical decisions to client needs.'],
+        ['photo'=>'team-hasti.jpg','initials'=>'HS','name'=>'Hastimal (Hasti) Shah','role'=>'Website Developer','bio'=>'Hasti has worked on more than 200 WordPress and Drupal websites, with expertise across Elementor, Beaver Builder, Bricks, Gutenberg, DIVI, and major WordPress theme ecosystems.'],
     ];
     echo '<aside class="ftc-about-profile ftc-about-team" aria-label="Field Theory team">';
+    echo '<h2 class="ftc-team-section-headline">Our Leadership</h2>';
     echo '<div class="ftc-team-roster">';
     foreach($team as $member){
-        echo '<article class="ftc-team-member-card"><div class="ftc-team-initials">'.esc_html($member['initials']).'</div><div><span>'.esc_html($member['role']).'</span><h3>'.esc_html($member['name']).'</h3><p>'.esc_html($member['bio']).'</p></div></article>';
+        $photo_url = !empty($member['photo']) ? esc_url(FTC_URL.'assets/images/'.$member['photo']) : '';
+        $avatar = $photo_url
+            ? '<div class="ftc-team-photo"><img src="'.esc_attr($photo_url).'" alt="'.esc_attr($member['name']).'" loading="lazy" width="128" height="128"></div>'
+            : '<div class="ftc-team-initials">'.esc_html($member['initials']).'</div>';
+        echo '<article class="ftc-team-member-card">'.$avatar.'<div><span>'.esc_html($member['role']).'</span><h3>'.esc_html($member['name']).'</h3><p>'.esc_html($member['bio']).'</p></div></article>';
     }
     echo '</div>';
     echo '<div class="ftc-profile-meta ftc-team-contact"><dl><div><dt>Based in</dt><dd>Albuquerque, New Mexico</dd></div><div><dt>Email</dt><dd><a href="mailto:jamie@fieldtheory.ai">jamie@fieldtheory.ai</a></dd></div></dl></div>';
     echo '</aside></div>';
 }
+function ftc_service_is_catalog_visible($post_id){
+    return true;
+}
+
 function ftc_get_services($limit=-1){
     $q=new WP_Query(['post_type'=>'ftc_service','post_status'=>'publish','posts_per_page'=>$limit,'orderby'=>'menu_order title','order'=>'ASC']);
     if(!$q->have_posts()){ return []; }
-    $items=[]; while($q->have_posts()){ $q->the_post(); $id=get_the_ID(); $items[]=['id'=>$id,'title'=>get_the_title(),'desc'=>get_the_excerpt() ?: wp_trim_words(wp_strip_all_tags(get_the_content()),22),'eyebrow'=>get_post_meta($id,'_ftc_service_eyebrow',true),'image'=>get_the_post_thumbnail_url($id,'large') ?: get_post_meta($id,'_ftc_service_image',true),'tasks'=>array_filter(array_map('trim',explode("\n",get_post_meta($id,'_ftc_service_tasks',true))))]; } wp_reset_postdata(); return $items;
+    $items=[]; while($q->have_posts()){ $q->the_post(); $id=get_the_ID(); if(!ftc_service_is_catalog_visible($id)) continue; $items[]=['id'=>$id,'title'=>get_the_title(),'desc'=>get_the_excerpt() ?: wp_trim_words(wp_strip_all_tags(get_the_content()),22),'eyebrow'=>get_post_meta($id,'_ftc_service_eyebrow',true),'image'=>get_the_post_thumbnail_url($id,'large') ?: get_post_meta($id,'_ftc_service_image',true),'tasks'=>array_filter(array_map('trim',explode("\n",get_post_meta($id,'_ftc_service_tasks',true))))]; } wp_reset_postdata(); return $items;
 }
 
 function ftc_service_default_image($title=''){
@@ -1022,16 +1568,15 @@ function ftc_service_badges_for_title($title){
     if(strpos($t,'data') !== false) return ['GA4','Dashboards','ANNA','Looker'];
     if(strpos($t,'search') !== false || strpos($t,'seo') !== false) return ['SEO','AEO','Schema','Local'];
     if(strpos($t,'marketing') !== false || strpos($t,'growth') !== false) return ['Google Ads','Meta','Funnels','Content'];
-    if(strpos($t,'creative') !== false || strpos($t,'ai') !== false) return ['AI Agents','Automation','Tools','UX'];
+    if(strpos($t,'creative') !== false || strpos($t,'ai') !== false || strpos($t,'innovation') !== false) return ['Cursor','OpenAI','AI Agents','Automation'];
     return ['Strategy','Design','Build','Measure'];
 }
 
 function ftc_render_service_card_markup($item, $featured=false){
     $badges = ftc_service_badges_for_title($item['title']);
+    $vkey = ftc_service_visual_key($item['title']);
     echo '<article class="ftc-service-card'.($featured ? ' ftc-service-featured' : '').'"><button type="button" class="ftc-service-open" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
-    echo '<div class="ftc-service-art ftc-service-art-webgl">';
-    ftc_render_service_webgl_visual($item['title']);
-    echo '</div>';
+    echo '<div class="ftc-service-3d" data-service="'.esc_attr($vkey).'" aria-hidden="true"></div>';
     echo '<strong>'.esc_html($item['title']).'</strong><p>'.esc_html($item['desc']).'</p>';
     echo '<div class="ftc-tech-badges">'; foreach($badges as $badge) echo '<span>'.esc_html($badge).'</span>'; echo '</div>';
     echo '<em>Explore service &rarr;</em></button></article>';
@@ -1044,13 +1589,47 @@ function ftc_service_visual_key($title){
     if(strpos($t,'data') !== false || strpos($t,'analysis') !== false || strpos($t,'visualization') !== false) return 'data';
     if(strpos($t,'search') !== false || strpos($t,'seo') !== false || strpos($t,'aeo') !== false || strpos($t,'discovery') !== false) return 'search';
     if(strpos($t,'marketing') !== false || strpos($t,'growth') !== false) return 'marketing';
-    if(strpos($t,'innovation') !== false || strpos($t,'ai') !== false || strpos($t,'technology') !== false) return 'innovation';
+    if(strpos($t,'ai') !== false || strpos($t,'automation') !== false) return 'ai';
+    if(strpos($t,'innovation') !== false || strpos($t,'technology') !== false) return 'innovation';
     return 'innovation';
 }
 
-function ftc_render_service_webgl_visual($title){
+function ftc_service_uses_webgl_visual($key, $is_detail = false){
+    /* All 6 service detail pages get a 3D visual element */
+    return $is_detail;
+}
+
+function ftc_is_service_catalog_image_url($url){
+    $url = strtolower((string)$url);
+    if($url === '') return false;
+    return strpos($url, '/assets/images/service-') !== false
+        || strpos($url, '/assets/images/placeholder-service-') !== false;
+}
+
+function ftc_service_detail_hero_image_url($id){
+    /* Only real uploaded detail images block WebGL. Card catalog SVGs (_ftc_service_image)
+       and slug defaults are for listing cards, not detail hero visuals. */
+    $candidates = [];
+    $thumb = get_the_post_thumbnail_url($id, 'large');
+    if($thumb) $candidates[] = $thumb;
+    $detail = trim((string)get_post_meta($id, '_ftc_detail_image', true));
+    if($detail) $candidates[] = $detail;
+    foreach($candidates as $url){
+        if($url && !ftc_is_placeholder_image_url($url) && !ftc_is_service_catalog_image_url($url)){
+            return esc_url_raw($url);
+        }
+    }
+    return '';
+}
+
+function ftc_render_service_webgl_visual($title, $is_detail = false){
     $key = ftc_service_visual_key($title);
-    echo '<div class="ftc-service-webgl ftc-service-webgl-'.esc_attr($key).'" data-ftc-service-visual="'.esc_attr($key).'" aria-hidden="true"><canvas></canvas><span></span></div>';
+    if($is_detail){
+        echo '<div class="ftc-service-3d" data-service="'.esc_attr($key).'" aria-hidden="true"></div>';
+        return;
+    }
+    $classes = 'ftc-service-webgl ftc-service-webgl-'.esc_attr($key).' has-static-fallback';
+    echo '<div class="'.esc_attr($classes).'" data-ftc-service-visual="'.esc_attr($key).'" aria-hidden="true"><span></span></div>';
 }
 
 function ftc_service_child_labels($item, $limit=4){
@@ -1069,6 +1648,57 @@ function ftc_service_child_labels($item, $limit=4){
     return $labels;
 }
 
+function ftc_format_service_task_label($text){
+    $text = trim((string)$text);
+    if($text === '') return $text;
+    $text = preg_replace('/^and\s+/i', '', $text);
+    if(preg_match('/[A-Z]{2,}|[A-Z][a-z]|[\/\(\&]/', $text)) return $text;
+    return ucwords(strtolower($text));
+}
+
+function ftc_service_task_prompt_aliases(){
+    return [
+        'Website Development' => ['Web Dev', 'web-dev', 'webdev'],
+    ];
+}
+
+function ftc_service_task_display_label($task){
+    $task = trim((string)$task);
+    if($task === '') return $task;
+    $display_map = [
+        'Website Development' => 'Web Dev',
+    ];
+    foreach($display_map as $canonical=>$display){
+        if(ftc_normalize_prompt_text($canonical) === ftc_normalize_prompt_text($task)) return $display;
+    }
+    return $task;
+}
+
+function ftc_resolve_service_task_prompt($term){
+    $term = trim((string)$term);
+    if($term === '') return '';
+    $needle = ftc_normalize_prompt_text($term);
+    $needle_loose = function_exists('ftc_route_compact_key_loose') ? ftc_route_compact_key_loose($term) : '';
+    foreach(ftc_service_task_prompt_aliases() as $canonical=>$aliases){
+        if(ftc_normalize_prompt_text($canonical) === $needle) return $canonical;
+        if($needle_loose !== '' && function_exists('ftc_route_compact_key_loose') && $needle_loose === ftc_route_compact_key_loose($canonical)) return $canonical;
+        foreach((array)$aliases as $alias){
+            if(ftc_normalize_prompt_text($alias) === $needle) return $canonical;
+            if($needle_loose !== '' && function_exists('ftc_route_compact_key_loose') && $needle_loose === ftc_route_compact_key_loose($alias)) return $canonical;
+        }
+    }
+    return $term;
+}
+
+function ftc_child_category_slug($label){
+    return sanitize_title((string)$label);
+}
+
+function ftc_child_category_accent_class($index){
+    $slot = ((max(1, absint($index)) - 1) % 5) + 1;
+    return 'ftc-child-accent-' . $slot;
+}
+
 function ftc_service_task_groups($id){
     $tasks_raw = get_post_meta($id,'_ftc_service_tasks',true);
     $lines = array_values(array_filter(array_map('trim',explode("\n",$tasks_raw))));
@@ -1076,7 +1706,9 @@ function ftc_service_task_groups($id){
     foreach($lines as $line){
         if(strpos($line,':') !== false){
             [$label,$items] = array_map('trim',explode(':',$line,2));
-            $items = array_values(array_filter(array_map('trim',preg_split('/[,;]+/',$items))));
+            $items = array_values(array_filter(array_map(function($item){
+                return ftc_format_service_task_label(trim((string)$item));
+            }, preg_split('/[,;]+/',$items))));
             if($label && $items) $groups[$label] = $items;
         }
     }
@@ -1115,6 +1747,82 @@ function ftc_service_detail_headline($id){
     return $map[$slug] ?? 'Field Theory can help turn the right digital work into clearer business progress.';
 }
 
+function ftc_service_detail_body_html($id){
+    $slug = (string)get_post_field('post_name', $id);
+    $map = [
+        'ecommerce-conversion-rate-optimization-cro' =>
+            '<p>We build and optimize ecommerce experiences that make it easier for customers to find, trust, and buy. Whether you\'re on Shopify, WooCommerce, or a custom platform, we improve the full journey — from product pages and cart flow to checkout and post-purchase retention.</p>' .
+            '<p>Our conversion rate optimization work is grounded in real behavioral data: heatmaps, session recordings, funnel analysis, and A/B testing. We identify where buyers are dropping off and test practical changes that compound over time.</p>' .
+            '<p><strong>The outcome:</strong> more revenue from the traffic you already have, and a cleaner foundation for the growth you\'re building toward.</p>',
+        'website-development-core-tech' =>
+            '<p>We design and build websites that explain what you do clearly, load fast, support search, and make it easy for visitors to take the next step. Every project starts with understanding your audience and what they need to move forward.</p>' .
+            '<p>Our stack includes WordPress, Drupal, custom builds, headless setups, integrations, and performance optimization. We handle accessibility, Core Web Vitals, structured data, and hosting — so the site works well on every device and in every search context.</p>' .
+            '<p><strong>The outcome:</strong> a website your team is proud of, that grows with your organization and doesn\'t need constant repair.</p>',
+        'digital-marketing-growth-strategy' =>
+            '<p>We connect strategy, content, paid search, social campaigns, conversion, and reporting into a single growth system. Marketing works better when the pieces fit together — when your SEO, ads, content, and measurement all point toward the same goals.</p>' .
+            '<p>We plan, run, and optimize campaigns across Google Ads, Meta, email, and organic channels. We track what drives qualified traffic and conversions, not just clicks and impressions.</p>' .
+            '<p><strong>The outcome:</strong> a marketing program that compounds — building on what works and cutting what doesn\'t, with clear reporting your team can actually use.</p>',
+        'search-discovery-optimization-seo-aeo' =>
+            '<p>We help organizations rank higher in traditional search and show up clearly in AI-powered answer engines. Modern search is no longer just keywords — it\'s about structured content, topical authority, and being the source that AI systems cite and surface.</p>' .
+            '<p>Our work includes technical SEO audits, content strategy, schema markup, answer engine optimization (AEO), and ongoing performance tracking. We optimize for how real people search and how AI tools interpret and summarize information.</p>' .
+            '<p><strong>The outcome:</strong> more organic visibility, more qualified traffic, and a content foundation that builds authority over time.</p>',
+        'data-analysis-visualization' =>
+            '<p>We help organizations move from scattered metrics to clear, decision-ready reporting. That means setting up proper tracking (GA4, GTM, CRM integrations), building dashboards that reflect your actual business goals, and translating data into actions your team can act on.</p>' .
+            '<p>We work with Google Analytics, Looker Studio, Microsoft Clarity, Kissmetrics, and custom reporting setups. For behavior and conversion work, we use heatmaps, session recordings, and funnel analysis to see where users hesitate, drop off, or convert.</p>' .
+            '<p>We also help organizations that have data but aren\'t sure what it\'s telling them — identifying patterns, anomalies, and opportunities in existing data.</p>' .
+            '<p><strong>The outcome:</strong> a measurement system your team trusts, and reporting that actually informs decisions instead of just filling slides.</p>',
+        'creative-technology-innovation' =>
+            '<p>We help organizations build practical AI systems, useful automations, and experimental digital tools. Not AI for its own sake — AI where it reduces friction, saves time, improves service, or creates a meaningful advantage for your team or customers.</p>' .
+            '<p>Our work includes custom GPT-backed tools, internal knowledge assistants, automated workflows, AI-enhanced content systems, and product prototypes. We pair business context with technical implementation to build things that actually get used.</p>' .
+            '<p><strong>The outcome:</strong> a working AI capability that your team understands, uses daily, and can build on — not a proof of concept that sits on a shelf.</p>',
+    ];
+    return $map[$slug] ?? '';
+}
+
+function ftc_render_data_vendor_logos_section(){
+    $logo_base = FTC_URL . 'assets/images/logos/vendors/';
+    echo '<div class="ftc-data-vendors" aria-label="Analytics and reporting platforms Field Theory works with">';
+    echo '<ul class="ftc-data-vendors-logos">';
+    foreach([
+        ['google-analytics.svg', 'Google Analytics', 'Google Analytics', 'ftc-vendor-logo-wide'],
+        ['google-tag-manager.svg', 'Google Tag Manager', 'Google Tag Manager', 'ftc-vendor-logo-wide'],
+        ['looker-studio.svg', 'Looker Studio', 'Looker Studio', 'ftc-vendor-logo-wide'],
+        ['microsoft-clarity.svg', 'Microsoft Clarity', 'Microsoft Clarity', 'ftc-vendor-logo-wide'],
+        ['kissmetrics.svg', 'Kissmetrics', 'Kissmetrics', ''],
+        ['hubspot.svg', 'HubSpot', 'HubSpot', ''],
+    ] as $brand){
+        $img_class = trim('ftc-vendor-logo '.($brand[3] ?? ''));
+        echo '<li>';
+        echo '<button type="button" class="ftc-data-vendors-link" data-prompt="'.esc_attr($brand[2]).'" aria-label="'.esc_attr($brand[1]).' — learn how Field Theory works with '.$brand[1].'">';
+        echo '<img class="'.esc_attr($img_class).'" src="'.esc_url($logo_base.$brand[0]).'" alt="'.esc_attr($brand[1]).'" loading="lazy" width="168" height="32">';
+        echo '</button></li>';
+    }
+    echo '</ul></div>';
+}
+
+function ftc_render_ai_toolkit_section(){
+    echo '<section class="ftc-ai-toolkit" aria-label="AI tools and models Field Theory uses">';
+    echo '<div class="ftc-ai-toolkit-intro">';
+    echo '<span class="ftc-ai-toolkit-kicker">Model Strategy</span>';
+    echo '<h3>Models &amp; applications</h3>';
+    echo '<p>We choose model families based on the work itself: rapid drafting, deep reasoning, multimodal analysis, retrieval-backed assistants, and automated workflows tied to your business systems.</p>';
+    echo '</div>';
+    echo '<div class="ftc-ai-toolkit-models">';
+    echo '<h4>Core model stack</h4>';
+    echo '<ul class="ftc-ai-model-list">';
+    foreach([
+        ['OpenAI GPT-4o / GPT-4.1', 'Content drafting, code generation, structured outputs, and customer-facing assistants'],
+        ['OpenAI o-series', 'Multi-step reasoning, planning, and complex workflow decisions'],
+        ['Claude (Anthropic)', 'Long-context analysis, document review, and careful technical writing'],
+        ['Gemini (Google)', 'Multimodal tasks, search-adjacent workflows, and Google ecosystem integrations'],
+        ['Embeddings &amp; RAG', 'Internal knowledge search, support tools, and retrieval-backed assistants'],
+        ['Cursor Agents', 'Faster implementation, refactors, tests, and production-ready prototypes'],
+    ] as $row){
+        echo '<li><strong>'.esc_html($row[0]).'</strong><span>'.esc_html($row[1]).'</span></li>';
+    }
+    echo '</ul></div></section>';
+}
+
 function ftc_render_service_detail_response_markup($service_id, $focus_label=''){
     $title = get_the_title($service_id);
     $headline = ftc_service_detail_headline($service_id);
@@ -1125,11 +1833,10 @@ function ftc_render_service_detail_response_markup($service_id, $focus_label='')
 
 function ftc_render_service_category_card_markup($item){
     $labels = ftc_service_child_labels($item, 4);
+    $vkey = ftc_service_visual_key($item['title']);
     echo '<article class="ftc-service-category-card"><button type="button" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
+    echo '<div class="ftc-service-3d" data-service="'.esc_attr($vkey).'" aria-hidden="true"></div>';
     echo '<span>'.esc_html($item['eyebrow'] ?: 'SERVICE').'</span>';
-    echo '<div class="ftc-service-category-visual">';
-    ftc_render_service_webgl_visual($item['title']);
-    echo '</div>';
     echo '<strong>'.esc_html($item['title']).'</strong>';
     echo '<p>'.esc_html($item['desc']).'</p>';
     if($labels){
@@ -1147,7 +1854,6 @@ function ftc_render_services_section_one(){
     echo '<section class="ftc-services-section-one ftc-services-category-select" data-ftc-section-one><div class="ftc-services-category-grid">';
     foreach($items as $item) ftc_render_service_category_card_markup($item);
     echo '</div>';
-    ftc_render_scroll_more_button('Scroll for more');
     echo '</section>';
 }
 
@@ -1158,15 +1864,7 @@ function ftc_render_services_all_content(){
     foreach($items as $item){
         echo '<article class="ftc-child-service-group">';
         echo '<header><span>'.esc_html($item['eyebrow'] ?: 'SERVICE').'</span><h3>'.esc_html($item['title']).'</h3><p>'.esc_html($item['desc']).'</p><button type="button" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">Open full service</button></header>';
-        echo '<div class="ftc-child-service-grid">';
-        foreach(ftc_service_task_groups($item['id']) as $group=>$tasks){
-            echo '<section><h4>'.esc_html($group).'</h4><div>';
-            foreach($tasks as $task){
-                echo '<button type="button" data-prompt="'.esc_attr($task).'">'.esc_html($task).'</button>';
-            }
-            echo '</div></section>';
-        }
-        echo '</div></article>';
+        echo '</article>';
     }
     echo '</section>';
 }
@@ -1180,10 +1878,9 @@ function ftc_render_services_panel($full=true){
     }
     foreach($items as $item){
         $badges = ftc_service_badges_for_title($item['title']);
+        $vkey = ftc_service_visual_key($item['title']);
         echo '<article class="ftc-service-card"><button type="button" class="ftc-service-open" data-ftc-service="'.esc_attr($item['id']).'" data-ftc-service-label="'.esc_attr($item['title']).'">';
-        echo '<div class="ftc-service-art ftc-service-art-webgl">';
-        ftc_render_service_webgl_visual($item['title']);
-        echo '</div>';
+        echo '<div class="ftc-service-3d" data-service="'.esc_attr($vkey).'" aria-hidden="true"></div>';
         echo '<strong>'.esc_html($item['title']).'</strong><p>'.esc_html($item['desc']).'</p>';
         echo '<div class="ftc-tech-badges">'; foreach($badges as $badge) echo '<span>'.esc_html($badge).'</span>'; echo '</div>';
         echo '<em>Explore service →</em></button></article>';
@@ -1254,6 +1951,16 @@ function ftc_child_service_points($task, $service_title='', $group=''){
             'Shape dashboards and reports around the decisions your team actually needs to make, not every metric the tools can export.',
             'Combine clean data structure, useful filters, and readable visual hierarchy so reporting becomes easier to trust.',
             'Build dashboards and reporting flows that can support leadership, marketing, sales, and operations without extra spreadsheet work.',
+        ]],
+        ['/(heatmap|heat map|session recording|microsoft clarity|clarity|kissmetrics|kiss metrics|behavioral analytics)/', [
+            'Use '.$topic.' to see where users hesitate, click, scroll, and drop off before you change the experience.',
+            'Connect heatmaps and session recordings to funnel analysis so UX and conversion improvements are grounded in real behavior.',
+            'Turn behavioral findings into practical tests, page fixes, and reporting your team can act on.',
+        ]],
+        ['/(bigquery|big query|looker studio|tableau|google tag manager|gtm)/', [
+            'Set up '.$topic.' with clean naming, ownership, and source structure so reporting stays trustworthy as data volume grows.',
+            'Connect '.$topic.' to the business questions your team needs answered across marketing, product, and operations.',
+            'Build reporting flows that make '.$topic.' easier to maintain, audit, and extend over time.',
         ]],
         ['/(ga4|google analytics|tag management|data collection|data governance|kpi|north star|attribution|internal database|custom api|crm platform|advertising platform|ecommerce platform)/', [
             'Set up '.$topic.' so tracking, data sources, naming, and ownership are clear before reports are built.',
@@ -1339,9 +2046,302 @@ function ftc_child_service_points($task, $service_title='', $group=''){
     ];
 }
 
-function ftc_render_child_service_response($match, $settings=[]){
+function ftc_child_service_logo_files($task){
+    $key = ftc_normalize_prompt_text($task);
+    if($key === '') return null;
+
+    $exact = [
+        'drupal' => ['drupal.svg'],
+        'wordpress' => ['wordpress.svg'],
+        'react' => ['react.svg'],
+        'next.js' => ['nextdotjs.svg'],
+        'nextjs' => ['nextdotjs.svg'],
+        'node.js' => ['nodedotjs.svg'],
+        'nodejs' => ['nodedotjs.svg'],
+        'php' => ['php.svg'],
+        'custom cms development' => ['cms-custom.svg'],
+        'acquia' => ['acquia.svg'],
+        'pantheon' => ['pantheon.svg'],
+        'shopify' => ['shopify.svg'],
+        'shopify plus' => ['shopify.svg'],
+        'woocommerce' => ['woocommerce.svg'],
+        'cloud hosting platforms' => ['amazonaws.svg', 'googlecloud.svg', 'microsoftazure.svg'],
+        'ecommerce platforms' => ['shopify.svg', 'woocommerce.svg', 'magento.svg'],
+        'custom ecommerce platforms' => ['shopify.svg', 'woocommerce.svg', 'magento.svg'],
+        'custom ecommerce solutions' => ['shopify.svg', 'woocommerce.svg', 'magento.svg'],
+        'advertising platforms' => ['meta.svg', 'instagram.svg', 'linkedin.svg', 'google.svg', 'amazon.svg', 'x.svg', 'pinterest.svg', 'reddit.svg'],
+        'crm platforms' => ['hubspot.svg', 'salesforce.svg', 'zoho.svg'],
+        'google analytics' => ['googleanalytics.svg'],
+        'google tag manager' => ['googletagmanager.svg'],
+        'looker studio' => ['lookerstudio.svg'],
+        'tableau' => ['tableau.svg'],
+        'bigquery' => ['bigquery.svg'],
+        'microsoft clarity' => ['microsoftclarity.svg'],
+        'kissmetrics' => ['kissmetrics.svg'],
+        'heatmaps' => ['microsoftclarity.svg'],
+        'session recordings' => ['microsoftclarity.svg'],
+        'google search console' => ['googlesearchconsole.svg'],
+        'google ads' => ['google.svg'],
+        'google ads certified' => ['google.svg'],
+        'google display network' => ['google.svg'],
+        'google shopping' => ['google.svg'],
+        'youtube advertising' => ['youtube.svg'],
+        'meta advertising' => ['meta.svg'],
+        'facebook advertising' => ['meta.svg'],
+        'meta commerce' => ['meta.svg'],
+        'instagram advertising' => ['instagram.svg'],
+        'linkedin advertising' => ['linkedin.svg'],
+        'amazon advertising' => ['amazon.svg'],
+        'amazon store optimization' => ['amazon.svg'],
+        'shopify development' => ['shopify.svg'],
+        'woocommerce development' => ['woocommerce.svg'],
+        'hubspot' => ['hubspot.svg'],
+        'salesforce' => ['salesforce.svg'],
+        'zoho' => ['zoho.svg'],
+        'crm integrations' => ['hubspot.svg', 'salesforce.svg', 'zoho.svg'],
+        'crm automation' => ['hubspot.svg', 'salesforce.svg', 'zoho.svg'],
+    ];
+    if(isset($exact[$key])) return $exact[$key];
+
+    $rules = [
+        '/\bgoogle ads\b/' => ['google.svg'],
+        '/\bgoogle display\b/' => ['google.svg'],
+        '/\bgoogle shopping\b/' => ['google.svg'],
+        '/\byoutube advertising\b/' => ['youtube.svg'],
+        '/\bmeta advertising\b/' => ['meta.svg'],
+        '/\bfacebook advertising\b/' => ['meta.svg'],
+        '/\bmeta commerce\b/' => ['meta.svg'],
+        '/\binstagram advertising\b/' => ['instagram.svg'],
+        '/\blinkedin advertising\b/' => ['linkedin.svg'],
+        '/\bamazon advertising\b/' => ['amazon.svg'],
+        '/\bamazon store\b/' => ['amazon.svg'],
+        '/\bshopify\b/' => ['shopify.svg'],
+        '/\bwoocommerce\b/' => ['woocommerce.svg'],
+        '/\bmagento\b/' => ['magento.svg'],
+        '/\bhubspot\b/' => ['hubspot.svg'],
+        '/\bsalesforce\b/' => ['salesforce.svg'],
+        '/\bzoho\b/' => ['zoho.svg'],
+        '/\bgoogle analytics\b/' => ['googleanalytics.svg'],
+        '/\bgoogle tag manager\b/' => ['googletagmanager.svg'],
+        '/\blooker studio\b/' => ['lookerstudio.svg'],
+        '/\btableau\b/' => ['tableau.svg'],
+        '/\bbig\s?query\b/' => ['bigquery.svg'],
+        '/\bmicrosoft clarity\b/' => ['microsoftclarity.svg'],
+        '/\bkissmetrics\b/' => ['kissmetrics.svg'],
+        '/\bheatmap(s)?\b/' => ['microsoftclarity.svg'],
+        '/\bsession recordings?\b/' => ['microsoftclarity.svg'],
+        '/\bgoogle search console\b/' => ['googlesearchconsole.svg'],
+        '/\bsearch console\b/' => ['googlesearchconsole.svg'],
+        '/\bpinterest\b/' => ['pinterest.svg'],
+        '/\breddit ads\b/' => ['reddit.svg'],
+        '/\btwitter advertising\b/' => ['x.svg'],
+        '/\bx advertising\b/' => ['x.svg'],
+        '/\bretargeting campaigns\b/' => ['meta.svg', 'google.svg'],
+        '/\bperformance marketing\b/' => ['google.svg', 'meta.svg'],
+    ];
+    foreach($rules as $pattern => $files){
+        if(preg_match($pattern, $key)) return $files;
+    }
+
+    return null;
+}
+
+function ftc_is_heatmap_analytics_task($task, $group = ''){
+    $key = ftc_normalize_prompt_text($task);
+    $group_key = ftc_normalize_prompt_text($group);
+    if($key === '') return false;
+
+    $exact = [
+        'heatmaps',
+        'session recordings',
+        'microsoft clarity',
+        'kissmetrics',
+        'scroll analysis',
+        'click tracking',
+    ];
+    if(in_array($key, $exact, true)) return true;
+
+    if(strpos($group_key, 'heatmapping') !== false || strpos($group_key, 'session analytics') !== false) return true;
+
+    $patterns = [
+        '/\bheatmap(s)?\b/',
+        '/\bsession recordings?\b/',
+        '/\bmicrosoft clarity\b/',
+        '/\bkissmetrics\b/',
+        '/\bscroll analysis\b/',
+        '/\bclick tracking\b/',
+    ];
+    foreach($patterns as $pattern){
+        if(preg_match($pattern, $key)) return true;
+    }
+
+    return false;
+}
+
+function ftc_render_heatmap_analytics_visual(){
+    $file = 'clarity-heatmap-mockup.svg';
+    $path = FTC_PATH . 'assets/images/heatmaps/' . $file;
+    if(!is_readable($path) && !file_exists($path)) return false;
+    $url = FTC_URL . 'assets/images/heatmaps/' . $file;
+    echo '<div class="ftc-child-service-logo is-heatmap-visual" aria-label="Heatmap and Microsoft Clarity analytics example">';
+    echo '<img src="'.esc_url($url).'" alt="Heatmap visualization with click hotspots and Microsoft Clarity branding" loading="lazy" decoding="async" />';
+    echo '</div>';
+    return true;
+}
+
+function ftc_render_child_service_logo($task, $group = ''){
+    if(ftc_is_heatmap_analytics_task($task, $group)){
+        if(ftc_render_heatmap_analytics_visual()) return;
+    }
+
+    $files = ftc_child_service_logo_files($task);
+    if(!$files) return;
+    $images = '';
+    foreach($files as $file){
+        $path = FTC_PATH . 'assets/images/logos/' . $file;
+        if(!is_readable($path) && !file_exists($path)) continue;
+        $url = FTC_URL . 'assets/images/logos/' . $file;
+        $images .= '<img src="'.esc_url($url).'" alt="" loading="lazy" decoding="async" />';
+    }
+    if($images === '') return;
+    echo '<div class="ftc-child-service-logo" aria-hidden="true">'.$images.'</div>';
+}
+
+function ftc_is_customer_journey_mapping_task($task, $prompt = ''){
+    foreach(array_filter([$task, $prompt], 'strlen') as $value){
+        if(ftc_normalize_prompt_text($value) === ftc_normalize_prompt_text('Customer Journey Mapping')) return true;
+    }
+    return false;
+}
+
+function ftc_is_dashboard_design_task($task){
+    return ftc_normalize_prompt_text($task) === ftc_normalize_prompt_text('Dashboard Design');
+}
+
+function ftc_is_quizzes_assessments_task($task, $prompt = ''){
+    $target = function_exists('ftc_route_compact_key_loose')
+        ? ftc_route_compact_key_loose('Quizzes & Assessments')
+        : 'quizzesassessments';
+    foreach(array_filter([$task, $prompt], 'strlen') as $value){
+        if(function_exists('ftc_route_compact_key_loose') && ftc_route_compact_key_loose($value) === $target) return true;
+        if(ftc_normalize_prompt_text($value) === ftc_normalize_prompt_text('Quizzes & Assessments')) return true;
+    }
+    return false;
+}
+
+function ftc_render_ai_website_assessment_example(){
+    echo '<div class="ftc-ai-assessment-shell" aria-label="AI Website Assessment example">';
+    echo '<div class="ft-ai-assessment" data-ft-ai-assessment>';
+    echo '<div class="ft-ai-card">';
+    echo '<div class="ft-ai-glow" aria-hidden="true"></div>';
+    echo '<div class="ft-ai-header">';
+    echo '<div class="ft-ai-mark" aria-hidden="true">FT</div>';
+    echo '<div><div class="ft-ai-kicker">AI Website Assessment</div><h2>How ready is your website for growth?</h2></div>';
+    echo '</div>';
+    echo '<div class="ft-ai-meta">';
+    echo '<span data-ft-ai-step-label>Question 1 of 5</span>';
+    echo '<span data-ft-ai-score-preview>Live Score: 0%</span>';
+    echo '</div>';
+    echo '<div class="ft-ai-progress"><div data-ft-ai-progress-bar></div></div>';
+    echo '<div data-ft-ai-content></div>';
+    echo '<div class="ft-ai-actions">';
+    echo '<button type="button" class="ft-ai-btn ft-ai-secondary" data-ft-ai-back>Back</button>';
+    echo '<button type="button" class="ft-ai-btn" data-ft-ai-next>Continue</button>';
+    echo '</div></div></div></div>';
+}
+
+function ftc_dashboard_design_gallery_items(){
+    return [
+        ['file' => 'population-growth-bar-chart.png', 'alt' => 'Population Growth bar chart dashboard with country rankings and year-over-year totals'],
+        ['file' => 'linkedin-company-pages.png', 'alt' => 'LinkedIn Company Pages overview dashboard with follower growth and engagement metrics'],
+        ['file' => 'monthly-enrollments.png', 'alt' => 'Monthly Enrollments dashboard with enrollment trends and program breakdowns'],
+        ['file' => 'usa-map-by-count.png', 'alt' => 'Interactive USA Map by Count dashboard with regional data visualization'],
+    ];
+}
+
+function ftc_render_dashboard_design_gallery(){
+    $items = ftc_dashboard_design_gallery_items();
+    $images = '';
+    foreach($items as $item){
+        $path = FTC_PATH . 'assets/images/dashboard-design/' . $item['file'];
+        if(!is_readable($path) && !file_exists($path)) continue;
+        $url = FTC_URL . 'assets/images/dashboard-design/' . $item['file'];
+        $images .= '<figure class="ftc-dashboard-design-gallery-item"><img src="'.esc_url($url).'" alt="'.esc_attr($item['alt']).'" loading="lazy" decoding="async" /></figure>';
+    }
+    if($images === '') return;
+    echo '<div class="ftc-dashboard-design-gallery-shell" aria-label="Dashboard design examples">';
+    echo '<div class="ftc-dashboard-design-gallery">'.$images.'</div>';
+    echo '</div>';
+}
+
+function ftc_render_customer_journey_map(){
+    echo '<div class="ftc-journey-map-shell" aria-label="Customer journey map diagram">';
+    echo '<div class="ftc-journey-map-scaler"><div class="ftc-journey-map">';
+    echo '<h3 class="ftc-journey-map-title">Demand Generation Journey</h3>';
+
+    echo '<div class="ftc-journey-map-section" style="left:37px;top:49px;">INDUSTRIES</div>';
+    echo '<div class="ftc-journey-map-section" style="left:185px;top:49px;">PERSONAS</div>';
+    echo '<div class="ftc-journey-map-section" style="left:334px;top:49px;">MARKETING</div>';
+    echo '<div class="ftc-journey-map-section" style="left:468px;top:49px;">WEBSITE EXPERIENCE</div>';
+    echo '<div class="ftc-journey-map-section" style="left:683px;top:49px;">NURTURE</div>';
+
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:89px;">Energy</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:200px;">Aerospace</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:30px;top:312px;">Manufacturing</div>';
+
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:89px;">CEO</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:200px;">Operations</div>';
+    echo '<div class="ftc-journey-map-circle" style="left:178px;top:312px;">Site Selector</div>';
+
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:89px;width:115px;">Google Ads</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:178px;width:115px;">LinkedIn Ads</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:267px;width:115px;">Display Ads</div>';
+    echo '<div class="ftc-journey-map-box" style="left:327px;top:356px;width:115px;">Email Marketing</div>';
+
+    echo '<div class="ftc-journey-map-browser-wrap" style="left:468px;top:89px;">';
+    echo '<div class="ftc-journey-map-browser">';
+    echo '<div class="ftc-journey-map-browser-bar"></div><div class="ftc-journey-map-browser-hero"></div>';
+    echo '<div class="ftc-journey-map-browser-cards"><div></div><div></div><div></div></div>';
+    echo '</div><div class="ftc-journey-map-browser-label">Homepage</div></div>';
+
+    echo '<div class="ftc-journey-map-browser-wrap" style="left:468px;top:230px;">';
+    echo '<div class="ftc-journey-map-browser">';
+    echo '<div class="ftc-journey-map-browser-bar"></div><div class="ftc-journey-map-browser-hero is-compact"></div>';
+    echo '<div class="ftc-journey-map-browser-cards"><div></div><div></div></div>';
+    echo '</div><div class="ftc-journey-map-browser-label">Persona Pages</div></div>';
+
+    echo '<div class="ftc-journey-map-circle is-lead" style="left:690px;top:208px;">Lead<br>Capture</div>';
+    echo '<div class="ftc-journey-map-box is-crm" style="left:809px;top:212px;">CRM</div>';
+    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:683px;top:82px;">Email</div>';
+    echo '<div class="ftc-journey-map-circle is-nurture is-sm" style="left:764px;top:82px;">Retarget</div>';
+    echo '<div class="ftc-journey-map-analytics" style="left:720px;top:371px;"><span>Analytics</span><span>&amp; Optimize</span></div>';
+
+    echo '<svg class="ftc-journey-map-svg" viewBox="0 0 920 540" aria-hidden="true">';
+    echo '<defs><marker id="ftc-journey-arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="currentColor"/></marker></defs>';
+    echo '<path class="ftc-journey-map-arrow" d="M120 134 L178 134"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M120 245 L178 245"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M120 357 L178 357"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M223 134 L327 106"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M223 245 L327 195"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M223 357 L327 284"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M442 106 L468 146"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M442 195 L468 278"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M442 284 L468 278"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M609 146 L690 253"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M609 278 L690 253"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M780 253 L809 256"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M866 256 L798 116"/>';
+    echo '<path class="ftc-journey-map-arrow" d="M866 256 L717 116"/>';
+    echo '<path class="ftc-journey-map-loop" d="M774 425 C650 470, 310 440, 310 380 L310 106 L327 106"/>';
+    echo '</svg>';
+
+    echo '</div></div></div>';
+}
+
+function ftc_render_child_service_response($match, $settings=[], $prompt = ''){
     $service_id = absint($match['service_id'] ?? 0);
     $task = trim((string)($match['task'] ?? 'Service'));
+    $prompt = trim((string)$prompt);
     $group = trim((string)($match['group'] ?? ''));
     $service_title = $match['service_title'] ?? ($service_id ? get_the_title($service_id) : 'Field Theory service');
     $siblings = array_values(array_filter((array)($match['tasks'] ?? [])));
@@ -1351,11 +2351,22 @@ function ftc_render_child_service_response($match, $settings=[]){
     $heading = 'Here is how we approach ' . $task . '.';
     $description = 'Part of ' . $service_title;
 
-    echo '<div class="ftc-response-shell ftc-response-layout-child-service" data-response-title="'.esc_attr($heading).'" data-ftc-response-prompt="'.esc_attr($task).'">';
+    $show_journey_map = ftc_is_customer_journey_mapping_task($task, $prompt);
+    $show_dashboard_gallery = ftc_is_dashboard_design_task($task);
+    $show_ai_assessment = ftc_is_quizzes_assessments_task($task, $prompt);
+    $shell_classes = 'ftc-response-shell ftc-response-layout-child-service';
+    if($show_journey_map) $shell_classes .= ' ftc-response-has-journey-map';
+    if($show_dashboard_gallery) $shell_classes .= ' ftc-response-has-dashboard-gallery';
+    if($show_ai_assessment) $shell_classes .= ' ftc-response-has-ai-assessment';
+    echo '<div class="'.esc_attr($shell_classes).'" data-response-title="'.esc_attr($heading).'" data-ftc-response-prompt="'.esc_attr($task).'">';
     echo '<header class="ftc-response-header"><div class="ftc-kicker">'.esc_html($description).'</div><h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr($heading).'">'.esc_html($heading).'</h2></header>';
+    if($show_journey_map) ftc_render_customer_journey_map();
+    if($show_dashboard_gallery) ftc_render_dashboard_design_gallery();
     echo '<section class="ftc-response-content">';
     echo '<div class="ftc-child-service-response">';
-    echo '<div class="ftc-child-service-answer"><span>'.esc_html($description).'</span><h3>What we provide:</h3>';
+    echo '<div class="ftc-child-service-answer"><span>'.esc_html($description).'</span>';
+    ftc_render_child_service_logo($task, $group);
+    echo '<h3>What we provide:</h3>';
     echo '<ul class="ftc-child-service-bullets">';
     foreach(ftc_child_service_points($task, $service_title, $group) as $point) echo '<li>'.esc_html($point).'</li>';
     echo '</ul>';
@@ -1363,12 +2374,15 @@ function ftc_render_child_service_response($match, $settings=[]){
     if($siblings){
         echo '<aside class="ftc-child-service-related"><h4>Related services</h4><div>';
         foreach($siblings as $sibling){
-            echo '<button type="button" data-prompt="'.esc_attr($sibling).'"'.(ftc_normalize_prompt_text($sibling) === ftc_normalize_prompt_text($task) ? ' class="is-current"' : '').'>'.esc_html($sibling).'</button>';
+            echo '<button type="button" data-prompt="'.esc_attr($sibling).'"'.(ftc_normalize_prompt_text($sibling) === ftc_normalize_prompt_text($task) ? ' class="is-current"' : '').'>'.esc_html(ftc_service_task_display_label($sibling)).'</button>';
         }
         echo '</div></aside>';
     }
     echo '</div>';
-    echo '<div class="ftc-response-actions ftc-child-service-actions"><div class="ftc-response-actions-left"><button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button>';
+    if($show_ai_assessment) ftc_render_ai_website_assessment_example();
+    echo '<div class="ftc-response-actions ftc-child-service-actions"><div class="ftc-response-actions-left">';
+    ftc_render_revert_action_button();
+    echo '<button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button>';
     if($service_id) echo '<button type="button" class="ftc-blue-outline-btn ftc-open-category-action" data-ftc-service="'.esc_attr($service_id).'" data-ftc-service-label="'.esc_attr($service_title).'">View Full Service</button>';
     echo '</div><button type="button" class="ftc-green-btn ftc-request-proposal-action" data-prompt="Request a Proposal">Request a Proposal</button></div>';
     echo '</section>';
@@ -1385,22 +2399,63 @@ function ftc_render_service_detail($response){
 function ftc_render_service_detail_by_id($id, $focus_label=''){
     $template_id = get_post_meta($id,'_ftc_elementor_template_id',true);
     if($template_id){ echo '<div class="ftc-elementor-template ftc-service-elementor-template">'.ftc_render_elementor_template_by_id($template_id).'</div>'; return; }
-    echo '<div class="ftc-service-detail"><div class="ftc-service-detail-hero"><div class="ftc-service-detail-copy"><div class="ftc-service-detail-body">'.wp_kses_post(apply_filters('the_content',get_post_field('post_content',$id))).'</div></div>';
-    echo '<div class="ftc-service-detail-image ftc-service-detail-webgl">';
-    ftc_render_service_webgl_visual(get_the_title($id));
+
+    /* Canonical service detail layout: .ftc-service-detail-hero (copy | visual) + .ftc-child-grid. Intentional — do not revert to old stacked layouts. */
+    $title = get_the_title($id);
+    $visual_key = ftc_service_visual_key($title);
+    $hero_image = ftc_service_detail_hero_image_url($id);
+    $use_webgl = !$hero_image && ftc_service_uses_webgl_visual($visual_key, true);
+
+    /* Build body copy: prefer post_content if it has visible text, otherwise use
+       curated description or excerpt so the left column is never empty. */
+    $raw_content = apply_filters('the_content', get_post_field('post_content', $id));
+    $visible_text = trim(wp_strip_all_tags($raw_content));
+    if (!$visible_text) {
+        /* post_content is empty or Elementor-only (renders with zero height) */
+        $raw_content = ftc_service_detail_body_html($id);
+        if (!$raw_content) {
+            $excerpt = get_the_excerpt($id);
+            $raw_content = $excerpt ? '<p>' . esc_html($excerpt) . '</p>' : '';
+        }
+    }
+
+    echo '<div class="ftc-service-detail"><div class="ftc-service-detail-hero"><div class="ftc-service-detail-copy"><div class="ftc-service-detail-body">'.wp_kses_post($raw_content).'</div>';
+    if($visual_key === 'data'){
+        ftc_render_data_vendor_logos_section();
+    }
     echo '</div>';
+    $visual_classes = 'ftc-service-detail-image ftc-service-detail-visual'.($use_webgl ? ' ftc-service-detail-webgl' : '');
+    echo '<div class="'.esc_attr($visual_classes).'">';
+    if($hero_image){
+        echo '<img src="'.esc_url($hero_image).'" alt="" loading="lazy" decoding="async" class="ftc-service-detail-hero-img" />';
+    } elseif($use_webgl){
+        ftc_render_service_webgl_visual($title, true);
+    }
+    echo '</div>';
+    if($visual_key === 'innovation' || $visual_key === 'ai'){
+        ftc_render_ai_toolkit_section();
+    }
     echo '</div><div class="ftc-child-grid">';
     $focus_key = ftc_normalize_prompt_text($focus_label);
+    $cat_index = 0;
     foreach(ftc_service_task_groups($id) as $label=>$items){
+        $cat_index++;
         $is_group_focus = $focus_key && ftc_normalize_prompt_text($label) === $focus_key;
-        echo '<article'.($is_group_focus ? ' class="is-focused-child-service"' : '').'><h4>'.esc_html($label).'</h4><p>Practical capabilities we can plan, build, manage, measure, and improve.</p><ul>';
+        $article_classes = array_filter([
+            'ftc-child-category-card',
+            ftc_child_category_accent_class($cat_index),
+            $is_group_focus ? 'is-focused-child-service' : '',
+        ]);
+        echo '<article class="'.esc_attr(implode(' ', $article_classes)).'" data-ftc-child-category="'.esc_attr(ftc_child_category_slug($label)).'"><h4>'.esc_html($label).'</h4><p>Practical capabilities we can plan, build, manage, measure, and improve.</p><ul>';
         foreach($items as $t){
             $is_focus = $focus_key && (ftc_normalize_prompt_text($t) === $focus_key || strpos(ftc_normalize_prompt_text($t), $focus_key) !== false);
-            echo '<li'.($is_focus ? ' class="is-focused-child-service"' : '').'><button type="button" class="ftc-child-service-link" data-prompt="'.esc_attr($t).'"><span>'.esc_html($t).'</span></button></li>';
+            echo '<li'.($is_focus ? ' class="is-focused-child-service"' : '').'><button type="button" class="ftc-child-service-link" data-prompt="'.esc_attr($t).'"><span>'.esc_html(ftc_service_task_display_label($t)).'</span></button></li>';
         }
         echo '</ul></article>';
     }
-    echo '</div><div class="ftc-response-actions ftc-service-detail-actions"><div class="ftc-response-actions-left"><button class="ftc-back-button" type="button" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div></div>';
+    echo '</div><div class="ftc-response-actions ftc-service-detail-actions"><div class="ftc-response-actions-left">';
+    ftc_render_revert_action_button();
+    echo '<button class="ftc-back-button" type="button" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div></div>';
 }
 
 function ftc_get_portfolio_sequence_items($count=9){
@@ -1433,100 +2488,48 @@ function ftc_render_portfolio_sequence_card($item,$featured=false){
 }
 
 function ftc_render_portfolio_section_one(){
-    $items=ftc_get_portfolio_sequence_items(14);
+    $items=ftc_get_portfolio_sequence_items(6);
     if(!$items){ return; }
-    $featured = array_slice($items, 0, 6);
-    echo '<div class="ftc-portfolio-panel ftc-portfolio-full ftc-portfolio-featured-panel">';
-    echo '<section class="ftc-portfolio-section-one ftc-portfolio-featured-grid" data-ftc-section-one aria-label="Featured portfolio projects">';
-    echo '<div class="ftc-portfolio-featured-grid-list">';
-    foreach($featured as $item) ftc_render_portfolio_sequence_card($item, false);
+    echo '<div class="ftc-portfolio-panel ftc-portfolio-grid-panel">';
+    echo '<section class="ftc-portfolio-section-one" data-ftc-section-one aria-label="Featured portfolio projects">';
+    echo '<div class="ftc-services-category-grid ftc-portfolio-category-grid">';
+    foreach($items as $item) ftc_render_portfolio_sequence_card($item, false);
     echo '</div>';
     echo '<div class="ftc-portfolio-view-all"><button type="button" class="ftc-blue-outline-btn" data-prompt="Show Me All Portfolios">View All Projects</button></div>';
-    ftc_render_scroll_more_button('Scroll for more');
     echo '</section></div>';
 }
 
 function ftc_render_portfolio_all_content(){
     $items=ftc_get_portfolio_sequence_items(24);
     if(!$items){ return; }
-    echo '<div class="ftc-portfolio-panel ftc-portfolio-full">';
-    echo '<section class="ftc-portfolio-all-content" aria-label="All portfolio projects"><div class="ftc-portfolio-grid">';
+    echo '<div class="ftc-portfolio-panel ftc-portfolio-grid-panel">';
+    echo '<section class="ftc-portfolio-all-content" aria-label="All portfolio projects"><div class="ftc-services-category-grid ftc-portfolio-category-grid">';
     foreach($items as $item) ftc_render_portfolio_sequence_card($item, false);
     echo '</div></section></div>';
 }
 
-function ftc_render_portfolio_masonry($limit=-1){
-    $count = ($limit > 0) ? $limit : 9;
-    $is_home_latest = ($limit > 0);
-    $q=new WP_Query([
-        'post_type'=>'ftc_portfolio',
-        'post_status'=>'publish',
-        'posts_per_page'=>$count,
-        'orderby'=>['menu_order'=>'ASC','title'=>'ASC'],
-        'order'=>'ASC',
-    ]);
-    echo '<div class="ftc-portfolio-panel'.($is_home_latest ? ' ftc-portfolio-latest' : ' ftc-portfolio-full').'">';
-    if(!$is_home_latest){
-        $ids = [];
-        if($q->have_posts()){
-            while($q->have_posts()){
-                $q->the_post();
-                $ids[] = get_the_ID();
-            }
-            wp_reset_postdata();
-        }
-        if($ids){
-            echo '<section class="ftc-portfolio-section-one" data-ftc-section-one>';
-            ftc_portfolio_card($ids[0], true);
-            echo '</section>';
-            if(count($ids) > 1){
-                echo '<section class="ftc-portfolio-all-content" aria-label="All portfolio projects"><div class="ftc-portfolio-grid">';
-                foreach(array_slice($ids, 1) as $id) ftc_portfolio_card($id, false);
-                echo '</div></section>';
-            }
-            echo '</div>';
-            return;
-        }
-        $demos = array_slice(ftc_get_demo_portfolio(),0,$count);
-        if($demos){
-            echo '<section class="ftc-portfolio-section-one" data-ftc-section-one>';
-            ftc_demo_portfolio_card($demos[0], true);
-            echo '</section>';
-            if(count($demos) > 1){
-                echo '<section class="ftc-portfolio-all-content" aria-label="All portfolio projects"><div class="ftc-portfolio-grid">';
-                foreach(array_slice($demos, 1) as $demo) ftc_demo_portfolio_card($demo, false);
-                echo '</div></section>';
-            }
-            echo '</div>';
-            return;
-        }
-    }
-    if($q->have_posts()){
-        $i=0;
-        while($q->have_posts()){
-            $q->the_post();
-            ftc_portfolio_card(get_the_ID(), (!$is_home_latest && $i === 0));
-            $i++;
-        }
-        wp_reset_postdata();
-    } else {
-        $i=0;
-        foreach(array_slice(ftc_get_demo_portfolio(),0,$count) as $demo){
-            $class = (!$is_home_latest && $i === 0) ? ' ftc-work-featured' : '';
-            echo '<article class="ftc-work-card'.$class.'"><button type="button" data-prompt="Show me your work"><img src="'.esc_url($demo['image']).'" alt="'.esc_attr($demo['title']).'"><div class="ftc-work-info"><h3>'.esc_html($demo['title']).'</h3><p>'.esc_html($demo['description']).'</p><strong>View Project →</strong></div></button></article>';
-            $i++;
-        }
-    }
+function ftc_render_portfolio_grid($limit=6){
+    $items=ftc_get_portfolio_sequence_items($limit);
+    if(!$items){ return; }
+    echo '<div class="ftc-services-category-grid ftc-portfolio-category-grid">';
+    foreach($items as $item) ftc_render_portfolio_sequence_card($item, false);
     echo '</div>';
 }
-function ftc_demo_portfolio_card($demo, $featured=false){
-    $class = $featured ? ' ftc-work-featured' : '';
-    echo '<article class="ftc-work-card'.$class.'"><button type="button" data-prompt="Show me your work"><img src="'.esc_url($demo['image']).'" alt="'.esc_attr($demo['title']).'"><div class="ftc-work-info"><h3>'.esc_html($demo['title']).'</h3><p>'.esc_html($demo['description']).'</p><strong>View Project &rarr;</strong></div></button></article>';
+
+function ftc_render_portfolio_masonry($limit=-1){
+    $count = ($limit > 0) ? $limit : 6;
+    echo '<div class="ftc-portfolio-panel ftc-portfolio-grid-panel">';
+    ftc_render_portfolio_grid($count);
+    echo '</div>';
 }
 function ftc_is_placeholder_image_url($url){
     $url = strtolower((string)$url);
     if($url === '') return false;
-    return strpos($url,'placeholder-gray') !== false || strpos($url,'placeholder-portfolio') !== false || strpos($url,'placehold.co') !== false;
+    return strpos($url,'placeholder-gray') !== false
+        || strpos($url,'placeholder-portfolio') !== false
+        || strpos($url,'placeholder-service') !== false
+        || strpos($url,'placehold.co') !== false
+        || strpos($url,'temp image') !== false;
 }
 function ftc_portfolio_gallery_image_urls($post_id, $size='large', $allow_placeholder=false){
     $imgs = [];
@@ -1540,18 +2543,50 @@ function ftc_portfolio_gallery_image_urls($post_id, $size='large', $allow_placeh
     }
     return array_values(array_unique($imgs));
 }
-function ftc_portfolio_card($id, $featured=false){
-    $allow_placeholder = get_post_meta($id,'_ftc_allow_placeholder_image',true) === '1';
-    $img=has_post_thumbnail($id)?get_the_post_thumbnail_url($id,'large'):'';
-    if($img && ftc_is_placeholder_image_url($img) && !$allow_placeholder) $img = '';
-    if(!$img){
-        $parts=ftc_portfolio_gallery_image_urls($id,'large',$allow_placeholder);
-        if($parts) $img=$parts[0];
+function ftc_portfolio_card_image_url($post_id){
+    $allow_placeholder = get_post_meta($post_id,'_ftc_allow_placeholder_image',true) === '1';
+    if(has_post_thumbnail($post_id)){
+        $thumb = get_the_post_thumbnail_url($post_id,'large');
+        if($thumb && ($allow_placeholder || !ftc_is_placeholder_image_url($thumb))) return $thumb;
     }
-    $class = ($featured ? ' ftc-work-featured' : '') . (!$img ? ' ftc-work-no-image' : '');
-    echo '<article class="ftc-work-card'.$class.'"><button type="button" data-ftc-project="'.esc_attr($id).'">';
-    if($img) echo '<img src="'.esc_url($img).'" alt="'.esc_attr(get_the_title($id)).'">';
-    echo '<div class="ftc-work-info"><h3>'.esc_html(get_the_title($id)).'</h3><p>'.esc_html(get_the_excerpt($id) ?: wp_trim_words(wp_strip_all_tags(get_post_field('post_content',$id)),28)).'</p><strong>View Project →</strong></div></button></article>';
+    $gallery = ftc_portfolio_gallery_image_urls($post_id,'large',$allow_placeholder);
+    return $gallery[0] ?? '';
+}
+function ftc_render_portfolio_card_markup($id, $featured=false){
+    $title = get_the_title($id);
+    $industry = trim((string)get_post_meta($id, '_ftc_industry', true));
+    $eyebrow = $industry !== '' ? strtoupper($industry) : 'PROJECT';
+    $desc = get_the_excerpt($id) ?: wp_trim_words(wp_strip_all_tags(get_post_field('post_content', $id)), 28);
+    $image = ftc_portfolio_card_image_url($id);
+    if(!$image) $image = FTC_URL . 'assets/images/placeholder-gray-16x9.svg';
+    ftc_render_portfolio_card_inner($title, $eyebrow, $desc, $image, 'data-ftc-project="'.esc_attr($id).'"', $featured);
+}
+
+function ftc_render_demo_portfolio_card_markup($demo, $featured=false){
+    $eyebrow = !empty($demo['industry']) ? strtoupper((string)$demo['industry']) : 'PROJECT';
+    $title = (string)($demo['title'] ?? 'Project');
+    $desc = (string)($demo['description'] ?? '');
+    $image = !empty($demo['image']) ? $demo['image'] : (FTC_URL . 'assets/images/placeholder-gray-16x9.svg');
+    ftc_render_portfolio_card_inner($title, $eyebrow, $desc, $image, 'data-prompt="Show me your work!"', $featured);
+}
+
+function ftc_render_portfolio_card_inner($title, $eyebrow, $desc, $image, $button_attrs, $featured=false){
+    $classes = 'ftc-work-card ftc-portfolio-card';
+    if($featured) $classes .= ' ftc-work-featured';
+    echo '<article class="'.esc_attr($classes).'"><button type="button" '.$button_attrs.'>';
+    echo '<img src="'.esc_url($image).'" alt="'.esc_attr($title).'" loading="lazy" decoding="async" />';
+    echo '<div class="ftc-work-info"><span>'.esc_html($eyebrow).'</span>';
+    echo '<h3>'.esc_html($title).'</h3>';
+    echo '<p>'.esc_html($desc).'</p>';
+    echo '<em>View project &rarr;</em></div></button></article>';
+}
+
+function ftc_portfolio_card($id, $featured=false){
+    ftc_render_portfolio_card_markup($id, $featured);
+}
+
+function ftc_demo_portfolio_card($demo, $featured=false){
+    ftc_render_demo_portfolio_card_markup($demo, $featured);
 }
 function ftc_render_faq_preview_panel($limit=10){
     $q = new WP_Query([
@@ -1649,25 +2684,47 @@ function ftc_phone_link_value($phone){
     return '+'.$digits;
 }
 
-function ftc_render_contact_panel($settings){
+function ftc_render_contact_panel($settings, $opts = []){
+    $quiz_only = !empty($opts['quiz_only']);
     $email = $settings['contact_email'] ?: 'jamie@fieldtheory.ai';
     $phone = trim((string)($settings['contact_phone'] ?? ''));
     if($phone === '') $phone = '(505) 456-3193';
     $phone_link = ftc_phone_link_value($phone);
 
-    echo '<div class="ftc-contact-onboarding ftc-two-column-response">';
-    echo '<div class="ftc-contact-intro"><h3>Work With Us</h3><p>Tell us what you want to improve and how to reach you. The form is short, and you can also call or text directly.</p><div class="ftc-contact-direct-actions">';
-    if($phone_link){
-        echo '<a class="ftc-contact-direct ftc-contact-call" href="tel:'.esc_attr($phone_link).'">Call '.esc_html($phone).'</a>';
-        echo '<a class="ftc-contact-direct ftc-contact-text" href="sms:'.esc_attr($phone_link).'">Text '.esc_html($phone).'</a>';
+    if($quiz_only){
+        echo '<div class="ftc-contact-quiz ftc-go-time-closing-quiz" data-ftc-contact-quiz>';
+    } else {
+        echo '<div class="ftc-contact-onboarding ftc-two-column-response">';
+        echo '<aside class="ftc-contact-aside" aria-label="Contact Field Theory Lab">';
+        echo '<div class="ftc-contact-aside-card ftc-contact-aside-primary">';
+        echo '<h3>Free Consultation</h3>';
+        echo '<p>Talk with Jamie for a no-cost strategy call. We will make strategic recommendations and a proposal to complete the work—whether you work with us or not.</p>';
+        $jamie_photo = esc_url(FTC_URL . 'assets/images/team-jamie.jpg');
+        echo '<div class="ftc-contact-person ftc-contact-person-compact">';
+        echo '<div class="ftc-contact-person-photo"><img src="'.$jamie_photo.'" alt="Jamie Rushad Gros" width="88" height="88" loading="lazy"></div>';
+        echo '<div class="ftc-contact-person-copy">';
+        echo '<h4 class="ftc-contact-person-name">Jamie Rushad Gros</h4>';
+        echo '<p class="ftc-contact-aside-location">Founder, Field Theory Lab · Albuquerque, NM</p>';
+        echo '</div></div>';
+        echo '<div class="ftc-contact-direct-actions ftc-contact-direct-stack">';
+        if($phone_link){
+            echo '<a class="ftc-contact-direct ftc-contact-call" href="tel:'.esc_attr($phone_link).'">Call '.esc_html($phone).'</a>';
+            echo '<a class="ftc-contact-direct ftc-contact-text" href="sms:'.esc_attr($phone_link).'">Text '.esc_html($phone).'</a>';
+        }
+        echo '<a class="ftc-contact-direct ftc-contact-email-link" href="mailto:'.esc_attr($email).'">Email '.esc_html($email).'</a>';
+        echo '</div></div>';
+        echo '</aside>';
+        echo '<div class="ftc-contact-quiz" data-ftc-contact-quiz>';
+        echo '<header class="ftc-contact-form-intro">';
+        echo '<h2>Work With Us</h2>';
+        echo '<p>What should we improve? The form is short—or reach out directly.</p>';
+        echo '</header>';
     }
-    echo '<a class="ftc-contact-direct ftc-contact-email-link" href="mailto:'.esc_attr($email).'">Email '.esc_html($email).'</a></div></div>';
-    echo '<div class="ftc-contact-quiz" data-ftc-contact-quiz>';
     echo '<div class="ftc-quiz-progress"><span data-ftc-quiz-progress-text>Step 1</span><div><i data-ftc-quiz-progress-bar></i></div></div>';
     echo '<div class="ftc-quiz-error" data-ftc-quiz-error role="alert" aria-live="polite"></div>';
 
-    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="services" data-multi><h4>What do you want help with?</h4><p>Select all that apply.</p><div class="ftc-quiz-card-grid">';
-    ftc_contact_card_buttons(['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Ecommerce & Conversion','Data, Analysis & Visualization','Technology, Innovation and A.I.','Not Sure Yet']);
+    echo '<section class="ftc-quiz-step" data-ftc-quiz-step data-field="services" data-multi><h4>What would you like to improve?</h4><p>Select everything that sounds relevant—we will tailor our reply.</p><div class="ftc-quiz-card-grid">';
+    ftc_contact_card_buttons(['Website Development & Core Tech','Digital Marketing & Growth Strategy','Search & Discovery Optimization','Ecommerce & Conversion','Technology, Innovation and A.I.','Not Sure Yet']);
     echo '</div><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
 
     echo '<section class="ftc-quiz-step" data-ftc-quiz-step><h4>What should we know?</h4><div class="ftc-quiz-fields"><label>Company Name<input type="text" data-ftc-input="company" required autocomplete="organization"></label><label>Website URL<input type="url" data-ftc-input="website" placeholder="https://"></label></div><label class="ftc-quiz-textarea">Project notes<textarea data-ftc-input="notes" rows="4" placeholder="Goals, timing, problems to solve, or anything helpful."></textarea></label><button type="button" class="ftc-quiz-next" data-ftc-next>Continue</button></section>';
@@ -1685,7 +2742,8 @@ function ftc_render_contact_panel($settings){
     echo '</div><button type="button" class="ftc-quiz-next" data-ftc-next>Review</button></section>';
 
     echo '<section class="ftc-quiz-step ftc-quiz-complete" data-ftc-quiz-step><h4>Review your request.</h4><p>Here is what Field Theory will receive.</p><div class="ftc-quiz-summary" data-ftc-submission-summary></div><div class="ftc-quiz-actions"><button type="button" class="ftc-quiz-submit" data-ftc-submit-inquiry>Submit Proposal Request</button></div><div class="ftc-quiz-submit-status" data-ftc-submit-status aria-live="polite"></div></section>';
-    echo '</div></div>';
+    echo '</div>';
+    if(!$quiz_only) echo '</div>';
 }
 function ftc_render_followups($followups){
     if(!$followups) return;
@@ -1708,6 +2766,9 @@ function ftc_ajax_service_detail(){
 add_action('wp_ajax_ftc_service_detail','ftc_ajax_service_detail'); add_action('wp_ajax_nopriv_ftc_service_detail','ftc_ajax_service_detail');
 function ftc_ajax_post_detail(){ wp_send_json_error(); }
 add_action('wp_ajax_ftc_post_detail','ftc_ajax_post_detail'); add_action('wp_ajax_nopriv_ftc_post_detail','ftc_ajax_post_detail');
+function ftc_is_youtube_embed_url($url){
+    return $url && strpos((string)$url, 'youtube.com/embed') !== false;
+}
 function ftc_render_project_detail_markup($post_id){
     $post = get_post($post_id);
     if(!$post || $post->post_type !== 'ftc_portfolio') return;
@@ -1721,6 +2782,7 @@ function ftc_render_project_detail_markup($post_id){
     $imgs = array_values(array_unique($imgs));
     $feature = array_shift($imgs);
     $industry = get_post_meta($post_id,'_ftc_industry',true);
+    $video_url = get_post_meta($post_id,'_ftc_video_url',true);
     echo '<div class="ftc-response-shell ftc-response-layout-project">';
     echo '<header class="ftc-response-header"><h2 class="ftc-answer-heading ftc-typewriter" data-text="'.esc_attr(get_the_title($post_id)).'">'.esc_html(get_the_title($post_id)).'</h2><div class="ftc-answer-description">'.esc_html(get_the_excerpt($post_id) ?: 'Project details, creative direction, and supporting images.').'</div></header>';
     echo '<section class="ftc-response-content ftc-project-page">';
@@ -1733,11 +2795,29 @@ function ftc_render_project_detail_markup($post_id){
     if($feature) echo '<div class="ftc-project-feature"><img src="'.esc_url($feature).'" alt="'.esc_attr(get_the_title($post_id)).'"></div>';
     echo '</div>';
     if($imgs){
+        $cols = [[], [], []];
+        foreach($imgs as $i => $u) $cols[$i % 3][] = $u;
         echo '<div class="ftc-project-gallery">';
-        foreach($imgs as $u) echo '<figure><img src="'.esc_url($u).'" alt="'.esc_attr(get_the_title($post_id)).'"></figure>';
+        foreach($cols as $col){
+            if(empty($col)) continue;
+            echo '<div class="ftc-gallery-col">';
+            foreach($col as $u){
+                echo '<figure><img src="'.esc_url($u).'" alt="'.esc_attr(get_the_title($post_id)).'" loading="lazy"></figure>';
+            }
+            echo '</div>';
+        }
         echo '</div>';
     }
-    echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left"><button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
+    if($video_url && ftc_is_youtube_embed_url($video_url)){
+        echo '<div class="ftc-project-video">';
+        echo '<div class="ftc-video-responsive">';
+        echo '<iframe src="'.esc_url($video_url).'" title="'.esc_attr(get_the_title($post_id)).' video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
+        echo '</div>';
+        echo '</div>';
+    }
+    echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left">';
+    ftc_render_revert_action_button();
+    echo '<button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
     echo '</section>';
     echo '</div>';
 }
@@ -1757,7 +2837,9 @@ function ftc_ajax_portfolio_detail(){
     ob_start();
     if($template_id){
         echo '<div class="ftc-response-shell ftc-response-layout-project"><section class="ftc-response-content"><div class="ftc-elementor-template ftc-project-elementor-template">'.ftc_render_elementor_template_by_id($template_id).'</div></section>';
-        echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left"><button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button><button type="button" class="ftc-blue-outline-btn" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
+        echo '<div class="ftc-response-actions ftc-project-actions"><div class="ftc-response-actions-left">';
+        ftc_render_revert_action_button();
+        echo '<button type="button" class="ftc-back-button" data-ftc-reset-to-prompt="Show me your work!" data-prompt="Show me your work!">Back to Portfolio</button><button type="button" class="ftc-blue-outline-btn" data-ftc-reset-to-prompt="Our Services" data-prompt="Our Services">Back to Services</button></div><button class="ftc-green-btn ftc-request-proposal-action" type="button" data-prompt="Request a Proposal">Request a Proposal</button></div>';
         echo '</div>';
         wp_send_json_success(['html'=>ob_get_clean()]);
     }

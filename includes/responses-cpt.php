@@ -379,7 +379,7 @@ function ftc_get_response_post_data($post_id){
         'description' => get_post_meta($post_id,'_ftc_response_intro_phrase',true) ?: (has_excerpt($post_id) ? get_the_excerpt($post_id) : ''),
         'content_preview' => $content_preview,
         'full_content' => $full_content,
-        'html' => $full_content !== '' ? $full_content : apply_filters('the_content', $post->post_content),
+        'html' => $full_content !== '' ? $full_content : wp_kses_post(preg_replace('/\[\/?(?:ft_concierge|field_theory_concierge)[^\]]*\]/i', '', apply_filters('the_content', $post->post_content))),
         'keywords' => array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string)$keywords)))),
         'followups' => array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', (string)$followups)))),
         'status' => get_post_meta($post_id,'_ftc_response_status',true) ?: 'active',
@@ -466,6 +466,7 @@ function ftc_get_response_cpt_by_intent($intent){
 }
 
 function ftc_core_response_for_prompt($term){
+    if(function_exists('ftc_is_go_time_prompt') && ftc_is_go_time_prompt($term)) return null;
     $t = function_exists('ftc_normalize_prompt_text') ? ftc_normalize_prompt_text($term) : strtolower(trim((string)$term));
     if($t === '') return null;
     $intent = '';
@@ -473,8 +474,8 @@ function ftc_core_response_for_prompt($term){
     elseif(in_array($t, ['request a proposal','request proposal','contact','contact us','work with us','work together','hire our team','schedule a consultation'], true)) $intent = 'contact';
     elseif(in_array($t, ['testimonials','testimonial','reviews','what do clients say'], true)) $intent = 'testimonials';
     elseif(in_array($t, ['faq','faqs','questions','helpful prompts'], true)) $intent = 'faq';
-    elseif(in_array($t, ['get started','start','home'], true)) $intent = 'get_started';
-    elseif(in_array($t, ['our services','services','how can you help my company','help my company'], true)) $intent = 'services';
+    elseif(in_array($t, ['get started','start','home','overview'], true)) $intent = 'get_started';
+    elseif(in_array($t, ['our services','services','how can you help my company','help my company','what services do you provide','what services do you provide?','what do you offer','what do you offer?'], true)) $intent = 'services';
     elseif(in_array($t, ['show me your work','show me your work!','portfolio','portfolios','projects'], true)) $intent = 'portfolio';
     elseif(in_array($t, ['privacy','privacy policy'], true)) $intent = 'privacy';
     return $intent ? ftc_get_response_cpt_by_intent($intent) : null;
